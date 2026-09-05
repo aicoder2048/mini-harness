@@ -3,7 +3,6 @@
     uv run src/agent.py --step 2               # + read_file
     uv run src/agent.py --step 3               # + list_files
     uv run src/agent.py --step 4               # + edit_file（完整版，默认）
-    uv run src/agent.py --provider anthropic   # 切回原教程的 Anthropic 协议
 
 整个 agent 就是这一个循环：
   用户输入 → 模型 → 模型说要用工具？→ 执行 → 结果回灌 → 再问模型 → ⋯
@@ -18,7 +17,7 @@ import argparse
 import json
 from collections.abc import Callable
 
-from providers import DEFAULT_PROVIDER, PROVIDERS, Provider, ToolCall, ToolResult, make_provider
+from providers import DeepSeekProvider, Provider, ToolCall, ToolResult
 from tools import ALL_TOOLS, Tool, ToolError
 
 
@@ -94,10 +93,9 @@ def tools_for_step(step: int) -> list[Tool]:
 def main() -> None:
     p = argparse.ArgumentParser(description="跟学版 code-editing agent")
     p.add_argument("--step", type=int, choices=[2, 3, 4], default=4, help="2=read_file, 3=+list_files, 4=+edit_file")
-    p.add_argument("--provider", choices=sorted(PROVIDERS), default=DEFAULT_PROVIDER)
     args = p.parse_args()
 
-    Agent(make_provider(args.provider), tools_for_step(args.step)).run()
+    Agent(DeepSeekProvider(), tools_for_step(args.step)).run()
 
 
 if __name__ == "__main__":

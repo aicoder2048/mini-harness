@@ -5,7 +5,6 @@ description = "跟学 Thorsten Ball《How to Build an Agent》的 Python 实现�
 requires-python = ">=3.12"
 dependencies = [
     "openai>=1.0",
-    "anthropic>=0.40",
 ]
 
 [dependency-groups]
