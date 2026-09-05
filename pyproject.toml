@@ -1,0 +1,22 @@
+[project]
+name = "mini-harness"
+version = "0.1.0"
+description = "跟学 Thorsten Ball《How to Build an Agent》的 Python 实现（四步递进），默认 Provider 为 DeepSeek"
+requires-python = ">=3.12"
+dependencies = [
+    "openai>=1.0",
+    "anthropic>=0.40",
+]
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
