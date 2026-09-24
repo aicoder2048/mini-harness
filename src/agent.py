@@ -19,21 +19,9 @@ import json
 import os
 from collections.abc import Callable
 
+from prompt import PromptContext, build_system_prompt, current_git_branch
 from providers import DeepSeekProvider, Provider, ToolCall, ToolResult
 from tools import ALL_TOOLS, Tool, ToolError
-
-SYSTEM_PROMPT = """\
-You are a coding agent running in the user's terminal. Working directory: {cwd}
-All relative paths are relative to that directory.
-
-- Use the tools to look at real files instead of guessing their contents; read a file before editing it.
-- If a tool returns an error, read the message and retry with a corrected call instead of giving up.
-- If the user denies a tool call, don't retry it; ask them what they want instead.
-- Keep replies short and concrete. Reply in the language the user writes in."""
-
-
-def build_system_prompt(cwd: str) -> str:
-    return SYSTEM_PROMPT.format(cwd=cwd)
 
 
 def prompt_user() -> str | None:
@@ -133,7 +121,14 @@ def main() -> None:
     )
     args = p.parse_args()
 
-    Agent(DeepSeekProvider(), tools_for_step(args.step), system=build_system_prompt(os.getcwd())).run()
+    cwd = os.getcwd()
+    tools = tools_for_step(args.step)
+    ctx = PromptContext(
+        working_directory=cwd,
+        tool_names=[t.name for t in tools],
+        git_branch=current_git_branch(cwd),
+    )
+    Agent(DeepSeekProvider(), tools, system=build_system_prompt(ctx)).run()
 
 
 if __name__ == "__main__":

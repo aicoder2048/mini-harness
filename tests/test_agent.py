@@ -2,7 +2,7 @@
 
 import pytest
 
-from agent import Agent, build_system_prompt, tools_for_step
+from agent import Agent, tools_for_step
 from providers import Reply, ToolCall, ToolResult
 from tools import Tool, read_file
 
@@ -127,10 +127,6 @@ def test_system_prompt_is_passed_on_every_model_call(tmp_path):
     )
     Agent(provider, [read_file], scripted("go"), system="SYS").run()
     assert provider.systems == ["SYS", "SYS"]
-
-
-def test_build_system_prompt_mentions_working_directory():
-    assert "/some/project" in build_system_prompt("/some/project")
 
 
 def test_eof_exits_without_calling_model():
