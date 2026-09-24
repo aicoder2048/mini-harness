@@ -4,21 +4,22 @@ from types import SimpleNamespace as NS
 
 import pytest
 
-from providers import DeepSeekProvider, Reply, ToolCall, ToolResult
+from providers import DeepSeekProvider, Reply, ToolCall, ToolResult, Usage
 from tools import read_file
 
 
 class FakeOpenAI:
     """记录 chat.completions.create 收到的参数，返回预设消息。"""
 
-    def __init__(self, message):
+    def __init__(self, message, usage=None):
         self.calls: list[dict] = []
         self.chat = NS(completions=NS(create=self._create))
         self._message = message
+        self._usage = usage
 
     def _create(self, **kwargs):
         self.calls.append(kwargs)
-        return NS(choices=[NS(message=self._message)])
+        return NS(choices=[NS(message=self._message)], usage=self._usage)
 
 
 def _message(**overrides):
@@ -120,3 +121,15 @@ def test_requires_api_key(monkeypatch):
 def test_model_defaults_from_env(monkeypatch):
     monkeypatch.setenv("DEEPSEEK_MODEL", "deepseek-v4-pro")
     assert DeepSeekProvider(client=FakeOpenAI(_message())).model == "deepseek-v4-pro"
+
+
+def test_usage_is_normalized_including_deepseek_cache_hits():
+    # 字段名取自真实 DeepSeek 响应：prompt_cache_hit_tokens 是它自动前缀缓存命中的部分
+    usage = NS(prompt_tokens=938, completion_tokens=33, prompt_cache_hit_tokens=768)
+    reply = DeepSeekProvider(client=FakeOpenAI(_message(content="hi"), usage), model="m").chat([], [])
+    assert reply.usage == Usage(input_tokens=938, output_tokens=33, cached_tokens=768)
+
+
+def test_missing_usage_is_none():
+    reply = DeepSeekProvider(client=FakeOpenAI(_message(content="hi")), model="m").chat([], [])
+    assert reply.usage is None

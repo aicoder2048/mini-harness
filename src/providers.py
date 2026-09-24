@@ -2,7 +2,7 @@
 
 DeepSeek 走 OpenAI 兼容协议（Chat Completions + function calling）。agent.py 只认三样东西：
 
-    Reply(texts, tool_calls)   模型这一轮说了什么 / 想调什么工具
+    Reply(texts, tool_calls, usage)   模型这一轮说了什么 / 想调什么工具 / 花了多少 token
     ToolCall(id, name, input)  一次工具调用（已把 JSON 参数解析成 dict）
     ToolResult(call_id, content, is_error)
 
@@ -41,9 +41,17 @@ class ToolResult:
 
 
 @dataclass(frozen=True)
+class Usage:
+    input_tokens: int  # 这次请求发出去的全部上下文——它随轮数增长，就是上下文管理要管的东西
+    output_tokens: int
+    cached_tokens: int = 0  # 输入里命中服务端前缀缓存的部分（更便宜）
+
+
+@dataclass(frozen=True)
 class Reply:
     texts: list[str] = field(default_factory=list)
     tool_calls: list[ToolCall] = field(default_factory=list)
+    usage: Usage | None = None
 
 
 class Provider(Protocol):
@@ -113,7 +121,15 @@ class DeepSeekProvider:
 
         texts = [message.content] if message.content else []
         tool_calls = [self._tool_call(tc) for tc in (message.tool_calls or [])]
-        return Reply(texts=texts, tool_calls=tool_calls)
+        return Reply(texts=texts, tool_calls=tool_calls, usage=self._usage(response))
+
+    @staticmethod
+    def _usage(response: Any) -> Usage | None:
+        u = getattr(response, "usage", None)
+        if u is None:
+            return None
+        # prompt_cache_hit_tokens 是 DeepSeek 的扩展字段：它会自动缓存请求前缀，不用手动打标记。
+        return Usage(u.prompt_tokens, u.completion_tokens, getattr(u, "prompt_cache_hit_tokens", 0) or 0)
 
     @staticmethod
     def _tool_call(tc: Any) -> ToolCall:

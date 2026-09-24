@@ -17,13 +17,14 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 from collections.abc import Callable
 
 from rich.console import Console
 from rich.markdown import Markdown
 
 from prompt import AGENTS_FILE, PromptContext, build_system_prompt, current_git_branch, load_project_context
-from providers import DeepSeekProvider, Provider, ToolCall, ToolResult
+from providers import DeepSeekProvider, Provider, ToolCall, ToolResult, Usage
 from tools import ALL_TOOLS, Tool, ToolError
 
 # 同一次用户输入之后，最多连续几轮「模型要工具 → 执行 → 回灌」。防止模型原地打转、烧 token。
@@ -88,6 +89,12 @@ class Agent:
         print(f"\033[91m      → error\033[0m: {error}")
         return ToolResult(call.id, error, is_error=True)
 
+    @staticmethod
+    def _log_usage(usage: Usage) -> None:
+        """每次调模型后一行灰字，打到 stderr：不和回复混在一起。看 in 的数字怎么随轮数涨，就是上下文管理的起点。"""
+        line = f"· in {usage.input_tokens:,} (cached {usage.cached_tokens:,}) · out {usage.output_tokens:,}"
+        print(f"\033[2m{line}\033[0m", file=sys.stderr)
+
     def run(self) -> None:
         conversation: list[dict] = []
         tools = list(self.tools.values())
@@ -108,6 +115,8 @@ class Agent:
             # provider.chat 会把 assistant 回复按本家格式 append 进 conversation。
             reply = self.provider.chat(conversation, tools, self.system)
 
+            if reply.usage:
+                self._log_usage(reply.usage)
             for text in reply.texts:
                 print(f"\033[93m{self.provider.label}\033[0m:")
                 console.print(Markdown(text))  # Markdown 按块渲染，所以标签单独一行

@@ -3,7 +3,7 @@
 import pytest
 
 from agent import MAX_TOOL_ROUNDS, Agent, parse_args, tools_for_step
-from providers import Reply, ToolCall, ToolResult
+from providers import Reply, ToolCall, ToolResult, Usage
 from tools import Tool, read_file
 
 
@@ -57,6 +57,19 @@ def test_reply_markdown_is_rendered_not_printed_raw(capsys):
     out = capsys.readouterr().out
     assert "bold" in out and "code" in out
     assert "**" not in out and "`" not in out
+
+
+def test_token_usage_is_logged_to_stderr_not_stdout(capsys):
+    provider = FakeProvider([Reply(texts=["hi"], usage=Usage(4210, 120, 3800))])
+    Agent(provider, [], scripted("go")).run()
+    out, err = capsys.readouterr()
+    assert "in 4,210" in err and "cached 3,800" in err and "out 120" in err
+    assert "4,210" not in out
+
+
+def test_no_usage_line_when_provider_reports_none(capsys):
+    Agent(FakeProvider([Reply(texts=["hi"])]), [], scripted("go")).run()
+    assert capsys.readouterr().err == ""
 
 
 def test_tool_error_is_fed_back_not_raised(tmp_path):
