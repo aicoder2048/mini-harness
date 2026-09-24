@@ -189,3 +189,36 @@ def test_no_memory_section_without_index():
 def test_project_context_stays_last_after_memory():
     p = _prompt(STEP5, memory_index="- idx", project_context="PROJECT")
     assert p.endswith("PROJECT")
+
+
+# --- 记忆写入规则 ---------------------------------------------------------------
+
+
+def _mem_prompt(tool_names, **kw):
+    return _prompt(tool_names, memory_dir="/proj/Memory", today="2026-09-24", **kw)
+
+
+def test_write_rules_appear_even_before_any_note_exists():
+    # 没有索引时也要有写入规则，否则第一篇笔记永远写不出来
+    p = _mem_prompt(STEP4)
+    assert "# Memory" in p and "No notes yet" in p
+    assert "Writing notes" in p
+    assert "/proj/Memory/<short-topic-slug>.md" in p
+    assert "Date: 2026-09-24" in p
+
+
+def test_write_rules_steer_what_not_to_save():
+    p = _mem_prompt(STEP4)
+    assert "Never save secrets" in p
+    assert "todo" in p  # 课程 9.1：跨会话的待办清单会变成陈旧的垃圾抽屉
+    assert "AGENTS.md" in p  # 全体贡献者都该遵守的规则，建议写进 AGENTS.md
+
+
+def test_read_only_tool_set_shows_index_but_no_write_rules():
+    p = _mem_prompt(STEP2, memory_index="- 2026-09-24 某笔记 — /proj/Memory/a.md")
+    assert "某笔记" in p
+    assert "Writing notes" not in p
+
+
+def test_no_memory_section_without_dir_or_index():
+    assert "# Memory" not in _prompt(STEP5, today="2026-09-24")

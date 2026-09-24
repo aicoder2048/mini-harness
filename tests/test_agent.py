@@ -2,7 +2,7 @@
 
 import pytest
 
-from agent import MAX_TOOL_ROUNDS, Agent, ConsoleApprover, _memory_index, parse_args, tools_for_step
+from agent import MAX_TOOL_ROUNDS, Agent, ConsoleApprover, _memory, parse_args, tools_for_step
 from providers import Reply, ToolCall, ToolResult, Usage
 from tools import Tool, read_file
 
@@ -307,23 +307,28 @@ def test_memory_defaults_to_memory_dir_in_cwd(tmp_path, monkeypatch):
     monkeypatch.delenv("MINI_HARNESS_MEMORY_DIR", raising=False)
     (tmp_path / "Memory").mkdir()
     (tmp_path / "Memory" / "n.md").write_text("# 项目笔记")
-    assert "项目笔记" in _memory_index(str(tmp_path))
+    memory_dir, index = _memory(str(tmp_path))
+    assert memory_dir == str(tmp_path / "Memory")
+    assert "项目笔记" in index
 
 
-def test_missing_default_memory_dir_is_silent(tmp_path, monkeypatch, capsys):
+def test_missing_default_memory_dir_is_silent_but_still_writable(tmp_path, monkeypatch, capsys):
     monkeypatch.delenv("MINI_HARNESS_MEMORY_DIR", raising=False)
-    assert _memory_index(str(tmp_path)) is None
-    assert capsys.readouterr().out == ""  # 默认目录没建是正常情况，不报警
+    # 还没记过东西：没有索引，但目录仍然给出——第一篇笔记由 edit_file 连目录一起建出来
+    assert _memory(str(tmp_path)) == (str(tmp_path / "Memory"), None)
+    assert capsys.readouterr().out == ""
 
 
-def test_explicit_missing_memory_dir_warns(tmp_path, monkeypatch, capsys):
+def test_explicit_missing_memory_dir_warns_and_disables_memory(tmp_path, monkeypatch, capsys):
     monkeypatch.setenv("MINI_HARNESS_MEMORY_DIR", "nope")
-    assert _memory_index(str(tmp_path)) is None
-    assert "不存在" in capsys.readouterr().out  # 显式配置写错了，要提醒
+    # 显式配置写错了：提醒，并且不让 agent 往一个拼错的新目录里写
+    assert _memory(str(tmp_path)) == (None, None)
+    assert "不存在" in capsys.readouterr().out
 
 
 def test_explicit_relative_memory_dir_resolves_against_cwd(tmp_path, monkeypatch):
     monkeypatch.setenv("MINI_HARNESS_MEMORY_DIR", "notes")
     (tmp_path / "notes").mkdir()
     (tmp_path / "notes" / "n.md").write_text("# 另一个目录")
-    assert "另一个目录" in _memory_index(str(tmp_path))
+    memory_dir, index = _memory(str(tmp_path))
+    assert memory_dir == str(tmp_path / "notes") and "另一个目录" in index

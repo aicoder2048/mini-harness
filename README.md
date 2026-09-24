@@ -48,7 +48,7 @@ context_t+1 = H(context_t, output_t)    # harness：执行工具、回灌结果�
 | **Context** 对话历史 | 每轮把 conversation 全量重发 | 服务端无状态，「记忆」只存在于本地这个列表 | `step1_chat.py`、`Agent.run` |
 | **Context** system prompt | 写「策略」而非「能力」；按实际挂载的工具拼段 | 工具说明「能做什么」，prompt 说明「该怎么做」 | `prompt.py` `build_system_prompt` |
 | **Context** 项目上下文 | 启动时读 `AGENTS.md` 注入 prompt | harness 是通用的，每个项目各有各的命令和约定 | `prompt.py` `load_project_context` |
-| **Context** 记忆索引 | 启动时把以前的笔记列成**索引**（每条一行）放进 prompt，正文由模型按需 `read_file` | 全文注入会在开工前就占掉上万 token；只给索引是「渐进式披露」 | `prompt.py` `load_memory_index` |
+| **Context** 跨会话记忆 | **读**：启动时把 `Memory/` 的笔记列成索引，正文按需 `read_file`；**写**：prompt 告诉模型何时、怎么用 `edit_file` 记笔记 | 模型无状态，跨会话「记得什么」全由 harness 决定；全文注入会在开工前就占掉上万 token | `prompt.py` `load_memory_index`、`_memory_section` |
 | **Context** 用量遥测 | 每次调用后在 stderr 打印 input / cached / output token | 看不见曲线，就判断不了修复有没有用 | `Agent._log_usage` |
 | **Context** 修剪 | 输入超预算时，把旧工具结果**批量**换成占位符 | 历史只增不减；逐轮滑动修剪会让前缀缓存全部失效 | `Agent.run`、`DeepSeekProvider.prune_tool_results` |
 | **Control** 错误回灌 | 工具失败 → 错误结果交回模型，而不是抛异常 | 模型能自己纠错；程序一崩，agent 就死了 | `Agent._execute`、`DeepSeekProvider._tool_call` |
@@ -79,8 +79,8 @@ Harness Engineering        怎么搭整台机器
 **还没覆盖的**
 
 - **对话摘要**（类似 `/compact`）：目前只修剪工具结果；长对话本身的文字还会一直增长
-- **记忆的写入与整理**：跨会话记忆只做了「读」（启动时注入索引）。没有告诉 agent 什么时候把值得记住的东西写进
-  `Memory/`（它其实能写：`edit_file` 传空 `old_str` 就是新建文件），也没有更新、合并、删除过时笔记的机制
+- **记忆的整理**：读和写都有了，但没有定期合并、删除过时笔记的机制（prompt 只要求「写之前先看有没有同主题的、写错了就改」）；
+  也没有删除工具，过时笔记只能改写或由人手动删
 - **Evaluation**：有单元测试和 live 冒烟测试，但没有衡量 agent 行为好坏的 eval（同一任务跑多次、统计通过率、对比改动前后）。
   方案已写成 [`docs/eval-plan.md`](docs/eval-plan.md)（占位，尚未实现）
 - **沙箱**：`run_bash` 直接在本机执行，只靠人工审批。概念、接入方式、服务商全景（exe.dev、E2B、Vercel 等）和「能否用自己的 Mac mini」
@@ -162,6 +162,11 @@ PDF 用的是 Anthropic SDK；本仓库换成 DeepSeek 的 OpenAI 兼容协议�
 - **记忆索引**：启动时把 `Memory/`（或 `MINI_HARNESS_MEMORY_DIR` 指定的目录）下最近 20 篇 `.md`（按修改时间，最多 3000 字符）
   列成 `# Memory` 段，每条「日期 标题 — 路径」，**只有索引不含正文**，并标明「可能过时、先读原文再依赖」。
   只在启动时读一次，会话中途不重建 system prompt，保住前缀缓存。记忆本身不进仓库；就是普通 Markdown 文件，不依赖任何第三方记忆工具。
+- **记忆写入**：有 `edit_file` 时，`# Memory` 段还带写入规则（**没有任何笔记时也出现**，否则第一篇永远写不出来）：
+  用户说「记住」、或得出以后仍然成立的结论时写一篇；一个主题一个文件 `Memory/<slug>.md`，首行 `# 标题`（索引只显示这行）+ `Date:`；
+  同主题已有笔记就更新而不是重复建；**不存任务进度、待办清单**（课程 9.1：跨会话的清单会变成陈旧的垃圾抽屉）、
+  **不存机密**；全体贡献者都该遵守的规则建议写进 AGENTS.md（课程 3.4）。不需要新工具。
+  实测：让它记住「发布口令」，它按规则拒绝保存，只提议记「口令存在哪」。
   harness 是通用的，项目自己的命令和约定由项目自己说；本仓库也带了一份。
 - **`edit_file` 更严**：`old_str` 必须唯一命中；空 `old_str` 不会覆盖非空的已有文件。
 - **坏参数不崩溃**：模型给的工具参数不是合法 JSON 对象时，作为错误结果回灌，而不是让程序退出。

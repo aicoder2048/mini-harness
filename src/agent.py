@@ -19,6 +19,7 @@ import json
 import os
 import sys
 from collections.abc import Callable
+from datetime import UTC, datetime
 
 from rich.console import Console
 from rich.markdown import Markdown
@@ -217,22 +218,24 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 DEFAULT_MEMORY_DIR = "Memory"  # 记忆放在项目下的 Memory/（已在 .gitignore，不进仓库），普通 .md 文件，不依赖第三方工具
 
 
-def _memory_index(cwd: str) -> str | None:
-    """记忆目录：MINI_HARNESS_MEMORY_DIR，不设则用 <cwd>/Memory。相对路径按工作目录解析，支持 ~。
+def _memory(cwd: str) -> tuple[str | None, str | None]:
+    """返回 (记忆目录, 索引)。目录：MINI_HARNESS_MEMORY_DIR，不设则用 <cwd>/Memory；相对路径按工作目录解析，支持 ~。
 
-    默认目录不存在是正常情况（还没记过东西），静默跳过；显式设置却不存在，说明配置写错了，要提醒。
+    默认目录还不存在是正常情况（还没记过东西）：静默，照样给出目录，第一篇笔记由 edit_file 连目录一起建出来。
+    显式设置却不存在，说明配置写错了：提醒，并且整个关掉，免得 agent 往一个拼错的新目录里写。
     """
     setting = os.environ.get("MINI_HARNESS_MEMORY_DIR")
     memory_dir = os.path.normpath(os.path.join(cwd, os.path.expanduser(setting or DEFAULT_MEMORY_DIR)))
     if not os.path.isdir(memory_dir):
         if setting:
-            print(f"\033[91mMINI_HARNESS_MEMORY_DIR 指向的目录不存在：{memory_dir}（本次不加载记忆）\033[0m")
-        return None
+            print(f"\033[91mMINI_HARNESS_MEMORY_DIR 指向的目录不存在：{memory_dir}（本次不启用记忆）\033[0m")
+            return None, None
+        return memory_dir, None
     index = load_memory_index(memory_dir)
     if index:
         count = sum(line.startswith("- ") for line in index.splitlines())
         print(f"已加载记忆索引：{count} 条（{memory_dir}）")
-    return index
+    return memory_dir, index
 
 
 def main() -> None:
@@ -240,6 +243,7 @@ def main() -> None:
 
     cwd = os.getcwd()
     tools = tools_for_step(args.step)
+    memory_dir, memory_index = _memory(cwd)
     project_context = load_project_context(cwd)
     if project_context:
         print(f"已加载 {AGENTS_FILE}（{len(project_context)} 字符）作为项目指令")
@@ -248,7 +252,9 @@ def main() -> None:
         tool_names=[t.name for t in tools],
         git_branch=current_git_branch(cwd),
         project_context=project_context,
-        memory_index=_memory_index(cwd),
+        memory_dir=memory_dir,
+        memory_index=memory_index,
+        today=datetime.now(UTC).astimezone().date().isoformat(),  # 本机时区的今天
     )
     Agent(DeepSeekProvider(), tools, system=build_system_prompt(ctx), max_tool_rounds=args.max_rounds).run()
 
