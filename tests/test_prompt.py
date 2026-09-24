@@ -1,11 +1,12 @@
 """System prompt 测试：builder 是纯函数，同样的 PromptContext 永远得到同样的 prompt。"""
 
+import os
 import subprocess
 
 import pytest
 
 import prompt
-from prompt import PromptContext, build_system_prompt, current_git_branch, load_project_context
+from prompt import PromptContext, build_system_prompt, current_git_branch, load_memory_index, load_project_context
 
 STEP2 = ["read_file"]
 STEP4 = ["read_file", "list_files", "edit_file"]
@@ -114,3 +115,77 @@ def test_oversized_agents_md_is_truncated(tmp_path, monkeypatch):
     (tmp_path / "AGENTS.md").write_text("x" * 25)
     out = load_project_context(str(tmp_path))
     assert out.startswith("x" * 10) and "truncated 15 chars" in out
+
+
+# --- load_memory_index -------------------------------------------------------
+
+
+def _note(d, rel, text, mtime):
+    f = d / rel
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_text(text, encoding="utf-8")
+    os.utime(f, (mtime, mtime))
+    return f
+
+
+def test_memory_missing_or_empty_dir_is_none(tmp_path):
+    assert load_memory_index(str(tmp_path / "nope")) is None
+    assert load_memory_index(str(tmp_path)) is None
+
+
+def test_memory_index_lists_title_date_and_absolute_path_newest_first(tmp_path):
+    old = _note(tmp_path, "a.md", "# 旧笔记\n正文", 1_700_000_000)  # 2023-11-14
+    new = _note(tmp_path, "b.md", "---\ntitle: x\n---\n\n# 新笔记\n正文", 1_800_000_000)  # 2027-01-15
+    out = load_memory_index(str(tmp_path))
+    lines = out.splitlines()
+    assert lines[0] == f"- 2027-01-15 新笔记 — {new}"
+    assert lines[1] == f"- 2023-11-14 旧笔记 — {old}"
+    assert "正文" not in out  # 只有索引，不含正文
+
+
+def test_memory_title_falls_back_to_filename(tmp_path):
+    _note(tmp_path, "no-heading.md", "just text", 1_700_000_000)
+    assert "no-heading" in load_memory_index(str(tmp_path))
+
+
+def test_memory_index_is_recursive_but_skips_hidden_dirs_and_non_md(tmp_path):
+    _note(tmp_path, "proj/deep.md", "# 深层", 1_700_000_000)
+    _note(tmp_path, ".git/x.md", "# 隐藏", 1_700_000_000)
+    _note(tmp_path, "notes.txt", "# 不是 md", 1_700_000_000)
+    out = load_memory_index(str(tmp_path))
+    assert "深层" in out and "隐藏" not in out and "不是 md" not in out
+
+
+def test_memory_index_caps_entries_and_says_how_many_more(tmp_path, monkeypatch):
+    monkeypatch.setattr(prompt, "MAX_MEMORY_ENTRIES", 2)
+    for i in range(5):
+        _note(tmp_path, f"n{i}.md", f"# note {i}", 1_700_000_000 + i)
+    out = load_memory_index(str(tmp_path))
+    assert out.count("\n- ") + out.startswith("- ") == 2
+    assert "note 4" in out and "note 3" in out  # 最新的两条
+    assert "3 more" in out
+
+
+def test_memory_index_caps_characters(tmp_path, monkeypatch):
+    monkeypatch.setattr(prompt, "MAX_MEMORY_INDEX_CHARS", 150)
+    for i in range(5):
+        _note(tmp_path, f"n{i}.md", f"# {'long title ' * 3}{i}", 1_700_000_000 + i)
+    out = load_memory_index(str(tmp_path))
+    listed = out.splitlines()[:-1]
+    assert sum(len(line) + 1 for line in listed) <= 150
+    assert "more" in out.splitlines()[-1]
+
+
+def test_memory_section_in_prompt_is_marked_as_possibly_outdated():
+    p = _prompt(STEP5, memory_index="- 2026-09-24 某笔记 — /m/a.md")
+    assert "# Memory" in p and "may be outdated" in p
+    assert "- 2026-09-24 某笔记 — /m/a.md" in p
+
+
+def test_no_memory_section_without_index():
+    assert "# Memory" not in _prompt(STEP5)
+
+
+def test_project_context_stays_last_after_memory():
+    p = _prompt(STEP5, memory_index="- idx", project_context="PROJECT")
+    assert p.endswith("PROJECT")

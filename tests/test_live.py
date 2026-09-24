@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 
 from agent import Agent, tools_for_step
-from prompt import PromptContext, build_system_prompt, load_project_context
+from prompt import PromptContext, build_system_prompt, load_memory_index, load_project_context
 from providers import DeepSeekProvider, Reply, ToolCall, ToolResult
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -72,11 +72,16 @@ class LiveRun:
 
 @pytest.fixture
 def live_agent():
-    """run(*inputs, step=5, approve=True, project_context=None, **agent_kwargs) -> LiveRun"""
+    """run(*inputs, step=5, approve=True, project_context=None, memory_index=None, **agent_kwargs) -> LiveRun"""
 
-    def run(*inputs, step=5, approve=True, project_context=None, **agent_kwargs) -> LiveRun:
+    def run(*inputs, step=5, approve=True, project_context=None, memory_index=None, **agent_kwargs) -> LiveRun:
         tools = tools_for_step(step)
-        ctx = PromptContext(str(REPO_ROOT), [t.name for t in tools], project_context=project_context)
+        ctx = PromptContext(
+            str(REPO_ROOT),
+            [t.name for t in tools],
+            project_context=project_context,
+            memory_index=memory_index,
+        )
         live = LiveRun(RecordingProvider(DeepSeekProvider()))
 
         def record_approval(call):
@@ -175,3 +180,18 @@ def test_pruned_conversation_is_accepted_and_model_recovers(live_agent, tmp_path
     assert sum(run.provider.prunes) > 0
     for i in range(1, 5):
         assert f"SECRET-{i}{i}{i}" in run.answer
+
+
+def test_model_reads_the_relevant_note_from_memory_index(live_agent, tmp_path):
+    # 索引里只有标题；答案只在笔记正文里，模型必须挑对笔记、用 read_file 读出来
+    mem = tmp_path / "Memory"
+    mem.mkdir()
+    (mem / "deploy.md").write_text("# 部署流程备忘\n\n部署口令是 BLUE-HERON-42。\n", encoding="utf-8")
+    (mem / "lunch.md").write_text("# 午饭推荐\n\n楼下的面馆不错。\n", encoding="utf-8")
+
+    run = live_agent("上次记下的部署口令是什么？", step=3, memory_index=load_memory_index(str(mem)))
+
+    assert "BLUE-HERON-42" in run.answer
+    assert any(c.name == "read_file" and c.input.get("path", "").endswith("deploy.md") for c in run.calls)
+    # 不断言「没读 lunch.md」：模型有时会把两篇并行一起读（实测约 1/3）。答案对、读了该读的就算通过；
+    # 读得省不省是效率指标，有概率波动，属于 eval 该统计的东西（见 docs/eval-plan.md），不是 live 测试的通过条件。

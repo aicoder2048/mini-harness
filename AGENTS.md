@@ -18,7 +18,7 @@ Clarity beats features: keep changes small and easy to read.
 
 - `src/tools.py` — tools (`Tool` = name / description / input_schema / run). Knows nothing about any model API.
 - `src/providers.py` — the only place that knows DeepSeek's wire format (OpenAI-compatible). Must stay swappable.
-- `src/prompt.py` — `build_system_prompt(PromptContext)` is a pure function; I/O (git, AGENTS.md) lives in
+- `src/prompt.py` — `build_system_prompt(PromptContext)` is a pure function; I/O (git, AGENTS.md, memory index) lives in
   separate functions called from `main()`.
 - `src/agent.py` — the loop. Depends on the three modules above; nothing depends on it.
 - `src/` is on the pytest path, so tests import `agent`, `tools`, ... (not `src.agent`).
@@ -48,4 +48,6 @@ Clarity beats features: keep changes small and easy to read.
 - Pruning replaces old tool result *content* with a placeholder; never delete messages from `conversation`.
 - `CONTEXT_BUDGET` must stay well above the size of the `KEEP_TOOL_RESULTS` kept results, or pruning
   fires every step. Keeping too few results makes the model re-read files it still needed.
+- Personal memory notes live outside the repo (`MINI_HARNESS_MEMORY_DIR`, e.g. `~/basic-memory`); `Memory/` and
+  `memory/` are gitignored. Never commit memory notes: deleting them later does not remove them from git history.
 - `docs/*.pdf` are reference material — don't edit them.

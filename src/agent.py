@@ -23,7 +23,14 @@ from collections.abc import Callable
 from rich.console import Console
 from rich.markdown import Markdown
 
-from prompt import AGENTS_FILE, PromptContext, build_system_prompt, current_git_branch, load_project_context
+from prompt import (
+    AGENTS_FILE,
+    PromptContext,
+    build_system_prompt,
+    current_git_branch,
+    load_memory_index,
+    load_project_context,
+)
 from providers import DeepSeekProvider, Provider, ToolCall, ToolResult, Usage
 from tools import ALL_TOOLS, Tool, ToolError
 
@@ -207,6 +214,22 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return p.parse_args(argv)
 
 
+def _memory_index(cwd: str) -> str | None:
+    """MINI_HARNESS_MEMORY_DIR 指向笔记目录；不设就不加载。相对路径按工作目录解析（如 Memory → <cwd>/Memory）。"""
+    setting = os.environ.get("MINI_HARNESS_MEMORY_DIR")
+    if not setting:
+        return None
+    memory_dir = os.path.normpath(os.path.join(cwd, os.path.expanduser(setting)))
+    if not os.path.isdir(memory_dir):
+        print(f"\033[91mMINI_HARNESS_MEMORY_DIR 指向的目录不存在：{memory_dir}（本次不加载记忆）\033[0m")
+        return None
+    index = load_memory_index(memory_dir)
+    if index:
+        count = sum(line.startswith("- ") for line in index.splitlines())
+        print(f"已加载记忆索引：{count} 条（{memory_dir}）")
+    return index
+
+
 def main() -> None:
     args = parse_args()
 
@@ -220,6 +243,7 @@ def main() -> None:
         tool_names=[t.name for t in tools],
         git_branch=current_git_branch(cwd),
         project_context=project_context,
+        memory_index=_memory_index(cwd),
     )
     Agent(DeepSeekProvider(), tools, system=build_system_prompt(ctx), max_tool_rounds=args.max_rounds).run()
 
