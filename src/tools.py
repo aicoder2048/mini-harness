@@ -36,6 +36,11 @@ class ToolError(Exception):
 
 # --- read_file ---------------------------------------------------------------
 
+# 工具输出一旦进了 conversation，之后每一轮都要重发。所以每个工具都有上限，
+# 并且截断时明确告诉模型「还有多少、怎么看剩下的」——悄悄截断比不截断更糟。
+MAX_READ_LINES = 500
+MAX_READ_CHARS = 50_000  # 兜底：500 行但每行巨长（压缩过的 JS）
+
 
 def _read_text(path: str) -> str:
     """read_file 和 edit_file 共用：读 UTF-8 文本，失败一律变成 ToolError。"""
@@ -49,8 +54,31 @@ def _read_text(path: str) -> str:
         raise ToolError(f"{path} is not a UTF-8 text file (binary?): {e.reason} at byte {e.start}") from e
 
 
+def _positive_int(args: dict[str, Any], key: str, default: int) -> int:
+    value = args.get(key, default)
+    if not isinstance(value, int) or isinstance(value, bool) or value < 1:
+        raise ToolError(f"{key} must be a positive integer, got {value!r}")
+    return value
+
+
 def _read_file(args: dict[str, Any]) -> str:
-    return _read_text(args["path"])
+    offset = _positive_int(args, "offset", 1)  # 从 1 开始的行号
+    limit = min(_positive_int(args, "limit", MAX_READ_LINES), MAX_READ_LINES)
+    lines = _read_text(args["path"]).splitlines(keepends=True)
+    total = len(lines)
+    if offset > max(total, 1):
+        raise ToolError(f"offset {offset} is past the end of the file ({total} lines)")
+
+    end = min(offset - 1 + limit, total)
+    text = "".join(lines[offset - 1 : end])
+    if len(text) > MAX_READ_CHARS:
+        text = text[:MAX_READ_CHARS] + f"\n... (truncated {len(text) - MAX_READ_CHARS} chars)"
+    if offset == 1 and end == total:
+        return text  # 整个文件一页读完：原样返回
+    note = f"\n... (showing lines {offset}-{end} of {total}"
+    if end < total:
+        note += f"; call read_file with offset={end + 1} to read more"
+    return text + note + ")"
 
 
 read_file = Tool(
@@ -58,7 +86,8 @@ read_file = Tool(
     description=(
         "Read the contents of a given relative file path. "
         "Use this when you want to see what's inside a file. "
-        "Do not use this with directory names."
+        "Do not use this with directory names. "
+        f"Returns at most {MAX_READ_LINES} lines per call; page through longer files with offset and limit."
     ),
     input_schema={
         "type": "object",
@@ -66,7 +95,9 @@ read_file = Tool(
             "path": {
                 "type": "string",
                 "description": "The relative path of a file in the working directory.",
-            }
+            },
+            "offset": {"type": "integer", "description": "Optional 1-based line number to start from. Default 1."},
+            "limit": {"type": "integer", "description": f"Optional max lines to return (<= {MAX_READ_LINES})."},
         },
         "required": ["path"],
     },
@@ -77,6 +108,7 @@ read_file = Tool(
 # --- list_files --------------------------------------------------------------
 
 _PRUNED_DIRS = {".git", "__pycache__", ".venv", "venv"}
+MAX_LIST_ENTRIES = 500  # 带 node_modules 的项目能列出几万项
 
 
 def _list_files(args: dict[str, Any]) -> str:
@@ -91,9 +123,13 @@ def _list_files(args: dict[str, Any]) -> str:
                 out.append(rel_dir + "/")
             for name in filenames:
                 out.append(name if rel_dir == "." else os.path.join(rel_dir, name))
-        return json.dumps(sorted(out), ensure_ascii=False)
     except OSError as e:
         raise ToolError(str(e)) from e
+    entries = sorted(out)
+    shown = json.dumps(entries[:MAX_LIST_ENTRIES], ensure_ascii=False)
+    if len(entries) > MAX_LIST_ENTRIES:
+        shown += f"\n... (showing {MAX_LIST_ENTRIES} of {len(entries)} entries; pass a more specific path)"
+    return shown
 
 
 list_files = Tool(
@@ -101,7 +137,8 @@ list_files = Tool(
     description=(
         "List files and directories at a given path. "
         "If no path is provided, lists files in the current directory. "
-        "Directories are returned with a trailing slash."
+        "Directories are returned with a trailing slash. "
+        f"Returns at most {MAX_LIST_ENTRIES} entries."
     ),
     input_schema={
         "type": "object",
@@ -178,7 +215,7 @@ edit_file = Tool(
 # --- run_bash ----------------------------------------------------------------
 
 BASH_TIMEOUT = 30  # 秒
-MAX_OUTPUT_CHARS = 10_000  # 超长输出会塞爆上下文，截掉
+MAX_OUTPUT_CHARS = 10_000  # 超长输出会塞爆上下文；保留结尾，因为报错、测试失败、堆栈都在最后
 
 
 def _run_bash(args: dict[str, Any]) -> str:
@@ -200,7 +237,9 @@ def _run_bash(args: dict[str, Any]) -> str:
 
     output = raw.decode("utf-8", errors="replace")
     if len(output) > MAX_OUTPUT_CHARS:
-        output = output[:MAX_OUTPUT_CHARS] + f"\n... (truncated {len(output) - MAX_OUTPUT_CHARS} chars)"
+        output = (
+            f"... (truncated: showing last {MAX_OUTPUT_CHARS} of {len(output)} chars)\n" + output[-MAX_OUTPUT_CHARS:]
+        )
     if proc.returncode != 0:
         raise ToolError(f"exit code {proc.returncode}\n{output}")
     return output or "(no output)"
@@ -212,6 +251,7 @@ run_bash = Tool(
         "Run a shell command in the working directory and return its combined stdout and stderr. "
         "Use this to run programs and tests, or for things the other tools can't do. "
         f"Commands time out after {BASH_TIMEOUT} seconds, so don't start servers or interactive programs. "
+        f"Output longer than {MAX_OUTPUT_CHARS} characters is cut to its last {MAX_OUTPUT_CHARS} characters. "
         "The user must approve every command before it runs."
     ),
     input_schema={

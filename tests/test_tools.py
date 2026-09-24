@@ -21,6 +21,51 @@ def test_read_file_returns_file_content(tmp_path):
     assert read_file.run({"path": str(tmp_path / "a.txt")}) == "hello 老周"
 
 
+def _ten_lines(tmp_path):
+    f = tmp_path / "ten.txt"
+    f.write_text("".join(f"l{i}\n" for i in range(1, 11)))
+    return str(f)
+
+
+def test_read_file_long_file_shows_first_page_and_how_to_continue(tmp_path, monkeypatch):
+    monkeypatch.setattr(tools, "MAX_READ_LINES", 3)
+    out = read_file.run({"path": _ten_lines(tmp_path)})
+    assert out.startswith("l1\nl2\nl3\n")
+    assert "l4" not in out
+    assert "lines 1-3 of 10" in out and "offset=4" in out
+
+
+def test_read_file_offset_and_limit_page_through(tmp_path):
+    out = read_file.run({"path": _ten_lines(tmp_path), "offset": 4, "limit": 2})
+    assert out.startswith("l4\nl5\n")
+    assert "lines 4-5 of 10" in out and "offset=6" in out
+
+
+def test_read_file_last_page_has_no_continue_hint(tmp_path):
+    out = read_file.run({"path": _ten_lines(tmp_path), "offset": 9})
+    assert out.startswith("l9\nl10\n")
+    assert "lines 9-10 of 10" in out and "offset=" not in out
+
+
+def test_read_file_limit_is_clamped_to_max(tmp_path, monkeypatch):
+    monkeypatch.setattr(tools, "MAX_READ_LINES", 3)
+    out = read_file.run({"path": _ten_lines(tmp_path), "limit": 100})
+    assert "lines 1-3 of 10" in out
+
+
+@pytest.mark.parametrize("args", [{"offset": 11}, {"offset": 0}, {"limit": 0}, {"offset": "2"}])
+def test_read_file_rejects_bad_offset_or_limit(tmp_path, args):
+    with pytest.raises(ToolError):
+        read_file.run({"path": _ten_lines(tmp_path), **args})
+
+
+def test_read_file_caps_characters_for_huge_lines(tmp_path, monkeypatch):
+    monkeypatch.setattr(tools, "MAX_READ_CHARS", 20)
+    (tmp_path / "min.js").write_text("x" * 100)
+    out = read_file.run({"path": str(tmp_path / "min.js")})
+    assert out.startswith("x" * 20) and "truncated 80 chars" in out
+
+
 def test_read_file_binary_raises_tool_error(tmp_path):
     (tmp_path / "img.png").write_bytes(b"\x89PNG\r\n\x1a\n\xff\xfe\x00")
     with pytest.raises(ToolError, match="UTF-8"):
@@ -55,6 +100,16 @@ def test_list_files_prunes_git_and_venv(tmp_path):
     out = json.loads(list_files.run({"path": str(tmp_path)}))
 
     assert out == ["keep.py"]
+
+
+def test_list_files_caps_entries_and_reports_total(tmp_path, monkeypatch):
+    monkeypatch.setattr(tools, "MAX_LIST_ENTRIES", 3)
+    for i in range(5):
+        (tmp_path / f"f{i}.txt").write_text("")
+    out = list_files.run({"path": str(tmp_path)})
+    shown, note = out.split("\n", 1)
+    assert json.loads(shown) == ["f0.txt", "f1.txt", "f2.txt"]
+    assert "3 of 5" in note
 
 
 def test_list_files_defaults_to_cwd(tmp_path, monkeypatch):
@@ -156,7 +211,9 @@ def test_run_bash_timeout_kills_whole_process_group(monkeypatch):
     assert time.monotonic() - start < 3
 
 
-def test_run_bash_truncates_long_output(monkeypatch):
+def test_run_bash_keeps_tail_of_long_output(monkeypatch):
+    # 测试失败、报错、堆栈都在输出末尾，所以截掉开头、保留结尾
     monkeypatch.setattr(tools, "MAX_OUTPUT_CHARS", 10)
-    out = run_bash.run({"command": "printf '%0100d' 0"})
-    assert out.startswith("0" * 10) and "truncated 90 chars" in out
+    out = run_bash.run({"command": "printf 'HEAD%0100dTAIL' 0"})
+    assert out.endswith("TAIL") and "HEAD" not in out
+    assert "showing last 10 of 108 chars" in out
