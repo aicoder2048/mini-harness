@@ -51,7 +51,7 @@ context_t+1 = H(context_t, output_t)    # harness：执行工具、回灌结果�
 | **Context** 用量遥测 | 每次调用后在 stderr 打印 input / cached / output token | 看不见曲线，就判断不了修复有没有用 | `Agent._log_usage` |
 | **Context** 修剪 | 输入超预算时，把旧工具结果**批量**换成占位符 | 历史只增不减；逐轮滑动修剪会让前缀缓存全部失效 | `Agent.run`、`DeepSeekProvider.prune_tool_results` |
 | **Control** 错误回灌 | 工具失败 → 错误结果交回模型，而不是抛异常 | 模型能自己纠错；程序一崩，agent 就死了 | `Agent._execute`、`DeepSeekProvider._tool_call` |
-| **Control** 人工审批 | `needs_approval` 的工具执行前问 `[y/N]` | 模型是在**你的机器上**执行命令 | `agent.py` `ask_approval` |
+| **Control** 人工审批 | `needs_approval` 的工具执行前问 `[Y/n/a]`，可「本会话都允许」 | 模型是在**你的机器上**执行命令 | `agent.py` `ConsoleApprover` |
 
 **建议阅读顺序**
 
@@ -121,7 +121,8 @@ uv run --env-file .env src/agent.py             # 第 5 步（默认）：+ run_
 
 Ctrl-D 退出。工具调用会以绿色 `tool:` 行打印，失败以红色 `→ error` 打印并回灌给模型。
 
-`run_bash` 每条命令执行前都会问 `允许执行? [y/N]`，只有 `y` / `yes` 放行；拒绝会作为错误回灌给模型。
+`run_bash` 每条命令执行前都会问 `允许执行? [Y/n/a]`：**回车或 `y` 允许这一次**，`n` 拒绝（作为错误回灌给模型），
+`a` 本会话内不再询问 `run_bash`；Ctrl-D 视为拒绝，输错会再问一次。
 命令 30 秒超时（连子进程一起杀），输出超过 10000 字符截断。
 
 ## 环境变量
@@ -168,7 +169,8 @@ PDF 用的是 Anthropic SDK；本仓库换成 DeepSeek 的 OpenAI 兼容协议�
   3. 修剪：上次输入超过 6 万 token 时，把最近 5 个之外的旧工具结果**一次性**换成占位符。
      不每轮滑动修剪，因为 DeepSeek 按前缀自动缓存，改一条旧消息其后缓存全失效。
      实测：预算要明显大于「保留的结果」本身，否则退化成每轮修剪；保留太少，模型会把清掉的文件重新读一遍。
-- **`run_bash` + 确认**：`Tool.needs_approval=True` 的工具执行前由 agent 询问用户。
+- **`run_bash` + 确认**：`Tool.needs_approval=True` 的工具执行前由 agent 询问用户 `[Y/n/a]`；
+  「本会话都允许」的状态存在 `ConsoleApprover` 对象里，每个会话一个，Agent 只看 `approve(call) -> bool`。
 
 ## 测试
 

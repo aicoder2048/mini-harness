@@ -2,7 +2,7 @@
 
 import pytest
 
-from agent import MAX_TOOL_ROUNDS, Agent, parse_args, tools_for_step
+from agent import MAX_TOOL_ROUNDS, Agent, ConsoleApprover, parse_args, tools_for_step
 from providers import Reply, ToolCall, ToolResult, Usage
 from tools import Tool, read_file
 
@@ -229,3 +229,72 @@ def test_cli_max_rounds():
 def test_cli_rejects_non_positive_max_rounds(bad):
     with pytest.raises(SystemExit):
         parse_args(["--max-rounds", bad])
+
+
+# --- ConsoleApprover：[Y/n/a] 审批 ---------------------------------------------
+
+
+def _answers(*answers):
+    """脚本化的键盘输入；记录被问了几次。用完抛 EOFError（相当于 Ctrl-D）。"""
+    it = iter(answers)
+    prompts = []
+
+    def read(prompt):
+        prompts.append(prompt)
+        try:
+            return next(it)
+        except StopIteration:
+            raise EOFError from None
+
+    return read, prompts
+
+
+def _call(name="run_bash"):
+    return ToolCall("c1", name, {"command": "ls"})
+
+
+@pytest.mark.parametrize("answer", ["", "y", "Y", "yes", "  y  "])
+def test_approver_enter_or_y_allows_once(answer):
+    read, _ = _answers(answer)
+    assert ConsoleApprover(read)(_call()) is True
+
+
+@pytest.mark.parametrize("answer", ["n", "N", "no"])
+def test_approver_n_denies(answer):
+    read, _ = _answers(answer)
+    assert ConsoleApprover(read)(_call()) is False
+
+
+def test_approver_ctrl_d_denies():
+    read, _ = _answers()  # 没有输入 → EOFError
+    assert ConsoleApprover(read)(_call()) is False
+
+
+def test_approver_unrecognized_answer_asks_again():
+    read, prompts = _answers("yse", "y")
+    assert ConsoleApprover(read)(_call()) is True
+    assert len(prompts) == 2
+
+
+def test_approver_always_stops_asking_for_that_tool_this_session():
+    read, prompts = _answers("a")
+    approver = ConsoleApprover(read)
+    assert approver(_call()) is True
+    assert approver(_call()) is True
+    assert approver(_call()) is True
+    assert len(prompts) == 1  # 只问了第一次
+
+
+def test_approver_always_is_per_tool():
+    read, prompts = _answers("a", "n")
+    approver = ConsoleApprover(read)
+    assert approver(_call("run_bash")) is True
+    assert approver(_call("deploy")) is False  # 别的工具照样要问
+    assert len(prompts) == 2
+
+
+def test_each_agent_gets_a_fresh_approver_session():
+    # 默认审批器不能是模块级共享对象，否则上一个会话的「a」会带到下一个会话
+    a1 = Agent(FakeProvider([]), [], scripted())
+    a2 = Agent(FakeProvider([]), [], scripted())
+    assert a1.approve is not a2.approve

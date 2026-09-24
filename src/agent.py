@@ -48,13 +48,37 @@ def prompt_user() -> str | None:
         return None
 
 
-def ask_approval(call: ToolCall) -> bool:
-    """needs_approval 的工具执行前问一句；只有明确 y/yes 才放行，Ctrl-D 视为拒绝。"""
-    try:
-        answer = input("\033[95m      允许执行? [y/N]\033[0m ")
-    except EOFError:
-        return False
-    return answer.strip().lower() in ("y", "yes")
+class ConsoleApprover:
+    """needs_approval 的工具执行前在终端问 [Y/n/a]。
+
+    回车 / y：允许这一次；n：拒绝；a：本会话内这个工具都不再询问。
+    「本会话都允许」的状态存在这个对象里，所以 Agent 只需要 approve(call) -> bool，
+    每个 Agent 各自 new 一个，互不串会话。Ctrl-D 视为拒绝：输入已经结束时不该默认放行。
+    """
+
+    PROMPT = "\033[95m      允许执行? [Y/n/a]（回车=允许，a=本会话都允许 {tool}）\033[0m "
+
+    def __init__(self, read: Callable[[str], str] = input) -> None:
+        self.read = read
+        self.always: set[str] = set()  # 本会话内不再询问的工具名
+
+    def __call__(self, call: ToolCall) -> bool:
+        if call.name in self.always:
+            print(f"\033[2m      （本会话已允许 {call.name}，自动执行）\033[0m")
+            return True
+        while True:
+            try:
+                answer = self.read(self.PROMPT.format(tool=call.name)).strip().lower()
+            except EOFError:
+                return False
+            if answer in ("", "y", "yes"):
+                return True
+            if answer in ("n", "no"):
+                return False
+            if answer in ("a", "all", "always"):
+                self.always.add(call.name)
+                return True
+            # 拼错（比如 yse）既不当允许也不当拒绝，再问一次
 
 
 class Agent:
@@ -64,7 +88,7 @@ class Agent:
         tools: list[Tool],
         get_user_input: Callable[[], str | None] = prompt_user,
         system: str = "",
-        approve: Callable[[ToolCall], bool] = ask_approval,
+        approve: Callable[[ToolCall], bool] | None = None,
         max_tool_rounds: int = MAX_TOOL_ROUNDS,
         context_budget: int = CONTEXT_BUDGET,
         keep_tool_results: int = KEEP_TOOL_RESULTS,
@@ -75,7 +99,7 @@ class Agent:
         self.tools = {t.name: t for t in tools}
         self.get_user_input = get_user_input
         self.system = system
-        self.approve = approve
+        self.approve = approve or ConsoleApprover()  # 每个 Agent 一个新会话，不共享「a」的状态
         self.max_tool_rounds = max_tool_rounds
         self.context_budget = context_budget
         self.keep_tool_results = keep_tool_results
