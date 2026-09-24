@@ -8,7 +8,7 @@ Clarity beats features: keep changes small and easy to read.
 - Tests: `uv run pytest` (fast, never calls the real API)
 - Lint / format check: `uvx ruff check src tests && uvx ruff format --check src tests`
 - Auto-fix formatting: `uvx ruff format src tests`
-- Use `uv` for everything Python; never `pip install`. Only runtime dependency is `openai` — no new ones without asking.
+- Use `uv` for everything Python; never `pip install`. Runtime dependencies are `openai` and `rich` (Markdown rendering) — no new ones without asking.
 - Do NOT run the agent itself (`src/agent.py`, `src/step1_chat.py`) to verify a change: it calls the paid
   DeepSeek API and waits for interactive input. Verify with the tests above instead.
 

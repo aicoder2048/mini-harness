@@ -150,6 +150,8 @@ PDF 用的是 Anthropic SDK；本仓库换成 DeepSeek 的 OpenAI 兼容协议�
 - **二进制文件不崩溃**：`read_file` / `edit_file` 读到非 UTF-8 文件（图片、PDF）时作为错误结果回灌。
 - **工具调用上限**：同一次用户输入后最多连续 20 轮工具调用（`--max-rounds N` 可调），
   到了就暂停交回给你，回复「继续」接着做——防止模型原地打转烧 token。
+- **终端渲染 Markdown**：模型回复用 `rich` 渲染；system prompt 的 `# Communication` 段告诉模型
+  「输出会按 Markdown 渲染在一个窄终端里」，让它用列表、代码块，少用宽表格和 HTML。
 - **`run_bash` + 确认**：`Tool.needs_approval=True` 的工具执行前由 agent 询问用户。
 
 ## 测试

@@ -2,7 +2,7 @@
 
 参考 Vercel Academy《Build Your Own AI Coding Agent Harness》模块 3：
   prompt 写的是「策略」（该怎么做、有什么界限），「能力」交给工具描述；
-  分段：角色 / # Agency / # Guardrails / # Verification / # Project Instructions；
+  分段：角色 / # Agency / # Communication / # Guardrails / # Verification / # Project Instructions；
   哪些段出现取决于实际挂载的工具——--step 2 只有 read_file，就不该谈编辑和验证。
 
 build_system_prompt 是纯函数：同样的 PromptContext → 同样的 prompt，没有 I/O，所以能单测。
@@ -56,8 +56,16 @@ def build_system_prompt(ctx: PromptContext) -> str:
     if can_run:
         agency.append("- Prefer read_file / list_files for looking at files; use run_bash for running programs.")
         agency.append("- If the user denies a tool call, don't retry it; ask them what they want instead.")
-    agency.append("- Keep replies short and concrete. Reply in the language the user writes in.")
     sections.append("\n".join(agency))
+
+    # agent.py 用 rich 把回复渲染成 Markdown；让模型知道它的输出落在哪里，才会用终端里好看的写法。
+    sections.append(
+        "# Communication\n"
+        "- Your replies are shown in a terminal that renders Markdown: lists, **bold**, `inline code` and\n"
+        "  fenced code blocks with a language tag all display well.\n"
+        "- The terminal is narrow: avoid wide tables, HTML and images.\n"
+        "- Keep replies short and concrete. Reply in the language the user writes in."
+    )
 
     if can_edit or can_run:
         sections.append(

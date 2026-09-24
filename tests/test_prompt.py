@@ -50,6 +50,13 @@ def test_run_bash_adds_verification_and_denial_rule():
 
 
 @pytest.mark.parametrize("names", [STEP2, STEP4, STEP5])
+def test_model_is_told_replies_render_as_markdown_in_terminal(names):
+    p = _prompt(names)
+    assert "# Communication" in p
+    assert "renders Markdown" in p
+
+
+@pytest.mark.parametrize("names", [STEP2, STEP4, STEP5])
 def test_no_git_branch_line_when_unknown(names):
     assert "Git branch" not in _prompt(names)
 

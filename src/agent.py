@@ -19,6 +19,9 @@ import json
 import os
 from collections.abc import Callable
 
+from rich.console import Console
+from rich.markdown import Markdown
+
 from prompt import AGENTS_FILE, PromptContext, build_system_prompt, current_git_branch, load_project_context
 from providers import DeepSeekProvider, Provider, ToolCall, ToolResult
 from tools import ALL_TOOLS, Tool, ToolError
@@ -26,6 +29,8 @@ from tools import ALL_TOOLS, Tool, ToolError
 # 同一次用户输入之后，最多连续几轮「模型要工具 → 执行 → 回灌」。防止模型原地打转、烧 token。
 # 到上限就暂停交回给用户；教程（Vercel Academy harness）里对应 stopWhen: stepCountIs(10)。
 MAX_TOOL_ROUNDS = 20
+
+console = Console()  # 只用来把模型回复渲染成 Markdown；其余输出仍是普通 print
 
 
 def prompt_user() -> str | None:
@@ -104,7 +109,8 @@ class Agent:
             reply = self.provider.chat(conversation, tools, self.system)
 
             for text in reply.texts:
-                print(f"\033[93m{self.provider.label}\033[0m: {text}")
+                print(f"\033[93m{self.provider.label}\033[0m:")
+                console.print(Markdown(text))  # Markdown 按块渲染，所以标签单独一行
             results = [self._execute(call) for call in reply.tool_calls]
 
             if not results:

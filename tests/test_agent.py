@@ -51,6 +51,14 @@ def test_tool_call_loops_back_to_model_without_asking_user(tmp_path, capsys):
     assert "a horse" in capsys.readouterr().out
 
 
+def test_reply_markdown_is_rendered_not_printed_raw(capsys):
+    provider = FakeProvider([Reply(texts=["**bold** and `code`"])])
+    Agent(provider, [], scripted("hi")).run()
+    out = capsys.readouterr().out
+    assert "bold" in out and "code" in out
+    assert "**" not in out and "`" not in out
+
+
 def test_tool_error_is_fed_back_not_raised(tmp_path):
     provider = FakeProvider(
         [
