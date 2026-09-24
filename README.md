@@ -133,7 +133,7 @@ Ctrl-D 退出。工具调用会以绿色 `tool:` 行打印，失败以红色 `�
 | `DEEPSEEK_API_KEY` | （必填） | DeepSeek key，放 `.env`（照 `.env.example`）或 export |
 | `DEEPSEEK_MODEL` | `deepseek-v4-flash` | 可换 `deepseek-v4-pro` |
 | `DEEPSEEK_BASE_URL` | `https://api.deepseek.com` | 一般不用改 |
-| `MINI_HARNESS_MEMORY_DIR` | （不设 = 不加载） | 记忆笔记目录；相对路径按工作目录解析，如 `Memory` → `<项目>/Memory`（已在 `.gitignore`），也可用绝对路径如 `~/basic-memory` |
+| `MINI_HARNESS_MEMORY_DIR` | `Memory` | 记忆笔记目录，相对路径按工作目录解析：默认即 `<项目>/Memory`（已在 `.gitignore`，只留本地）。目录不存在就不加载 |
 
 DeepSeek 默认开思考模式；代码里 `reasoning_effort="low"`，改 `providers.py` 里的构造参数即可调。
 
@@ -156,9 +156,9 @@ PDF 用的是 Anthropic SDK；本仓库换成 DeepSeek 的 OpenAI 兼容协议�
   `# Agency` / `# Guardrails` / `# Verification` / `# Project Instructions` 各段——哪些段出现取决于挂了哪些工具
   （`--step 2` 只有 `read_file`，就不谈编辑和验证）。请求时拼成最前面一条 `role=system` 消息，不存进 conversation。
 - **`AGENTS.md`**：启动时若工作目录里有这个文件，就注入为 `# Project Instructions`（超过 20000 字符截断）。
-- **记忆索引**：设了 `MINI_HARNESS_MEMORY_DIR` 时，启动时把目录下最近 20 篇 `.md`（按修改时间，最多 3000 字符）
+- **记忆索引**：启动时把 `Memory/`（或 `MINI_HARNESS_MEMORY_DIR` 指定的目录）下最近 20 篇 `.md`（按修改时间，最多 3000 字符）
   列成 `# Memory` 段，每条「日期 标题 — 路径」，**只有索引不含正文**，并标明「可能过时、先读原文再依赖」。
-  只在启动时读一次，会话中途不重建 system prompt，保住前缀缓存。记忆本身不进仓库。
+  只在启动时读一次，会话中途不重建 system prompt，保住前缀缓存。记忆本身不进仓库；就是普通 Markdown 文件，不依赖任何第三方记忆工具。
   harness 是通用的，项目自己的命令和约定由项目自己说；本仓库也带了一份。
 - **`edit_file` 更严**：`old_str` 必须唯一命中；空 `old_str` 不会覆盖非空的已有文件。
 - **坏参数不崩溃**：模型给的工具参数不是合法 JSON 对象时，作为错误结果回灌，而不是让程序退出。

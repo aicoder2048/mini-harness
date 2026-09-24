@@ -214,14 +214,19 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return p.parse_args(argv)
 
 
+DEFAULT_MEMORY_DIR = "Memory"  # 记忆放在项目下的 Memory/（已在 .gitignore，不进仓库），普通 .md 文件，不依赖第三方工具
+
+
 def _memory_index(cwd: str) -> str | None:
-    """MINI_HARNESS_MEMORY_DIR 指向笔记目录；不设就不加载。相对路径按工作目录解析（如 Memory → <cwd>/Memory）。"""
+    """记忆目录：MINI_HARNESS_MEMORY_DIR，不设则用 <cwd>/Memory。相对路径按工作目录解析，支持 ~。
+
+    默认目录不存在是正常情况（还没记过东西），静默跳过；显式设置却不存在，说明配置写错了，要提醒。
+    """
     setting = os.environ.get("MINI_HARNESS_MEMORY_DIR")
-    if not setting:
-        return None
-    memory_dir = os.path.normpath(os.path.join(cwd, os.path.expanduser(setting)))
+    memory_dir = os.path.normpath(os.path.join(cwd, os.path.expanduser(setting or DEFAULT_MEMORY_DIR)))
     if not os.path.isdir(memory_dir):
-        print(f"\033[91mMINI_HARNESS_MEMORY_DIR 指向的目录不存在：{memory_dir}（本次不加载记忆）\033[0m")
+        if setting:
+            print(f"\033[91mMINI_HARNESS_MEMORY_DIR 指向的目录不存在：{memory_dir}（本次不加载记忆）\033[0m")
         return None
     index = load_memory_index(memory_dir)
     if index:

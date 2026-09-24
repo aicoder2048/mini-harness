@@ -48,6 +48,7 @@ Clarity beats features: keep changes small and easy to read.
 - Pruning replaces old tool result *content* with a placeholder; never delete messages from `conversation`.
 - `CONTEXT_BUDGET` must stay well above the size of the `KEEP_TOOL_RESULTS` kept results, or pruning
   fires every step. Keeping too few results makes the model re-read files it still needed.
-- Personal memory notes live outside the repo (`MINI_HARNESS_MEMORY_DIR`, e.g. `~/basic-memory`); `Memory/` and
-  `memory/` are gitignored. Never commit memory notes: deleting them later does not remove them from git history.
+- Memory notes are plain Markdown files in `Memory/` (the `MINI_HARNESS_MEMORY_DIR` default). The folder is
+  gitignored and stays local. Never commit memory notes: deleting them later does not remove them from git history.
+  Don't add a third-party memory tool (e.g. Basic Memory) unless the project actually needs it.
 - `docs/*.pdf` are reference material — don't edit them.

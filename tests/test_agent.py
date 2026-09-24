@@ -2,7 +2,7 @@
 
 import pytest
 
-from agent import MAX_TOOL_ROUNDS, Agent, ConsoleApprover, parse_args, tools_for_step
+from agent import MAX_TOOL_ROUNDS, Agent, ConsoleApprover, _memory_index, parse_args, tools_for_step
 from providers import Reply, ToolCall, ToolResult, Usage
 from tools import Tool, read_file
 
@@ -298,3 +298,32 @@ def test_each_agent_gets_a_fresh_approver_session():
     a1 = Agent(FakeProvider([]), [], scripted())
     a2 = Agent(FakeProvider([]), [], scripted())
     assert a1.approve is not a2.approve
+
+
+# --- 记忆目录：默认 <cwd>/Memory ------------------------------------------------
+
+
+def test_memory_defaults_to_memory_dir_in_cwd(tmp_path, monkeypatch):
+    monkeypatch.delenv("MINI_HARNESS_MEMORY_DIR", raising=False)
+    (tmp_path / "Memory").mkdir()
+    (tmp_path / "Memory" / "n.md").write_text("# 项目笔记")
+    assert "项目笔记" in _memory_index(str(tmp_path))
+
+
+def test_missing_default_memory_dir_is_silent(tmp_path, monkeypatch, capsys):
+    monkeypatch.delenv("MINI_HARNESS_MEMORY_DIR", raising=False)
+    assert _memory_index(str(tmp_path)) is None
+    assert capsys.readouterr().out == ""  # 默认目录没建是正常情况，不报警
+
+
+def test_explicit_missing_memory_dir_warns(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("MINI_HARNESS_MEMORY_DIR", "nope")
+    assert _memory_index(str(tmp_path)) is None
+    assert "不存在" in capsys.readouterr().out  # 显式配置写错了，要提醒
+
+
+def test_explicit_relative_memory_dir_resolves_against_cwd(tmp_path, monkeypatch):
+    monkeypatch.setenv("MINI_HARNESS_MEMORY_DIR", "notes")
+    (tmp_path / "notes").mkdir()
+    (tmp_path / "notes" / "n.md").write_text("# 另一个目录")
+    assert "另一个目录" in _memory_index(str(tmp_path))

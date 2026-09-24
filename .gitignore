@@ -3,6 +3,6 @@ __pycache__/
 .pytest_cache/
 .env
 .ruff_cache/
-# 个人记忆放在仓库外（~/basic-memory/），这里兜底防止误提交
+# 个人记忆放在项目下的 Memory/（MINI_HARNESS_MEMORY_DIR 默认值），只留在本地，不进仓库
 Memory/
 memory/
