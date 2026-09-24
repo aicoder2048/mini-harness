@@ -1,14 +1,16 @@
 """工具层测试：只通过 Tool.run() 这个公共接口验证行为。"""
 
 import json
+import time
 
 import pytest
 
-from tools import ALL_TOOLS, ToolError, edit_file, list_files, read_file
+import tools
+from tools import ALL_TOOLS, ToolError, edit_file, list_files, read_file, run_bash
 
 
 def test_all_tools_are_in_tutorial_order():
-    assert [t.name for t in ALL_TOOLS] == ["read_file", "list_files", "edit_file"]
+    assert [t.name for t in ALL_TOOLS] == ["read_file", "list_files", "edit_file", "run_bash"]
 
 
 # --- read_file ---------------------------------------------------------------
@@ -108,3 +110,39 @@ def test_edit_file_rejects_ambiguous_old_str(tmp_path):
 def test_edit_file_rejects_identical_old_and_new(tmp_path):
     with pytest.raises(ToolError, match="must differ"):
         edit_file.run({"path": str(tmp_path / "f"), "old_str": "a", "new_str": "a"})
+
+
+# --- run_bash ----------------------------------------------------------------
+
+
+def test_run_bash_needs_approval_and_others_do_not():
+    assert [t.name for t in ALL_TOOLS if t.needs_approval] == ["run_bash"]
+
+
+def test_run_bash_returns_stdout_and_stderr():
+    out = run_bash.run({"command": "echo hello; echo oops >&2"})
+    assert "hello" in out and "oops" in out
+
+
+def test_run_bash_empty_output_is_explicit():
+    assert run_bash.run({"command": "true"}) == "(no output)"
+
+
+def test_run_bash_nonzero_exit_is_tool_error_with_output():
+    with pytest.raises(ToolError, match="exit code 3") as e:
+        run_bash.run({"command": "echo partial; exit 3"})
+    assert "partial" in str(e.value)
+
+
+def test_run_bash_timeout_kills_whole_process_group(monkeypatch):
+    monkeypatch.setattr(tools, "BASH_TIMEOUT", 0.5)
+    start = time.monotonic()
+    with pytest.raises(ToolError, match="timed out"):
+        run_bash.run({"command": "sleep 5; echo done"})  # sleep 是 sh 的孙进程，只杀 sh 会卡住等管道
+    assert time.monotonic() - start < 3
+
+
+def test_run_bash_truncates_long_output(monkeypatch):
+    monkeypatch.setattr(tools, "MAX_OUTPUT_CHARS", 10)
+    out = run_bash.run({"command": "printf '%0100d' 0"})
+    assert out.startswith("0" * 10) and "truncated 90 chars" in out

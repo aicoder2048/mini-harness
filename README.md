@@ -3,16 +3,17 @@
 跟学 Thorsten Ball《How to Build an Agent》的 Python 复现（对应 `docs/Thorsten-Ball-构建Agent-Python跟学版.pdf`），
 模型 Provider 用 **DeepSeek**（OpenAI 兼容协议）。
 
-约 300 行、三个工具、一个循环：一个能读、能找、能改你代码的 agent。
+约 400 行、四个工具、一个循环：一个能读、能找、能改你代码、能跑命令的 agent。
+前三个工具与原文一致，`run_bash` 是额外加的第 5 步。
 
 ## 目录
 
 ```
 src/
   step1_chat.py   第 1 步：聊天循环（还不是 agent），直接调 OpenAI 兼容 SDK
-  tools.py        三个工具 read_file / list_files / edit_file + 手写 JSON Schema
+  tools.py        四个工具 read_file / list_files / edit_file / run_bash + 手写 JSON Schema
   providers.py    DeepSeekProvider：工具声明 / assistant 回灌 / 工具结果回灌的线上格式全收在这里
-  agent.py        第 2–4 步：agent 循环，--step 控制工具集
+  agent.py        第 2–5 步：agent 循环 + system prompt + 危险工具确认，--step 控制工具集
 tests/            pytest，不打真实 API（fake client / fake provider）
 .env              DEEPSEEK_API_KEY=...（已在 .gitignore，权限 600）
 ```
@@ -27,16 +28,20 @@ uv sync
 下面所有命令都用 `uv run --env-file .env` 让 uv 把 `.env` 注入环境；
 如果你已经 `export DEEPSEEK_API_KEY=...`，去掉 `--env-file .env` 即可。
 
-## 四步
+## 五步
 
 ```bash
 uv run --env-file .env src/step1_chat.py        # 第 1 步：连问两轮，第二轮引用第一轮 → 它"记得"
 uv run --env-file .env src/agent.py --step 2    # 第 2 步：+ read_file    → 「帮我解开 secret.txt 里的谜题」
 uv run --env-file .env src/agent.py --step 3    # 第 3 步：+ list_files   → 「这个目录里的 Python 文件都在干什么？」
 uv run --env-file .env src/agent.py --step 4    # 第 4 步：+ edit_file    → 「建一个 fizzbuzz.js，能用 node 跑」
+uv run --env-file .env src/agent.py             # 第 5 步（默认）：+ run_bash → 「解 input/math.txt 的题，用 python 验算」
 ```
 
 Ctrl-D 退出。工具调用会以绿色 `tool:` 行打印，失败以红色 `→ error` 打印并回灌给模型。
+
+`run_bash` 每条命令执行前都会问 `允许执行? [y/N]`，只有 `y` / `yes` 放行；拒绝会作为错误回灌给模型。
+命令 30 秒超时（连子进程一起杀），输出超过 10000 字符截断。
 
 ## 环境变量
 
@@ -59,7 +64,15 @@ PDF 用的是 Anthropic SDK；本仓库换成 DeepSeek 的 OpenAI 兼容协议�
 | 工具结果回灌 | 一条 user 消息，内含多个 `tool_result` 块，带 `is_error` | 每个结果一条 `role=tool` 消息；没有 `is_error`，用 `Error:` 前缀 |
 | 模型 | `claude-sonnet-5` | `deepseek-v4-flash`（`DEEPSEEK_MODEL` 可换） |
 
-循环的形状（`need_user_input` 那个布尔量）、三个工具的语义、`edit_file` 的唯一性检查、`list_files` 的剪枝，全部与 PDF 一致。
+循环的形状（`need_user_input` 那个布尔量）、三个工具的语义、`list_files` 的剪枝，全部与 PDF 一致。
+
+在原文之上加的东西：
+
+- **system prompt**（`agent.py` 的 `SYSTEM_PROMPT`）：告诉模型工作目录、先读后改、报错要重试。
+  请求时拼成最前面一条 `role=system` 消息，不存进 conversation。
+- **`edit_file` 更严**：`old_str` 必须唯一命中；空 `old_str` 不会覆盖非空的已有文件。
+- **坏参数不崩溃**：模型给的工具参数不是合法 JSON 对象时，作为错误结果回灌，而不是让程序退出。
+- **`run_bash` + 确认**：`Tool.needs_approval=True` 的工具执行前由 agent 询问用户。
 
 ## 测试
 

@@ -4,7 +4,7 @@ import pytest
 
 from agent import Agent, build_system_prompt, tools_for_step
 from providers import Reply, ToolCall, ToolResult
-from tools import read_file
+from tools import Tool, read_file
 
 
 class FakeProvider:
@@ -87,6 +87,30 @@ def test_input_error_is_an_error_result_and_tool_is_not_run(tmp_path):
     assert result.is_error and "invalid JSON" in result.content
 
 
+def _dangerous_tool(ran: list):
+    return Tool("danger", "d", {"type": "object"}, run=lambda args: ran.append(args) or "done", needs_approval=True)
+
+
+@pytest.mark.parametrize("approved", [True, False])
+def test_needs_approval_tool_runs_only_when_user_approves(approved):
+    ran, asked = [], []
+    provider = FakeProvider([Reply(tool_calls=[ToolCall("c1", "danger", {"x": 1})]), Reply(texts=["ok"])])
+
+    Agent(provider, [_dangerous_tool(ran)], scripted("go"), approve=lambda call: asked.append(call) or approved).run()
+
+    [[result]] = provider.results
+    assert [c.id for c in asked] == ["c1"]
+    assert ran == ([{"x": 1}] if approved else [])
+    assert result.is_error is (not approved)
+
+
+def test_tools_without_needs_approval_never_ask(tmp_path):
+    provider = FakeProvider(
+        [Reply(tool_calls=[ToolCall("c1", "read_file", {"path": str(tmp_path / "x")})]), Reply(texts=["ok"])]
+    )
+    Agent(provider, [read_file], scripted("go"), approve=lambda call: pytest.fail("should not ask")).run()
+
+
 def test_plain_text_reply_returns_to_user_and_keeps_history():
     provider = FakeProvider([Reply(texts=["hi"]), Reply(texts=["bye"])])
 
@@ -117,7 +141,12 @@ def test_eof_exits_without_calling_model():
 
 @pytest.mark.parametrize(
     "step,names",
-    [(2, ["read_file"]), (3, ["read_file", "list_files"]), (4, ["read_file", "list_files", "edit_file"])],
+    [
+        (2, ["read_file"]),
+        (3, ["read_file", "list_files"]),
+        (4, ["read_file", "list_files", "edit_file"]),
+        (5, ["read_file", "list_files", "edit_file", "run_bash"]),
+    ],
 )
 def test_tools_for_step(step, names):
     assert [t.name for t in tools_for_step(step)] == names

@@ -1,8 +1,9 @@
-"""第 2–4 步：把聊天循环变成 agent。
+"""第 2–5 步：把聊天循环变成 agent。
 
     uv run src/agent.py --step 2               # + read_file
     uv run src/agent.py --step 3               # + list_files
-    uv run src/agent.py --step 4               # + edit_file（完整版，默认）
+    uv run src/agent.py --step 4               # + edit_file（原文到此为止）
+    uv run src/agent.py --step 5               # + run_bash（每条命令先问你，默认）
 
 整个 agent 就是这一个循环：
   用户输入 → 模型 → 模型说要用工具？→ 执行 → 结果回灌 → 再问模型 → ⋯
@@ -27,6 +28,7 @@ All relative paths are relative to that directory.
 
 - Use the tools to look at real files instead of guessing their contents; read a file before editing it.
 - If a tool returns an error, read the message and retry with a corrected call instead of giving up.
+- If the user denies a tool call, don't retry it; ask them what they want instead.
 - Keep replies short and concrete. Reply in the language the user writes in."""
 
 
@@ -42,6 +44,15 @@ def prompt_user() -> str | None:
         return None
 
 
+def ask_approval(call: ToolCall) -> bool:
+    """needs_approval 的工具执行前问一句；只有明确 y/yes 才放行，Ctrl-D 视为拒绝。"""
+    try:
+        answer = input("\033[95m      允许执行? [y/N]\033[0m ")
+    except EOFError:
+        return False
+    return answer.strip().lower() in ("y", "yes")
+
+
 class Agent:
     def __init__(
         self,
@@ -49,11 +60,13 @@ class Agent:
         tools: list[Tool],
         get_user_input: Callable[[], str | None] = prompt_user,
         system: str = "",
+        approve: Callable[[ToolCall], bool] = ask_approval,
     ) -> None:
         self.provider = provider
         self.tools = {t.name: t for t in tools}
         self.get_user_input = get_user_input
         self.system = system
+        self.approve = approve
 
     def _execute(self, call: ToolCall) -> ToolResult:
         """执行一次工具调用。失败也返回结果，交给模型自己纠错。"""
@@ -64,6 +77,8 @@ class Agent:
                 raise ToolError(f"unknown tool: {call.name}")
             if call.input_error:
                 raise ToolError(call.input_error)
+            if tool.needs_approval and not self.approve(call):
+                raise ToolError("the user denied this tool call")
             return ToolResult(call.id, tool.run(call.input))
         except ToolError as e:
             error = str(e)
@@ -103,13 +118,19 @@ class Agent:
 
 
 def tools_for_step(step: int) -> list[Tool]:
-    """2=read_file, 3=+list_files, 4=+edit_file"""
+    """2=read_file, 3=+list_files, 4=+edit_file, 5=+run_bash"""
     return ALL_TOOLS[: step - 1]
 
 
 def main() -> None:
     p = argparse.ArgumentParser(description="跟学版 code-editing agent")
-    p.add_argument("--step", type=int, choices=[2, 3, 4], default=4, help="2=read_file, 3=+list_files, 4=+edit_file")
+    p.add_argument(
+        "--step",
+        type=int,
+        choices=[2, 3, 4, 5],
+        default=5,
+        help="2=read_file, 3=+list_files, 4=+edit_file, 5=+run_bash",
+    )
     args = p.parse_args()
 
     Agent(DeepSeekProvider(), tools_for_step(args.step), system=build_system_prompt(os.getcwd())).run()

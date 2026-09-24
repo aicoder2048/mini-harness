@@ -1,4 +1,5 @@
-"""工具定义与三个内置工具：read_file / list_files / edit_file。
+"""工具定义与四个内置工具：read_file / list_files / edit_file / run_bash。
+（run_bash 是原文之外加的第 5 步。）
 
 对应 PDF 第七章 tools.py。这一层与模型 Provider 无关：Tool 只描述
 name / description / input_schema / run 四要素，具体发给哪家 API、
@@ -13,6 +14,8 @@ from __future__ import annotations
 
 import json
 import os
+import signal
+import subprocess
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
@@ -24,6 +27,7 @@ class Tool:
     description: str
     input_schema: dict[str, Any]
     run: Callable[[dict[str, Any]], str]
+    needs_approval: bool = False  # True → agent 执行前先问用户（run_bash 这类能动整台机器的工具）
 
 
 class ToolError(Exception):
@@ -169,4 +173,55 @@ edit_file = Tool(
 )
 
 
-ALL_TOOLS = [read_file, list_files, edit_file]
+# --- run_bash ----------------------------------------------------------------
+
+BASH_TIMEOUT = 30  # 秒
+MAX_OUTPUT_CHARS = 10_000  # 超长输出会塞爆上下文，截掉
+
+
+def _run_bash(args: dict[str, Any]) -> str:
+    command = args["command"]
+    try:
+        # start_new_session：命令跑在独立进程组里，超时能连孙进程一起杀；
+        # 只杀 sh 的话，孙进程还握着 stdout 管道，communicate() 会一直等下去。
+        proc = subprocess.Popen(
+            command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, start_new_session=True
+        )
+    except OSError as e:
+        raise ToolError(str(e)) from e
+    try:
+        raw, _ = proc.communicate(timeout=BASH_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        os.killpg(proc.pid, signal.SIGKILL)
+        proc.communicate()
+        raise ToolError(f"command timed out after {BASH_TIMEOUT}s") from None
+
+    output = raw.decode("utf-8", errors="replace")
+    if len(output) > MAX_OUTPUT_CHARS:
+        output = output[:MAX_OUTPUT_CHARS] + f"\n... (truncated {len(output) - MAX_OUTPUT_CHARS} chars)"
+    if proc.returncode != 0:
+        raise ToolError(f"exit code {proc.returncode}\n{output}")
+    return output or "(no output)"
+
+
+run_bash = Tool(
+    name="run_bash",
+    description=(
+        "Run a shell command in the working directory and return its combined stdout and stderr. "
+        "Use this to run programs and tests, or for things the other tools can't do. "
+        f"Commands time out after {BASH_TIMEOUT} seconds, so don't start servers or interactive programs. "
+        "The user must approve every command before it runs."
+    ),
+    input_schema={
+        "type": "object",
+        "properties": {
+            "command": {"type": "string", "description": "The shell command to run, e.g. 'node fizzbuzz.js'"},
+        },
+        "required": ["command"],
+    },
+    run=_run_bash,
+    needs_approval=True,
+)
+
+
+ALL_TOOLS = [read_file, list_files, edit_file, run_bash]
