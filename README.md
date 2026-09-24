@@ -78,7 +78,8 @@ Harness Engineering        怎么搭整台机器
 **还没覆盖的**
 
 - **对话摘要**（类似 `/compact`）：目前只修剪工具结果；长对话本身的文字还会一直增长
-- **Evaluation**：只有单元测试，没有衡量 agent 行为好坏的评估
+- **Evaluation**：有单元测试和 live 冒烟测试，但没有衡量 agent 行为好坏的 eval（同一任务跑多次、统计通过率、对比改动前后）。
+  方案已写成 [`docs/eval-plan.md`](docs/eval-plan.md)（占位，尚未实现）
 - 沙箱、子 agent、流式输出与中途打断
 
 ## 目录
