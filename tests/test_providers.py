@@ -49,6 +49,25 @@ def test_omits_tools_param_when_no_tools():
     assert "tools" not in client.calls[0]
 
 
+def test_system_prompt_is_sent_first_but_not_stored_in_conversation():
+    client = FakeOpenAI(_message(content="hi"))
+    conversation = [{"role": "user", "content": "x"}]
+
+    DeepSeekProvider(client=client, model="m").chat(conversation, [], system="be brief")
+
+    assert client.calls[0]["messages"] == [
+        {"role": "system", "content": "be brief"},
+        {"role": "user", "content": "x"},
+    ]
+    assert conversation == [{"role": "user", "content": "x"}, {"role": "assistant", "content": "hi"}]
+
+
+def test_no_system_message_when_system_prompt_empty():
+    client = FakeOpenAI(_message(content="hi"))
+    DeepSeekProvider(client=client, model="m").chat([{"role": "user", "content": "x"}], [])
+    assert client.calls[0]["messages"][0]["role"] == "user"
+
+
 def test_normalizes_reply_and_appends_assistant_with_reasoning():
     msg = _message(
         content="let me look",

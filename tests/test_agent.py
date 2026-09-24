@@ -2,7 +2,7 @@
 
 import pytest
 
-from agent import Agent, tools_for_step
+from agent import Agent, build_system_prompt, tools_for_step
 from providers import Reply, ToolCall, ToolResult
 from tools import read_file
 
@@ -13,10 +13,12 @@ class FakeProvider:
     def __init__(self, replies):
         self.replies = list(replies)
         self.chats: list[list[dict]] = []  # 每次 chat 收到的 conversation 快照
+        self.systems: list[str] = []
         self.results: list[list[ToolResult]] = []
 
-    def chat(self, conversation, tools):
+    def chat(self, conversation, tools, system=""):
         self.chats.append(list(conversation))
+        self.systems.append(system)
         reply = self.replies.pop(0)
         conversation.append({"role": "assistant", "content": reply.texts})
         return reply
@@ -93,6 +95,18 @@ def test_plain_text_reply_returns_to_user_and_keeps_history():
     assert len(provider.chats) == 2
     assert provider.chats[1][0] == {"role": "user", "content": "hello"}  # 历史全量重发
     assert provider.chats[1][-1] == {"role": "user", "content": "again"}
+
+
+def test_system_prompt_is_passed_on_every_model_call(tmp_path):
+    provider = FakeProvider(
+        [Reply(tool_calls=[ToolCall("c1", "read_file", {"path": str(tmp_path / "x")})]), Reply(texts=["ok"])]
+    )
+    Agent(provider, [read_file], scripted("go"), system="SYS").run()
+    assert provider.systems == ["SYS", "SYS"]
+
+
+def test_build_system_prompt_mentions_working_directory():
+    assert "/some/project" in build_system_prompt("/some/project")
 
 
 def test_eof_exits_without_calling_model():

@@ -15,10 +15,23 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from collections.abc import Callable
 
 from providers import DeepSeekProvider, Provider, ToolCall, ToolResult
 from tools import ALL_TOOLS, Tool, ToolError
+
+SYSTEM_PROMPT = """\
+You are a coding agent running in the user's terminal. Working directory: {cwd}
+All relative paths are relative to that directory.
+
+- Use the tools to look at real files instead of guessing their contents; read a file before editing it.
+- If a tool returns an error, read the message and retry with a corrected call instead of giving up.
+- Keep replies short and concrete. Reply in the language the user writes in."""
+
+
+def build_system_prompt(cwd: str) -> str:
+    return SYSTEM_PROMPT.format(cwd=cwd)
 
 
 def prompt_user() -> str | None:
@@ -35,10 +48,12 @@ class Agent:
         provider: Provider,
         tools: list[Tool],
         get_user_input: Callable[[], str | None] = prompt_user,
+        system: str = "",
     ) -> None:
         self.provider = provider
         self.tools = {t.name: t for t in tools}
         self.get_user_input = get_user_input
+        self.system = system
 
     def _execute(self, call: ToolCall) -> ToolResult:
         """执行一次工具调用。失败也返回结果，交给模型自己纠错。"""
@@ -73,7 +88,7 @@ class Agent:
                 conversation.append({"role": "user", "content": user_input})
 
             # provider.chat 会把 assistant 回复按本家格式 append 进 conversation。
-            reply = self.provider.chat(conversation, tools)
+            reply = self.provider.chat(conversation, tools, self.system)
 
             for text in reply.texts:
                 print(f"\033[93m{self.provider.label}\033[0m: {text}")
@@ -97,7 +112,7 @@ def main() -> None:
     p.add_argument("--step", type=int, choices=[2, 3, 4], default=4, help="2=read_file, 3=+list_files, 4=+edit_file")
     args = p.parse_args()
 
-    Agent(DeepSeekProvider(), tools_for_step(args.step)).run()
+    Agent(DeepSeekProvider(), tools_for_step(args.step), system=build_system_prompt(os.getcwd())).run()
 
 
 if __name__ == "__main__":

@@ -7,6 +7,7 @@ DeepSeek 走 OpenAI 兼容协议（Chat Completions + function calling）。agen
     ToolResult(call_id, content, is_error)
 
 协议细节全部收在 DeepSeekProvider 里：
+  system prompt   请求时在最前面拼一条 role=system 消息（不存进 conversation）
   工具声明        {"type": "function", "function": {name, description, parameters}}
   assistant 回灌  content + tool_calls（+ reasoning_content：思考模式带 tools 时必须回灌）
   工具结果回灌    每个结果一条 role=tool 消息，tool_call_id 与 tool_calls[i].id 配对
@@ -50,8 +51,9 @@ class Provider(Protocol):
 
     label: str  # 终端里打印的名字
 
-    def chat(self, conversation: list[dict], tools: list[Tool]) -> Reply:
-        """发送整个 conversation；把 assistant 回复 append 进去；返回归一化的 Reply。"""
+    def chat(self, conversation: list[dict], tools: list[Tool], system: str = "") -> Reply:
+        """发送 system + 整个 conversation；把 assistant 回复 append 进去；返回归一化的 Reply。
+        system 怎么编码是各家协议的事，不存进 conversation。"""
 
     def tool_results(self, results: list[ToolResult]) -> list[dict]:
         """把一轮的工具结果编码成要 append 进 conversation 的消息列表。"""
@@ -93,14 +95,16 @@ class DeepSeekProvider:
             },
         }
 
-    def chat(self, conversation: list[dict], tools: list[Tool]) -> Reply:
+    def chat(self, conversation: list[dict], tools: list[Tool], system: str = "") -> Reply:
         extra: dict[str, Any] = {}
         if tools:  # OpenAI 协议不接受空的 tools 数组
             extra["tools"] = [self._tool_param(t) for t in tools]
+        # OpenAI 协议里 system prompt 就是排在最前面的一条 role=system 消息；每次请求现拼，不进 conversation。
+        messages = [{"role": "system", "content": system}, *conversation] if system else conversation
         response = self.client.chat.completions.create(
             model=self.model,
             max_tokens=MAX_TOKENS,
-            messages=conversation,
+            messages=messages,
             reasoning_effort=self.reasoning_effort,
             **extra,
         )
