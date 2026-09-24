@@ -6,6 +6,19 @@
 约 400 行、四个工具、一个循环：一个能读、能找、能改你代码、能跑命令的 agent。
 前三个工具与原文一致，`run_bash` 是额外加的第 5 步。
 
+## 致谢 / Credits
+
+本项目是跟学作品，思路与结构完全来自：
+
+- **Thorsten Ball，[How to Build an Agent](https://ampcode.com/how-to-build-an-agent)**（Amp，2025-04-15）。
+  这篇文章用不到 400 行 Go 说明了 code-editing agent 的全部要素就是「LLM + 一个循环 + 几个工具」。
+  本仓库的四步递进、`read_file` / `list_files` / `edit_file` 三个工具的设计、`need_user_input` 那个循环，都出自这篇文章。
+  原文没有官方代码仓库，代码直接写在文章里——强烈建议先读原文。
+- **Janitha Rathnayake，[How to Build an Agent by Thorsten Ball (Python Version)](https://medium.com/@jbrathnayake98/how-to-build-an-agent-by-thorsten-ball-python-version-ebbabb8665f6)**（Medium，2025-08-19）。
+  Python 移植时的参考。
+
+在此之上，本仓库换成了 DeepSeek（OpenAI 兼容协议），并额外加了 system prompt、`run_bash` 工具等，见下文「与 PDF 代码清单的差异」。
+
 ## 目录
 
 ```
@@ -15,13 +28,13 @@ src/
   providers.py    DeepSeekProvider：工具声明 / assistant 回灌 / 工具结果回灌的线上格式全收在这里
   agent.py        第 2–5 步：agent 循环 + system prompt + 危险工具确认，--step 控制工具集
 tests/            pytest，不打真实 API（fake client / fake provider）
-.env              DEEPSEEK_API_KEY=...（已在 .gitignore，权限 600）
+.env.example      环境变量示例；复制成 .env 再填 key（.env 已在 .gitignore，不会提交）
 ```
 
 ## 准备
 
 ```bash
-echo 'DEEPSEEK_API_KEY=sk-...' > .env   # https://platform.deepseek.com
+cp .env.example .env && chmod 600 .env   # 再把 DEEPSEEK_API_KEY 换成你的 key（https://platform.deepseek.com）
 uv sync
 ```
 
@@ -47,7 +60,7 @@ Ctrl-D 退出。工具调用会以绿色 `tool:` 行打印，失败以红色 `�
 
 | 变量 | 默认 | 说明 |
 |---|---|---|
-| `DEEPSEEK_API_KEY` | （必填） | DeepSeek key，放 `.env` 或 export |
+| `DEEPSEEK_API_KEY` | （必填） | DeepSeek key，放 `.env`（照 `.env.example`）或 export |
 | `DEEPSEEK_MODEL` | `deepseek-v4-flash` | 可换 `deepseek-v4-pro` |
 | `DEEPSEEK_BASE_URL` | `https://api.deepseek.com` | 一般不用改 |
 
