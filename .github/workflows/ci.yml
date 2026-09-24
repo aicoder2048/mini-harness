@@ -1,0 +1,25 @@
+# 每次 push 到 main、以及每个 PR，都在干净的 Ubuntu 机器上跑一遍测试和 lint。
+# 测试全部用 fake，不打真实 API，所以 CI 不需要 DEEPSEEK_API_KEY。
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10
+
+      # --locked：uv.lock 和 pyproject.toml 对不上就直接失败，而不是悄悄改锁文件
+      - run: uv sync --locked
+
+      - run: uv run pytest
+
+      # 固定 ruff 版本：新版本可能加默认规则，让 CI 无缘无故变红。升级时本地和这里一起改。
+      - run: uvx ruff@0.16.9 check src tests
+      - run: uvx ruff@0.16.9 format --check src tests

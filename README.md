@@ -1,5 +1,7 @@
 # mini-harness
 
+[![CI](https://github.com/aicoder2048/mini-harness/actions/workflows/ci.yml/badge.svg)](https://github.com/aicoder2048/mini-harness/actions/workflows/ci.yml)
+
 跟学 Thorsten Ball《How to Build an Agent》的 Python 复现（对应 `docs/Thorsten-Ball-构建Agent-Python跟学版.pdf`），
 模型 Provider 用 **DeepSeek**（OpenAI 兼容协议）。
 
@@ -170,3 +172,6 @@ PDF 用的是 Anthropic SDK；本仓库换成 DeepSeek 的 OpenAI 兼容协议�
 uv run pytest
 uvx ruff check src tests && uvx ruff format --check src tests
 ```
+
+每次 push 到 `main` 和每个 PR，GitHub Actions 会在干净的 Ubuntu 上自动跑同样的检查（`.github/workflows/ci.yml`）。
+测试不打真实 API，所以 CI 不需要 API key。
