@@ -126,7 +126,14 @@ def tools_for_step(step: int) -> list[Tool]:
     return ALL_TOOLS[: step - 1]
 
 
-def main() -> None:
+def _positive_int(text: str) -> int:
+    value = int(text)  # 非数字抛 ValueError，argparse 会报成 invalid value
+    if value < 1:
+        raise argparse.ArgumentTypeError(f"must be >= 1, got {value}")
+    return value
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(description="跟学版 code-editing agent")
     p.add_argument(
         "--step",
@@ -135,7 +142,17 @@ def main() -> None:
         default=5,
         help="2=read_file, 3=+list_files, 4=+edit_file, 5=+run_bash",
     )
-    args = p.parse_args()
+    p.add_argument(
+        "--max-rounds",
+        type=_positive_int,
+        default=MAX_TOOL_ROUNDS,
+        help=f"一次用户输入后最多连续几轮工具调用，到了暂停交回给你（默认 {MAX_TOOL_ROUNDS}）",
+    )
+    return p.parse_args(argv)
+
+
+def main() -> None:
+    args = parse_args()
 
     cwd = os.getcwd()
     tools = tools_for_step(args.step)
@@ -148,7 +165,7 @@ def main() -> None:
         git_branch=current_git_branch(cwd),
         project_context=project_context,
     )
-    Agent(DeepSeekProvider(), tools, system=build_system_prompt(ctx)).run()
+    Agent(DeepSeekProvider(), tools, system=build_system_prompt(ctx), max_tool_rounds=args.max_rounds).run()
 
 
 if __name__ == "__main__":

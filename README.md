@@ -93,7 +93,7 @@ PDF 用的是 Anthropic SDK；本仓库换成 DeepSeek 的 OpenAI 兼容协议�
 - **`edit_file` 更严**：`old_str` 必须唯一命中；空 `old_str` 不会覆盖非空的已有文件。
 - **坏参数不崩溃**：模型给的工具参数不是合法 JSON 对象时，作为错误结果回灌，而不是让程序退出。
 - **二进制文件不崩溃**：`read_file` / `edit_file` 读到非 UTF-8 文件（图片、PDF）时作为错误结果回灌。
-- **工具调用上限**：同一次用户输入后最多连续 20 轮工具调用（`agent.py` 的 `MAX_TOOL_ROUNDS`），
+- **工具调用上限**：同一次用户输入后最多连续 20 轮工具调用（`--max-rounds N` 可调），
   到了就暂停交回给你，回复「继续」接着做——防止模型原地打转烧 token。
 - **`run_bash` + 确认**：`Tool.needs_approval=True` 的工具执行前由 agent 询问用户。
 

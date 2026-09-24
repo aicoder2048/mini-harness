@@ -2,7 +2,7 @@
 
 import pytest
 
-from agent import Agent, tools_for_step
+from agent import MAX_TOOL_ROUNDS, Agent, parse_args, tools_for_step
 from providers import Reply, ToolCall, ToolResult
 from tools import Tool, read_file
 
@@ -175,3 +175,18 @@ def test_eof_exits_without_calling_model():
 )
 def test_tools_for_step(step, names):
     assert [t.name for t in tools_for_step(step)] == names
+
+
+def test_cli_defaults():
+    args = parse_args([])
+    assert (args.step, args.max_rounds) == (5, MAX_TOOL_ROUNDS)
+
+
+def test_cli_max_rounds():
+    assert parse_args(["--max-rounds", "5"]).max_rounds == 5
+
+
+@pytest.mark.parametrize("bad", ["0", "-1", "abc"])
+def test_cli_rejects_non_positive_max_rounds(bad):
+    with pytest.raises(SystemExit):
+        parse_args(["--max-rounds", bad])
