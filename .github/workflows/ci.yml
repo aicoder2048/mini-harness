@@ -13,7 +13,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: astral-sh/setup-uv@v10
+      # setup-uv 不提供 v10 这种浮动主版本 tag，只能写完整版本号
+      - uses: astral-sh/setup-uv@v10.2.0
 
       # --locked：uv.lock 和 pyproject.toml 对不上就直接失败，而不是悄悄改锁文件
       - run: uv sync --locked
