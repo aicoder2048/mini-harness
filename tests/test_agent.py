@@ -77,6 +77,14 @@ def test_missing_argument_is_an_error_result():
     assert result.is_error and "missing argument" in result.content
 
 
+def test_input_error_is_an_error_result_and_tool_is_not_run(tmp_path):
+    bad = ToolCall("c1", "read_file", {}, input_error="invalid JSON")
+    provider = FakeProvider([Reply(tool_calls=[bad]), Reply(texts=["ok"])])
+    Agent(provider, [read_file], scripted("go")).run()
+    [[result]] = provider.results
+    assert result.is_error and "invalid JSON" in result.content
+
+
 def test_plain_text_reply_returns_to_user_and_keeps_history():
     provider = FakeProvider([Reply(texts=["hi"]), Reply(texts=["bye"])])
 

@@ -71,6 +71,18 @@ def test_normalizes_reply_and_appends_assistant_with_reasoning():
     }
 
 
+@pytest.mark.parametrize("arguments", ['{"path": "a.txt"', "[1, 2]", "null"])
+def test_malformed_arguments_become_input_error_instead_of_raising(arguments):
+    msg = _message(tool_calls=[NS(id="call_1", function=NS(name="read_file", arguments=arguments))])
+
+    reply = DeepSeekProvider(client=FakeOpenAI(msg), model="m").chat([], [read_file])
+
+    [call] = reply.tool_calls
+    assert call.id == "call_1"  # id 保留，才能配对回一条 role=tool 的错误结果
+    assert call.input == {}
+    assert call.input_error
+
+
 def test_tool_results_become_role_tool_messages():
     provider = DeepSeekProvider(client=FakeOpenAI(_message()), model="m")
     out = provider.tool_results([ToolResult("c1", "file body"), ToolResult("c2", "no such file", is_error=True)])

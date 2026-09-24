@@ -47,6 +47,8 @@ class Agent:
         try:
             if tool is None:
                 raise ToolError(f"unknown tool: {call.name}")
+            if call.input_error:
+                raise ToolError(call.input_error)
             return ToolResult(call.id, tool.run(call.input))
         except ToolError as e:
             error = str(e)

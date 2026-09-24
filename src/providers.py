@@ -29,6 +29,7 @@ class ToolCall:
     id: str
     name: str
     input: dict[str, Any]
+    input_error: str | None = None  # 参数解析失败的原因；agent 不执行工具，把它当错误结果回灌
 
 
 @dataclass(frozen=True)
@@ -107,11 +108,20 @@ class DeepSeekProvider:
         conversation.append(self._assistant_message(message))
 
         texts = [message.content] if message.content else []
-        tool_calls = [
-            ToolCall(id=tc.id, name=tc.function.name, input=json.loads(tc.function.arguments or "{}"))
-            for tc in (message.tool_calls or [])
-        ]
+        tool_calls = [self._tool_call(tc) for tc in (message.tool_calls or [])]
         return Reply(texts=texts, tool_calls=tool_calls)
+
+    @staticmethod
+    def _tool_call(tc: Any) -> ToolCall:
+        """arguments 是模型生成的 JSON 字符串，可能是坏的。不能抛异常：assistant 消息已经
+        append 进 conversation，协议要求每个 tool_call id 都配一条 role=tool 回复。"""
+        try:
+            args = json.loads(tc.function.arguments or "{}")
+        except json.JSONDecodeError as e:
+            return ToolCall(tc.id, tc.function.name, {}, input_error=f"arguments is not valid JSON: {e}")
+        if not isinstance(args, dict):
+            return ToolCall(tc.id, tc.function.name, {}, input_error="arguments must be a JSON object")
+        return ToolCall(tc.id, tc.function.name, args)
 
     @staticmethod
     def _assistant_message(message: Any) -> dict:
