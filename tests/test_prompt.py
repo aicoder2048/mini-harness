@@ -4,7 +4,8 @@ import subprocess
 
 import pytest
 
-from prompt import PromptContext, build_system_prompt, current_git_branch
+import prompt
+from prompt import PromptContext, build_system_prompt, current_git_branch, load_project_context
 
 STEP2 = ["read_file"]
 STEP4 = ["read_file", "list_files", "edit_file"]
@@ -77,3 +78,32 @@ def test_current_git_branch_outside_repo_is_none(tmp_path):
 def test_current_git_branch_reads_branch_even_before_first_commit(tmp_path):
     subprocess.run(["git", "init", "-q", "-b", "feature-x", str(tmp_path)], check=True)
     assert current_git_branch(str(tmp_path)) == "feature-x"
+
+
+# --- load_project_context ----------------------------------------------------
+
+
+def test_no_agents_md_is_none(tmp_path):
+    assert load_project_context(str(tmp_path)) is None
+
+
+def test_agents_md_content_is_returned(tmp_path):
+    (tmp_path / "AGENTS.md").write_text("# Project\n- 用 `make check` 验证\n", encoding="utf-8")
+    assert load_project_context(str(tmp_path)) == "# Project\n- 用 `make check` 验证"
+
+
+def test_blank_agents_md_is_none(tmp_path):
+    (tmp_path / "AGENTS.md").write_text("  \n\n")
+    assert load_project_context(str(tmp_path)) is None
+
+
+def test_agents_md_directory_is_ignored(tmp_path):
+    (tmp_path / "AGENTS.md").mkdir()
+    assert load_project_context(str(tmp_path)) is None
+
+
+def test_oversized_agents_md_is_truncated(tmp_path, monkeypatch):
+    monkeypatch.setattr(prompt, "MAX_PROJECT_CONTEXT_CHARS", 10)
+    (tmp_path / "AGENTS.md").write_text("x" * 25)
+    out = load_project_context(str(tmp_path))
+    assert out.startswith("x" * 10) and "truncated 15 chars" in out

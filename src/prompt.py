@@ -11,8 +11,14 @@ build_system_prompt 是纯函数：同样的 PromptContext → 同样的 prompt�
 
 from __future__ import annotations
 
+import os
 import subprocess
 from dataclasses import dataclass
+
+AGENTS_FILE = "AGENTS.md"
+# AGENTS.md 是原样注入 prompt 的外部文本：太长会挤占上下文，而且在谁的目录里启动就信谁的文件，
+# 所以设个上限。它能诱导模型做的最危险的事是 run_bash，那一步每条命令都要用户确认。
+MAX_PROJECT_CONTEXT_CHARS = 20_000
 
 
 @dataclass(frozen=True)
@@ -90,3 +96,19 @@ def current_git_branch(cwd: str) -> str | None:
     if out.returncode != 0:
         return None
     return out.stdout.strip() or None
+
+
+def load_project_context(cwd: str) -> str | None:
+    """读工作目录下的 AGENTS.md（项目自己的命令、架构、踩过的坑）；没有或为空返回 None。
+
+    只看 cwd 这一个文件，不往上找父目录、不合并多份——教程 3.4 的最小版本。
+    """
+    path = os.path.join(cwd, AGENTS_FILE)
+    if not os.path.isfile(path):
+        return None
+    with open(path, encoding="utf-8", errors="replace") as f:
+        content = f.read().strip()
+    if len(content) > MAX_PROJECT_CONTEXT_CHARS:
+        dropped = len(content) - MAX_PROJECT_CONTEXT_CHARS
+        content = content[:MAX_PROJECT_CONTEXT_CHARS] + f"\n... (truncated {dropped} chars)"
+    return content or None

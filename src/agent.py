@@ -19,7 +19,7 @@ import json
 import os
 from collections.abc import Callable
 
-from prompt import PromptContext, build_system_prompt, current_git_branch
+from prompt import AGENTS_FILE, PromptContext, build_system_prompt, current_git_branch, load_project_context
 from providers import DeepSeekProvider, Provider, ToolCall, ToolResult
 from tools import ALL_TOOLS, Tool, ToolError
 
@@ -123,10 +123,14 @@ def main() -> None:
 
     cwd = os.getcwd()
     tools = tools_for_step(args.step)
+    project_context = load_project_context(cwd)
+    if project_context:
+        print(f"已加载 {AGENTS_FILE}（{len(project_context)} 字符）作为项目指令")
     ctx = PromptContext(
         working_directory=cwd,
         tool_names=[t.name for t in tools],
         git_branch=current_git_branch(cwd),
+        project_context=project_context,
     )
     Agent(DeepSeekProvider(), tools, system=build_system_prompt(ctx)).run()
 
