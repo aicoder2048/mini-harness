@@ -79,6 +79,8 @@ Harness Engineering        怎么搭整台机器
 **还没覆盖的**
 
 - **对话摘要**（类似 `/compact`）：目前只修剪工具结果；长对话本身的文字还会一直增长
+- **记忆的写入与整理**：跨会话记忆只做了「读」（启动时注入索引）。没有告诉 agent 什么时候把值得记住的东西写进
+  `Memory/`（它其实能写：`edit_file` 传空 `old_str` 就是新建文件），也没有更新、合并、删除过时笔记的机制
 - **Evaluation**：有单元测试和 live 冒烟测试，但没有衡量 agent 行为好坏的 eval（同一任务跑多次、统计通过率、对比改动前后）。
   方案已写成 [`docs/eval-plan.md`](docs/eval-plan.md)（占位，尚未实现）
 - **沙箱**：`run_bash` 直接在本机执行，只靠人工审批。概念、接入方式、服务商全景（exe.dev、E2B、Vercel 等）和「能否用自己的 Mac mini」
@@ -92,12 +94,13 @@ src/
   step1_chat.py   第 1 步：聊天循环（还不是 agent），直接调 OpenAI 兼容 SDK
   tools.py        四个工具 read_file / list_files / edit_file / run_bash + 手写 JSON Schema
   providers.py    DeepSeekProvider：工具声明 / assistant 回灌 / 工具结果回灌的线上格式全收在这里
-  prompt.py       system prompt：由工作目录 / 工具集 / git 分支 / AGENTS.md 拼出的分段 prompt
+  prompt.py       system prompt：由工作目录 / 工具集 / git 分支 / AGENTS.md / 记忆索引拼出的分段 prompt
   agent.py        第 2–5 步：agent 循环 + 危险工具确认，--step 控制工具集
-tests/            pytest，不打真实 API（fake client / fake provider）
+tests/            pytest：快速测试全用 fake；test_live.py 打真实 API（默认跳过，-m live 运行）
 AGENTS.md         给 agent 看的项目说明（命令、架构、约定、踩过的坑）
 CLAUDE.md         只有一行 `@AGENTS.md`：Claude Code 读 CLAUDE.md，靠这个 import 读到同一份说明
 .env.example      环境变量示例；复制成 .env 再填 key（.env 已在 .gitignore，不会提交）
+Memory/           跨会话记忆：普通 Markdown 笔记，启动时列成索引（已在 .gitignore，只留本地）
 ```
 
 ## 准备
