@@ -92,6 +92,7 @@ src/
   agent.py        第 2–5 步：agent 循环 + 危险工具确认，--step 控制工具集
 tests/            pytest，不打真实 API（fake client / fake provider）
 AGENTS.md         给 agent 看的项目说明（命令、架构、约定、踩过的坑）
+CLAUDE.md         只有一行 `@AGENTS.md`：Claude Code 读 CLAUDE.md，靠这个 import 读到同一份说明
 .env.example      环境变量示例；复制成 .env 再填 key（.env 已在 .gitignore，不会提交）
 ```
 
@@ -169,9 +170,14 @@ PDF 用的是 Anthropic SDK；本仓库换成 DeepSeek 的 OpenAI 兼容协议�
 ## 测试
 
 ```bash
-uv run pytest
+uv run pytest                                  # 快速测试，全用 fake，不打真实 API
 uvx ruff check src tests && uvx ruff format --check src tests
+uv run --env-file .env pytest -m live         # live 冒烟测试：打真实 DeepSeek API，要 key、要花钱
 ```
+
+`tests/test_live.py` 里是 fake 证明不了的东西：DeepSeek 接不接受我们的消息顺序（暂停后接「继续」、修剪后的 conversation），
+以及模型会不会照 prompt 行事（翻页、被拒后不重试、用 AGENTS.md 回答）。默认跳过，没 key 时自动 skip；
+改了 provider / prompt / 工具描述 / 修剪之后手动跑一次。
 
 每次 push 到 `main` 和每个 PR，GitHub Actions 会在干净的 Ubuntu 上自动跑同样的检查（`.github/workflows/ci.yml`）。
 测试不打真实 API，所以 CI 不需要 API key。

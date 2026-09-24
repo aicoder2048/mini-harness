@@ -17,6 +17,9 @@ package = false
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+markers = ["live: 调用真实 DeepSeek API（要 DEEPSEEK_API_KEY、要花钱），默认跳过；用 -m live 运行"]
+# 默认不跑 live；命令行的 -m live 会覆盖这里。--strict-markers：标记拼错（如 lvie）直接报错，免得混进 CI
+addopts = "-m 'not live' --strict-markers"
 
 [tool.ruff]
 line-length = 120

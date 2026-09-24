@@ -5,7 +5,9 @@ Clarity beats features: keep changes small and easy to read.
 
 ## Commands
 
-- Tests: `uv run pytest` (fast, never calls the real API)
+- Tests: `uv run pytest` (fast, never calls the real API; this is what CI runs)
+- Live tests: `uv run --env-file .env pytest -m live` — real DeepSeek API, costs money, skipped by default.
+  Run them after changing `providers.py`, `prompt.py`, tool descriptions or context pruning, or when asked.
 - Lint / format check: `uvx ruff check src tests && uvx ruff format --check src tests`
 - Auto-fix formatting: `uvx ruff format src tests`
 - Use `uv` for everything Python; never `pip install`. Runtime dependencies are `openai` and `rich` (Markdown rendering) — no new ones without asking.
@@ -27,6 +29,10 @@ Clarity beats features: keep changes small and easy to read.
   text sent to the model are in English.
 - Tests use fakes (`FakeProvider`, `FakeOpenAI`, `tmp_path`) and test behavior through public interfaces.
 - Write the test first, see it fail, then implement.
+- Checks against the real API go into `tests/test_live.py` as `@pytest.mark.live` tests with behavior
+  assertions (which tools were called, key facts in the answer) — never one-off scripts. Only pure
+  exploration (e.g. measuring a token curve) may use a throwaway script; anything that should stay true
+  becomes a live test.
 
 ## Lessons learned
 
