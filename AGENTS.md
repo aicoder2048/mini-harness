@@ -36,4 +36,10 @@ Clarity beats features: keep changes small and easy to read.
   (see `DeepSeekProvider._assistant_message`).
 - Tool failures are returned to the model as error results; they must never crash the loop.
 - Never commit `.env` (holds the API key); `.env.example` is the template.
+- DeepSeek caches request prefixes automatically. Anything that changes early messages (editing the system
+  prompt per turn, timestamps, pruning old messages every step) invalidates the cache from that point on.
+  That's why pruning is batched: only when input exceeds `CONTEXT_BUDGET`, all at once.
+- Pruning replaces old tool result *content* with a placeholder; never delete messages from `conversation`.
+- `CONTEXT_BUDGET` must stay well above the size of the `KEEP_TOOL_RESULTS` kept results, or pruning
+  fires every step. Keeping too few results makes the model re-read files it still needed.
 - `docs/*.pdf` are reference material — don't edit them.

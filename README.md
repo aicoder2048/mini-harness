@@ -40,11 +40,14 @@ context_t+1 = H(context_t, output_t)    # harness：执行工具、回灌结果�
 | **Loop** 循环 | `need_user_input`：有工具调用就不等用户，直接再问模型 | 模型只能「请求」动作，执行和续轮全靠 harness | `agent.py` `Agent.run` |
 | **Loop** 预算 | `--max-rounds`：连续工具轮数上限，到了交回给人 | 没刹车的循环会原地打转、烧 token | `agent.py` `MAX_TOOL_ROUNDS` |
 | **Tools** 工具 | `Tool` = name / description / input_schema / run | 模型的「手」；description 本身就是写给模型的 prompt | `tools.py` `Tool` |
-| **Tools** 接口设计 | `edit_file` 必须唯一命中；`run_bash` 超时 + 截断 | 接口宽松，模型就会沉默地做错事 | `tools.py` `_edit_file`、`_run_bash` |
+| **Tools** 接口设计 | `edit_file` 必须唯一命中；`run_bash` 超时 | 接口宽松，模型就会沉默地做错事 | `tools.py` `_edit_file`、`_run_bash` |
+| **Tools** 有界输出 | 每个工具都有上限（`read_file` 500 行 + 分页），截断时说明还剩多少 | 结果进了历史就要每轮重发；悄悄截断会让模型误以为看到了全部 | `tools.py` `MAX_READ_LINES` 等 |
 | **协议适配** | 内部只认 `Reply` / `ToolCall` / `ToolResult` | 各家 API 线上格式不同，循环不该关心 | `providers.py` `chat`、`tool_results` |
 | **Context** 对话历史 | 每轮把 conversation 全量重发 | 服务端无状态，「记忆」只存在于本地这个列表 | `step1_chat.py`、`Agent.run` |
 | **Context** system prompt | 写「策略」而非「能力」；按实际挂载的工具拼段 | 工具说明「能做什么」，prompt 说明「该怎么做」 | `prompt.py` `build_system_prompt` |
 | **Context** 项目上下文 | 启动时读 `AGENTS.md` 注入 prompt | harness 是通用的，每个项目各有各的命令和约定 | `prompt.py` `load_project_context` |
+| **Context** 用量遥测 | 每次调用后在 stderr 打印 input / cached / output token | 看不见曲线，就判断不了修复有没有用 | `Agent._log_usage` |
+| **Context** 修剪 | 输入超预算时，把旧工具结果**批量**换成占位符 | 历史只增不减；逐轮滑动修剪会让前缀缓存全部失效 | `Agent.run`、`DeepSeekProvider.prune_tool_results` |
 | **Control** 错误回灌 | 工具失败 → 错误结果交回模型，而不是抛异常 | 模型能自己纠错；程序一崩，agent 就死了 | `Agent._execute`、`DeepSeekProvider._tool_call` |
 | **Control** 人工审批 | `needs_approval` 的工具执行前问 `[y/N]` | 模型是在**你的机器上**执行命令 | `agent.py` `ask_approval` |
 
@@ -72,7 +75,7 @@ Harness Engineering        怎么搭整台机器
 
 **还没覆盖的**
 
-- **Context 放不下怎么办**：conversation 无限增长，没有压缩或裁剪——下一个最值得学的概念
+- **对话摘要**（类似 `/compact`）：目前只修剪工具结果；长对话本身的文字还会一直增长
 - **Evaluation**：只有单元测试，没有衡量 agent 行为好坏的评估
 - 沙箱、子 agent、流式输出与中途打断
 
@@ -152,6 +155,13 @@ PDF 用的是 Anthropic SDK；本仓库换成 DeepSeek 的 OpenAI 兼容协议�
   到了就暂停交回给你，回复「继续」接着做——防止模型原地打转烧 token。
 - **终端渲染 Markdown**：模型回复用 `rich` 渲染；system prompt 的 `# Communication` 段告诉模型
   「输出会按 Markdown 渲染在一个窄终端里」，让它用列表、代码块，少用宽表格和 HTML。
+- **上下文管理**（参考 Vercel 课程模块 5）：
+  1. 遥测：每次调用后 stderr 一行 `· in 4,210 (cached 3,800) · out 120`
+  2. 有界输出：`read_file` 每次最多 500 行（`offset` / `limit` 分页），`list_files` 最多 500 项，
+     `run_bash` 保留最后 1 万字符（报错在结尾）；截断都会告诉模型还剩多少
+  3. 修剪：上次输入超过 6 万 token 时，把最近 5 个之外的旧工具结果**一次性**换成占位符。
+     不每轮滑动修剪，因为 DeepSeek 按前缀自动缓存，改一条旧消息其后缓存全失效。
+     实测：预算要明显大于「保留的结果」本身，否则退化成每轮修剪；保留太少，模型会把清掉的文件重新读一遍。
 - **`run_bash` + 确认**：`Tool.needs_approval=True` 的工具执行前由 agent 询问用户。
 
 ## 测试
