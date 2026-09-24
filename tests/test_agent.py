@@ -111,6 +111,35 @@ def test_tools_without_needs_approval_never_ask(tmp_path):
     Agent(provider, [read_file], scripted("go"), approve=lambda call: pytest.fail("should not ask")).run()
 
 
+def _tool_reply(i):
+    return Reply(tool_calls=[ToolCall(f"c{i}", "read_file", {"path": "/nonexistent"})])
+
+
+def test_tool_rounds_cap_pauses_and_hands_back_to_user(capsys):
+    provider = FakeProvider([_tool_reply(i) for i in range(10)])
+
+    Agent(provider, [read_file], scripted("go"), max_tool_rounds=3).run()
+
+    assert len(provider.chats) == 3  # 第 3 轮后不再问模型，回到用户（输入已用完 → 退出）
+    assert len(provider.results) == 3  # 每轮的工具结果都回灌了，tool_call id 没有落单
+    assert "3 轮" in capsys.readouterr().out
+
+
+def test_tool_rounds_counter_resets_on_user_input():
+    replies = [_tool_reply(1), _tool_reply(2), _tool_reply(3), Reply(texts=["done"])]
+    provider = FakeProvider(replies)
+
+    Agent(provider, [read_file], scripted("go", "继续"), max_tool_rounds=2).run()
+
+    assert len(provider.chats) == 4  # 没重置的话，第 3 轮之后就又被暂停了
+    assert provider.chats[2][-1] == {"role": "user", "content": "继续"}
+
+
+def test_max_tool_rounds_must_be_positive():
+    with pytest.raises(ValueError):
+        Agent(FakeProvider([]), [], scripted(), max_tool_rounds=0)
+
+
 def test_plain_text_reply_returns_to_user_and_keeps_history():
     provider = FakeProvider([Reply(texts=["hi"]), Reply(texts=["bye"])])
 

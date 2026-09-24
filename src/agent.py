@@ -23,6 +23,10 @@ from prompt import AGENTS_FILE, PromptContext, build_system_prompt, current_git_
 from providers import DeepSeekProvider, Provider, ToolCall, ToolResult
 from tools import ALL_TOOLS, Tool, ToolError
 
+# 同一次用户输入之后，最多连续几轮「模型要工具 → 执行 → 回灌」。防止模型原地打转、烧 token。
+# 到上限就暂停交回给用户；教程（Vercel Academy harness）里对应 stopWhen: stepCountIs(10)。
+MAX_TOOL_ROUNDS = 20
+
 
 def prompt_user() -> str | None:
     """读一行用户输入；Ctrl-D 返回 None。"""
@@ -49,12 +53,16 @@ class Agent:
         get_user_input: Callable[[], str | None] = prompt_user,
         system: str = "",
         approve: Callable[[ToolCall], bool] = ask_approval,
+        max_tool_rounds: int = MAX_TOOL_ROUNDS,
     ) -> None:
+        if max_tool_rounds < 1:
+            raise ValueError(f"max_tool_rounds must be >= 1, got {max_tool_rounds}")
         self.provider = provider
         self.tools = {t.name: t for t in tools}
         self.get_user_input = get_user_input
         self.system = system
         self.approve = approve
+        self.max_tool_rounds = max_tool_rounds
 
     def _execute(self, call: ToolCall) -> ToolResult:
         """执行一次工具调用。失败也返回结果，交给模型自己纠错。"""
@@ -81,6 +89,7 @@ class Agent:
         print(f"Chat with {self.provider.label} — {len(tools)} 个工具可用 (Ctrl-D 退出)")
 
         need_user_input = True
+        tool_rounds = 0  # 自上次用户输入以来连续的工具轮数
         while True:
             if need_user_input:
                 user_input = self.get_user_input()
@@ -89,6 +98,7 @@ class Agent:
                 if not user_input:
                     continue
                 conversation.append({"role": "user", "content": user_input})
+                tool_rounds = 0
 
             # provider.chat 会把 assistant 回复按本家格式 append 进 conversation。
             reply = self.provider.chat(conversation, tools, self.system)
@@ -102,6 +112,12 @@ class Agent:
                 continue
 
             conversation.extend(self.provider.tool_results(results))
+            tool_rounds += 1
+            if tool_rounds >= self.max_tool_rounds:
+                # 结果已经回灌，每个 tool_call id 都有回复；用户下一句（比如「继续」）接在 tool 消息后面即可。
+                print(f"\033[91m已连续 {tool_rounds} 轮工具调用，先暂停交回给你；回复「继续」让它接着做。\033[0m")
+                need_user_input = True
+                continue
             need_user_input = False  # 有工具调用 → 不等用户，直接再问模型
 
 
