@@ -75,6 +75,21 @@ def test_edit_file_empty_old_str_creates_file_and_parent_dirs(tmp_path):
     assert "created" in msg
 
 
+def test_edit_file_empty_old_str_refuses_to_overwrite_existing_file(tmp_path):
+    f = tmp_path / "f.txt"
+    f.write_text("precious")
+    with pytest.raises(ToolError, match="already exists"):
+        edit_file.run({"path": str(f), "old_str": "", "new_str": "oops"})
+    assert f.read_text() == "precious"
+
+
+def test_edit_file_empty_old_str_fills_existing_empty_file(tmp_path):
+    f = tmp_path / "f.txt"
+    f.write_text("")
+    edit_file.run({"path": str(f), "old_str": "", "new_str": "content"})
+    assert f.read_text() == "content"
+
+
 def test_edit_file_rejects_missing_old_str(tmp_path):
     f = tmp_path / "f.txt"
     f.write_text("abc")

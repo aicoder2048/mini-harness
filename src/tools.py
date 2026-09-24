@@ -115,6 +115,9 @@ def _edit_file(args: dict[str, Any]) -> str:
         raise ToolError("old_str and new_str must differ")
 
     if old == "":  # 空 old_str 约定为「新建文件」
+        # 原文没做这个检查。不做的话模型传个空 old_str 就能把整个已有文件清掉重写。
+        if os.path.exists(path) and os.path.getsize(path) > 0:
+            raise ToolError(f"{path} already exists; use a non-empty old_str to edit it")
         parent = os.path.dirname(path)
         if parent:
             os.makedirs(parent, exist_ok=True)
@@ -148,7 +151,7 @@ edit_file = Tool(
         "'old_str' and 'new_str' MUST be different from each other, and 'old_str' "
         "must match exactly one place in the file.\n\n"
         "If the file specified with path doesn't exist and 'old_str' is empty, "
-        "it will be created."
+        "it will be created. An empty 'old_str' never overwrites a non-empty existing file."
     ),
     input_schema={
         "type": "object",
