@@ -3,7 +3,7 @@
 跟学 Thorsten Ball《How to Build an Agent》的 Python 复现（对应 `docs/Thorsten-Ball-构建Agent-Python跟学版.pdf`），
 模型 Provider 用 **DeepSeek**（OpenAI 兼容协议）。
 
-约 400 行、四个工具、一个循环：一个能读、能找、能改你代码、能跑命令的 agent。
+`src/` 约 700 行（一半是注释）、四个工具、一个循环：一个能读、能找、能改你代码、能跑命令的 agent。
 前三个工具与原文一致，`run_bash` 是额外加的第 5 步。
 
 ## 致谢 / Credits
@@ -20,6 +20,61 @@
   system prompt 的设计（分段、随工具集变化、验证段、`AGENTS.md` 注入）参考了其中模块 3「系统提示词」。
 
 在此之上，本仓库换成了 DeepSeek（OpenAI 兼容协议），并额外加了 system prompt、`run_bash` 工具等，见下文「与 PDF 代码清单的差异」。
+
+## 学习地图：WHAT / WHY / HOW
+
+模型只会一件事：看一段文本，吐一段文本。除此之外的一切——读文件、跑命令、记住上文、决定何时停——都是 **harness**。
+
+```
+Agent   = Model + Harness
+Harness = Loop + Tools + Context + Control
+
+output_t    = M(context_t)              # 模型：只负责「想」——provider.chat()
+context_t+1 = H(context_t, output_t)    # harness：执行工具、回灌结果、决定下一步
+```
+
+模型是无状态的纯函数；agent 的「状态」和「行动」全部发生在 H 里。
+
+| 组件 | WHAT（是什么） | WHY（没有它会怎样） | HOW（去哪读） |
+|---|---|---|---|
+| **Loop** 循环 | `need_user_input`：有工具调用就不等用户，直接再问模型 | 模型只能「请求」动作，执行和续轮全靠 harness | `agent.py` `Agent.run` |
+| **Loop** 预算 | `--max-rounds`：连续工具轮数上限，到了交回给人 | 没刹车的循环会原地打转、烧 token | `agent.py` `MAX_TOOL_ROUNDS` |
+| **Tools** 工具 | `Tool` = name / description / input_schema / run | 模型的「手」；description 本身就是写给模型的 prompt | `tools.py` `Tool` |
+| **Tools** 接口设计 | `edit_file` 必须唯一命中；`run_bash` 超时 + 截断 | 接口宽松，模型就会沉默地做错事 | `tools.py` `_edit_file`、`_run_bash` |
+| **协议适配** | 内部只认 `Reply` / `ToolCall` / `ToolResult` | 各家 API 线上格式不同，循环不该关心 | `providers.py` `chat`、`tool_results` |
+| **Context** 对话历史 | 每轮把 conversation 全量重发 | 服务端无状态，「记忆」只存在于本地这个列表 | `step1_chat.py`、`Agent.run` |
+| **Context** system prompt | 写「策略」而非「能力」；按实际挂载的工具拼段 | 工具说明「能做什么」，prompt 说明「该怎么做」 | `prompt.py` `build_system_prompt` |
+| **Context** 项目上下文 | 启动时读 `AGENTS.md` 注入 prompt | harness 是通用的，每个项目各有各的命令和约定 | `prompt.py` `load_project_context` |
+| **Control** 错误回灌 | 工具失败 → 错误结果交回模型，而不是抛异常 | 模型能自己纠错；程序一崩，agent 就死了 | `Agent._execute`、`DeepSeekProvider._tool_call` |
+| **Control** 人工审批 | `needs_approval` 的工具执行前问 `[y/N]` | 模型是在**你的机器上**执行命令 | `agent.py` `ask_approval` |
+
+**建议阅读顺序**
+
+1. `step1_chat.py`：最裸的一次 API 调用；理解「记忆」= 本地一个列表
+2. `agent.py` 的 `Agent.run`：整个 agent 就是这个循环（不到 40 行）
+3. `tools.py` 的 `Tool` 和 `read_file`：一个工具的四要素
+4. `providers.py` 的 `chat` / `tool_results`：内部结构 ↔ 线上格式
+5. `prompt.py` 的 `build_system_prompt`：prompt 如何由运行时状态拼出来
+6. 其余（`_execute` 的各种失败处理、`_run_bash` 的超时与进程组）是加固，最后再看
+
+想看最朴素的教程原版：`git checkout 7b7ffd1`。之后每个 commit 只加一件事，commit message 写明了原因——`git log` 本身就是一份课程。
+
+**工程上的划分**（业界名词并无标准定义，这是一种好用的切法）：
+
+```
+Harness Engineering        怎么搭整台机器
+├── Context Engineering    每一轮窗口里放什么
+│     └── Prompt Engineering   其中固定、手写的那部分（system prompt、工具描述）
+├── Tool Engineering       模型能做什么、工具接口怎么设计
+├── Control Engineering    何时调用、何时停、何时问人、预算与失败处理
+└── Evaluation             怎么证明改了之后变好了
+```
+
+**还没覆盖的**
+
+- **Context 放不下怎么办**：conversation 无限增长，没有压缩或裁剪——下一个最值得学的概念
+- **Evaluation**：只有单元测试，没有衡量 agent 行为好坏的评估
+- 沙箱、子 agent、流式输出与中途打断
 
 ## 目录
 
