@@ -31,6 +31,12 @@ from tools import ALL_TOOLS, Tool, ToolError
 # 到上限就暂停交回给用户；教程（Vercel Academy harness）里对应 stopWhen: stepCountIs(10)。
 MAX_TOOL_ROUNDS = 20
 
+# 上下文管理：上一次请求的输入超过预算，就把「最近几个之外」的旧工具结果一次性换成占位符。
+# 故意不每轮都修剪：DeepSeek 按前缀自动缓存，改动一条旧消息，它之后的缓存全部失效。
+# 超预算才批量清理一次，之后前缀又稳定下来。
+CONTEXT_BUDGET = 60_000  # 输入 token
+KEEP_TOOL_RESULTS = 5
+
 console = Console()  # 只用来把模型回复渲染成 Markdown；其余输出仍是普通 print
 
 
@@ -60,6 +66,8 @@ class Agent:
         system: str = "",
         approve: Callable[[ToolCall], bool] = ask_approval,
         max_tool_rounds: int = MAX_TOOL_ROUNDS,
+        context_budget: int = CONTEXT_BUDGET,
+        keep_tool_results: int = KEEP_TOOL_RESULTS,
     ) -> None:
         if max_tool_rounds < 1:
             raise ValueError(f"max_tool_rounds must be >= 1, got {max_tool_rounds}")
@@ -69,6 +77,8 @@ class Agent:
         self.system = system
         self.approve = approve
         self.max_tool_rounds = max_tool_rounds
+        self.context_budget = context_budget
+        self.keep_tool_results = keep_tool_results
 
     def _execute(self, call: ToolCall) -> ToolResult:
         """执行一次工具调用。失败也返回结果，交给模型自己纠错。"""
@@ -117,6 +127,13 @@ class Agent:
 
             if reply.usage:
                 self._log_usage(reply.usage)
+                if reply.usage.input_tokens > self.context_budget:
+                    pruned = self.provider.prune_tool_results(conversation, self.keep_tool_results)
+                    if pruned:
+                        print(
+                            f"\033[2m· 上下文超过 {self.context_budget:,} token 预算，清理了 {pruned} 个旧工具结果\033[0m",
+                            file=sys.stderr,
+                        )
             for text in reply.texts:
                 print(f"\033[93m{self.provider.label}\033[0m:")
                 console.print(Markdown(text))  # Markdown 按块渲染，所以标签单独一行

@@ -15,6 +15,7 @@ class FakeProvider:
         self.chats: list[list[dict]] = []  # 每次 chat 收到的 conversation 快照
         self.systems: list[str] = []
         self.results: list[list[ToolResult]] = []
+        self.prunes: list[int] = []  # 每次 prune_tool_results 收到的 keep_last
 
     def chat(self, conversation, tools, system=""):
         self.chats.append(list(conversation))
@@ -22,6 +23,10 @@ class FakeProvider:
         reply = self.replies.pop(0)
         conversation.append({"role": "assistant", "content": reply.texts})
         return reply
+
+    def prune_tool_results(self, conversation, keep_last):
+        self.prunes.append(keep_last)
+        return 1
 
     def tool_results(self, results):
         self.results.append(results)
@@ -70,6 +75,19 @@ def test_token_usage_is_logged_to_stderr_not_stdout(capsys):
 def test_no_usage_line_when_provider_reports_none(capsys):
     Agent(FakeProvider([Reply(texts=["hi"])]), [], scripted("go")).run()
     assert capsys.readouterr().err == ""
+
+
+def test_prunes_old_tool_results_when_input_exceeds_budget(capsys):
+    provider = FakeProvider([Reply(texts=["hi"], usage=Usage(1001, 10))])
+    Agent(provider, [], scripted("go"), context_budget=1000, keep_tool_results=5).run()
+    assert provider.prunes == [5]
+    assert "清理" in capsys.readouterr().err
+
+
+def test_no_pruning_within_budget():
+    provider = FakeProvider([Reply(texts=["hi"], usage=Usage(1000, 10))])
+    Agent(provider, [], scripted("go"), context_budget=1000).run()
+    assert provider.prunes == []
 
 
 def test_tool_error_is_fed_back_not_raised(tmp_path):

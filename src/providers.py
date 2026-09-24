@@ -11,6 +11,7 @@ DeepSeek 走 OpenAI 兼容协议（Chat Completions + function calling）。agen
   工具声明        {"type": "function", "function": {name, description, parameters}}
   assistant 回灌  content + tool_calls（+ reasoning_content：思考模式带 tools 时必须回灌）
   工具结果回灌    每个结果一条 role=tool 消息，tool_call_id 与 tool_calls[i].id 配对
+  修剪旧结果      只把旧 role=tool 消息的 content 换成占位符，消息结构一条不动
 """
 
 from __future__ import annotations
@@ -22,6 +23,7 @@ from typing import Any, Protocol
 
 from tools import Tool
 
+PRUNED_PREFIX = "[pruned to save context:"
 MAX_TOKENS = 4096  # 输出上限。第 4 步模型要吐整个文件，1024 会截断在半句话上。
 
 
@@ -65,6 +67,10 @@ class Provider(Protocol):
 
     def tool_results(self, results: list[ToolResult]) -> list[dict]:
         """把一轮的工具结果编码成要 append 进 conversation 的消息列表。"""
+
+    def prune_tool_results(self, conversation: list[dict], keep_last: int) -> int:
+        """把最近 keep_last 个之外的旧工具结果换成占位符（原地修改），返回清理了几个。
+        放在 provider 里，因为「工具结果长什么样」是线上格式的事。"""
 
 
 class DeepSeekProvider:
@@ -172,3 +178,27 @@ class DeepSeekProvider:
             }
             for r in results
         ]
+
+    def prune_tool_results(self, conversation: list[dict], keep_last: int) -> int:
+        # 不删消息，只换 content：删掉 tool 消息会让 tool_call id 落单（API 直接拒绝），
+        # 也可能破坏 reasoning_content 的回灌链。占位符还告诉模型「这里原来有东西，需要就重新调」。
+        names = {
+            tc["id"]: tc["function"]["name"]
+            for m in conversation
+            if m["role"] == "assistant"
+            for tc in m.get("tool_calls") or []
+        }
+        tool_msgs = [m for m in conversation if m["role"] == "tool"]
+        old = tool_msgs[: max(len(tool_msgs) - keep_last, 0)]
+        pruned = 0
+        for m in old:
+            content = m["content"]
+            if content.startswith(PRUNED_PREFIX):
+                continue
+            name = names.get(m["tool_call_id"], "tool")
+            placeholder = f"{PRUNED_PREFIX} earlier {name} result ({len(content):,} chars). Call it again if needed.]"
+            if len(placeholder) >= len(content):
+                continue  # 短结果换了反而更长
+            m["content"] = placeholder
+            pruned += 1
+        return pruned

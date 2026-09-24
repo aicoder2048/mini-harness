@@ -133,3 +133,56 @@ def test_usage_is_normalized_including_deepseek_cache_hits():
 def test_missing_usage_is_none():
     reply = DeepSeekProvider(client=FakeOpenAI(_message(content="hi")), model="m").chat([], [])
     assert reply.usage is None
+
+
+# --- prune_tool_results ------------------------------------------------------
+
+
+def _conversation_with_tool_results(n, size=1000):
+    conv = [{"role": "user", "content": "go"}]
+    for i in range(n):
+        conv.append(
+            {
+                "role": "assistant",
+                "content": None,
+                "reasoning_content": f"think {i}",
+                "tool_calls": [
+                    {"id": f"c{i}", "type": "function", "function": {"name": "read_file", "arguments": "{}"}}
+                ],
+            }
+        )
+        conv.append({"role": "tool", "tool_call_id": f"c{i}", "content": str(i) * size})
+    return conv
+
+
+def _provider():
+    return DeepSeekProvider(client=FakeOpenAI(_message()), model="m")
+
+
+def test_prune_replaces_old_tool_results_with_placeholder_keeping_structure():
+    conv = _conversation_with_tool_results(4)
+    before = [(m["role"], m.get("tool_call_id")) for m in conv]
+
+    assert _provider().prune_tool_results(conv, keep_last=2) == 2
+
+    assert [(m["role"], m.get("tool_call_id")) for m in conv] == before  # 消息一条没少，id 仍然配对
+    tool_msgs = [m for m in conv if m["role"] == "tool"]
+    assert "pruned" in tool_msgs[0]["content"] and "read_file" in tool_msgs[0]["content"]
+    assert "1,000 chars" in tool_msgs[0]["content"]
+    assert tool_msgs[2]["content"] == "2" * 1000 and tool_msgs[3]["content"] == "3" * 1000
+
+
+def test_prune_leaves_assistant_messages_and_reasoning_alone():
+    conv = _conversation_with_tool_results(3)
+    assistants = [dict(m) for m in conv if m["role"] == "assistant"]
+    _provider().prune_tool_results(conv, keep_last=0)
+    assert [m for m in conv if m["role"] == "assistant"] == assistants
+
+
+def test_prune_is_idempotent_and_skips_short_results():
+    conv = _conversation_with_tool_results(3, size=10)  # 比占位符还短，换了反而更长
+    assert _provider().prune_tool_results(conv, keep_last=0) == 0
+
+    conv = _conversation_with_tool_results(3)
+    assert _provider().prune_tool_results(conv, keep_last=0) == 3
+    assert _provider().prune_tool_results(conv, keep_last=0) == 0  # 已清理过的不再动
