@@ -21,6 +21,12 @@ def test_read_file_returns_file_content(tmp_path):
     assert read_file.run({"path": str(tmp_path / "a.txt")}) == "hello 老周"
 
 
+def test_read_file_binary_raises_tool_error(tmp_path):
+    (tmp_path / "img.png").write_bytes(b"\x89PNG\r\n\x1a\n\xff\xfe\x00")
+    with pytest.raises(ToolError, match="UTF-8"):
+        read_file.run({"path": str(tmp_path / "img.png")})
+
+
 def test_read_file_missing_raises_tool_error(tmp_path):
     with pytest.raises(ToolError):
         read_file.run({"path": str(tmp_path / "nope.txt")})
@@ -90,6 +96,14 @@ def test_edit_file_empty_old_str_fills_existing_empty_file(tmp_path):
     f.write_text("")
     edit_file.run({"path": str(f), "old_str": "", "new_str": "content"})
     assert f.read_text() == "content"
+
+
+def test_edit_file_binary_raises_tool_error_and_leaves_file_alone(tmp_path):
+    f = tmp_path / "blob.bin"
+    f.write_bytes(b"\xff\xfe\x00abc")
+    with pytest.raises(ToolError, match="UTF-8"):
+        edit_file.run({"path": str(f), "old_str": "abc", "new_str": "xyz"})
+    assert f.read_bytes() == b"\xff\xfe\x00abc"
 
 
 def test_edit_file_rejects_missing_old_str(tmp_path):

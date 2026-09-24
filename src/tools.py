@@ -37,13 +37,20 @@ class ToolError(Exception):
 # --- read_file ---------------------------------------------------------------
 
 
-def _read_file(args: dict[str, Any]) -> str:
-    path = args["path"]
+def _read_text(path: str) -> str:
+    """read_file 和 edit_file 共用：读 UTF-8 文本，失败一律变成 ToolError。"""
     try:
         with open(path, encoding="utf-8") as f:
             return f.read()
     except OSError as e:
         raise ToolError(str(e)) from e
+    except UnicodeDecodeError as e:
+        # 不是 OSError，漏接的话一张图片就能让整个 agent 崩掉。
+        raise ToolError(f"{path} is not a UTF-8 text file (binary?): {e.reason} at byte {e.start}") from e
+
+
+def _read_file(args: dict[str, Any]) -> str:
+    return _read_text(args["path"])
 
 
 read_file = Tool(
@@ -129,12 +136,7 @@ def _edit_file(args: dict[str, Any]) -> str:
             f.write(new)
         return f"Successfully created file {path}"
 
-    try:
-        with open(path, encoding="utf-8") as f:
-            content = f.read()
-    except OSError as e:
-        raise ToolError(str(e)) from e
-
+    content = _read_text(path)
     occurrences = content.count(old)
     if occurrences == 0:
         raise ToolError("old_str not found in file")
