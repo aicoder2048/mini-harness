@@ -16,6 +16,8 @@
   原文没有官方代码仓库，代码直接写在文章里——强烈建议先读原文。
 - **Janitha Rathnayake，[How to Build an Agent by Thorsten Ball (Python Version)](https://medium.com/@jbrathnayake98/how-to-build-an-agent-by-thorsten-ball-python-version-ebbabb8665f6)**（Medium，2025-08-19）。
   Python 移植时的参考。
+- **Joel Hooks，[Build Your Own AI Coding Agent Harness](https://vercel.com/academy/build-ai-agent-harness)**（Vercel Academy）。
+  system prompt 的设计（分段、随工具集变化、验证段、`AGENTS.md` 注入）参考了其中模块 3「系统提示词」。
 
 在此之上，本仓库换成了 DeepSeek（OpenAI 兼容协议），并额外加了 system prompt、`run_bash` 工具等，见下文「与 PDF 代码清单的差异」。
 
@@ -26,8 +28,10 @@ src/
   step1_chat.py   第 1 步：聊天循环（还不是 agent），直接调 OpenAI 兼容 SDK
   tools.py        四个工具 read_file / list_files / edit_file / run_bash + 手写 JSON Schema
   providers.py    DeepSeekProvider：工具声明 / assistant 回灌 / 工具结果回灌的线上格式全收在这里
-  agent.py        第 2–5 步：agent 循环 + system prompt + 危险工具确认，--step 控制工具集
+  prompt.py       system prompt：由工作目录 / 工具集 / git 分支 / AGENTS.md 拼出的分段 prompt
+  agent.py        第 2–5 步：agent 循环 + 危险工具确认，--step 控制工具集
 tests/            pytest，不打真实 API（fake client / fake provider）
+AGENTS.md         给 agent 看的项目说明（命令、架构、约定、踩过的坑）
 .env.example      环境变量示例；复制成 .env 再填 key（.env 已在 .gitignore，不会提交）
 ```
 
@@ -81,8 +85,11 @@ PDF 用的是 Anthropic SDK；本仓库换成 DeepSeek 的 OpenAI 兼容协议�
 
 在原文之上加的东西：
 
-- **system prompt**（`agent.py` 的 `SYSTEM_PROMPT`）：告诉模型工作目录、先读后改、报错要重试。
-  请求时拼成最前面一条 `role=system` 消息，不存进 conversation。
+- **动态 system prompt**（`prompt.py`）：`build_system_prompt(PromptContext)` 是纯函数，按运行时状态拼出
+  `# Agency` / `# Guardrails` / `# Verification` / `# Project Instructions` 各段——哪些段出现取决于挂了哪些工具
+  （`--step 2` 只有 `read_file`，就不谈编辑和验证）。请求时拼成最前面一条 `role=system` 消息，不存进 conversation。
+- **`AGENTS.md`**：启动时若工作目录里有这个文件，就注入为 `# Project Instructions`（超过 20000 字符截断）。
+  harness 是通用的，项目自己的命令和约定由项目自己说；本仓库也带了一份。
 - **`edit_file` 更严**：`old_str` 必须唯一命中；空 `old_str` 不会覆盖非空的已有文件。
 - **坏参数不崩溃**：模型给的工具参数不是合法 JSON 对象时，作为错误结果回灌，而不是让程序退出。
 - **`run_bash` + 确认**：`Tool.needs_approval=True` 的工具执行前由 agent 询问用户。
