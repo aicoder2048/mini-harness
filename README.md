@@ -5,7 +5,7 @@
 跟学 Thorsten Ball《How to Build an Agent》的 Python 复现（对应 `docs/Thorsten-Ball-构建Agent-Python跟学版.pdf`），
 模型 Provider 用 **DeepSeek**（OpenAI 兼容协议）。
 
-`src/` 约 700 行（一半是注释）、四个工具、一个循环：一个能读、能找、能改你代码、能跑命令的 agent。
+`src/` 约 1400 行（一半是注释）、四个工具、一个循环：一个能读、能找、能改你代码、能跑命令的 agent。
 前三个工具与原文一致，`run_bash` 是额外加的第 5 步。
 
 ## 致谢 / Credits
@@ -58,11 +58,12 @@ context_t+1 = H(context_t, output_t)    # harness：执行工具、回灌结果�
 **建议阅读顺序**
 
 1. `step1_chat.py`：最裸的一次 API 调用；理解「记忆」= 本地一个列表
-2. `agent.py` 的 `Agent.run`：整个 agent 就是这个循环（不到 40 行）
+2. `agent.py` 的 `Agent.run`：整个 agent 就是这个循环（约 60 行；骨架还是 `need_user_input` 那几行，其余是斜杠命令、上限和修剪）
 3. `tools.py` 的 `Tool` 和 `read_file`：一个工具的四要素
 4. `providers.py` 的 `chat` / `tool_results`：内部结构 ↔ 线上格式
 5. `prompt.py` 的 `build_system_prompt`：prompt 如何由运行时状态拼出来
-6. 其余（`_execute` 的各种失败处理、`_run_bash` 的超时与进程组）是加固，最后再看
+6. `skills.py`：skill 怎么被发现、列成索引，模型又怎么按需加载（渐进式披露的完整例子）
+7. 其余（`_execute` 的各种失败处理、`_run_bash` 的超时与进程组）是加固，最后再看
 
 想看最朴素的教程原版：`git checkout 7b7ffd1`。之后每个 commit 只加一件事，commit message 写明了原因——`git log` 本身就是一份课程。
 

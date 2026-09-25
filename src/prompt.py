@@ -2,7 +2,7 @@
 
 参考 Vercel Academy《Build Your Own AI Coding Agent Harness》模块 3：
   prompt 写的是「策略」（该怎么做、有什么界限），「能力」交给工具描述；
-  分段：角色 / # Agency / # Communication / # Guardrails / # Verification / # Project Instructions；
+  分段：角色 / # Agency / # Communication / # Guardrails / # Verification / # Skills / # Memory / # Project Instructions；
   哪些段出现取决于实际挂载的工具——--step 2 只有 read_file，就不该谈编辑和验证。
 
 build_system_prompt 是纯函数：同样的 PromptContext → 同样的 prompt，没有 I/O，所以能单测。
