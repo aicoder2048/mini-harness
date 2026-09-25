@@ -2,7 +2,16 @@
 
 import pytest
 
-from agent import MAX_TOOL_ROUNDS, Agent, ConsoleApprover, _memory, parse_args, slash_command, tools_for_step
+from agent import (
+    MAX_TOOL_ROUNDS,
+    Agent,
+    ConsoleApprover,
+    _memory,
+    _skills,
+    parse_args,
+    slash_command,
+    tools_for_step,
+)
 from providers import Reply, ToolCall, ToolResult, Usage
 from tools import Tool, read_file
 
@@ -379,3 +388,40 @@ def test_path_starting_with_slash_goes_to_the_model():
     provider = FakeProvider([Reply(texts=["ok"])])
     Agent(provider, [], scripted("/Users/szou/a.py 看看这个")).run()
     assert provider.chats[0][0]["content"] == "/Users/szou/a.py 看看这个"
+
+
+# --- skill 目录：默认 <cwd>/skills，另加 MINI_HARNESS_SKILL_DIRS -------------------
+
+
+def _write_skill(root, name, desc="d"):
+    d = root / name
+    d.mkdir(parents=True)
+    (d / "SKILL.md").write_text(f"---\nname: {name}\ndescription: {desc}\n---\nbody\n")
+    return d
+
+
+def test_skills_default_to_project_skills_dir(tmp_path, monkeypatch):
+    monkeypatch.delenv("MINI_HARNESS_SKILL_DIRS", raising=False)
+    _write_skill(tmp_path / "skills", "run-checks")
+    assert [s.name for s in _skills(str(tmp_path))] == ["run-checks"]
+
+
+def test_no_skills_dir_is_silent(tmp_path, monkeypatch, capsys):
+    monkeypatch.delenv("MINI_HARNESS_SKILL_DIRS", raising=False)
+    assert _skills(str(tmp_path)) == []
+    assert capsys.readouterr().out == ""
+
+
+def test_extra_skill_dirs_are_added_after_project_and_can_be_single_skills(tmp_path, monkeypatch):
+    _write_skill(tmp_path / "skills", "run-checks", "project")
+    single = _write_skill(tmp_path / "elsewhere", "stock-quote")
+    _write_skill(tmp_path / "global", "run-checks", "global")  # 重名：项目内的优先
+    monkeypatch.setenv("MINI_HARNESS_SKILL_DIRS", f"{single}:global")  # 相对路径按工作目录解析
+    found = {s.name: s.description for s in _skills(str(tmp_path))}
+    assert found == {"run-checks": "project", "stock-quote": "d"}
+
+
+def test_explicit_missing_skill_dir_warns(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("MINI_HARNESS_SKILL_DIRS", "nope")
+    assert _skills(str(tmp_path)) == []
+    assert "不存在" in capsys.readouterr().out

@@ -229,3 +229,25 @@ def test_write_rules_say_notes_are_knowledge_not_code():
     p = _mem_prompt(STEP4)
     assert "not code" in p
     assert "skill" in p  # 可复用的代码应该建议做成 skill
+
+
+# --- skills 索引 ----------------------------------------------------------------
+
+SKILL_LINE = "- stock-quote: Get quotes. — /home/me/skills/stock-quote/SKILL.md"
+
+
+def test_skills_section_lists_index_and_says_to_read_skill_md_first():
+    p = _prompt(STEP5, skills_index=SKILL_LINE)
+    assert "# Skills" in p and SKILL_LINE in p
+    assert "read its SKILL.md" in p
+    assert "relative to the skill" in p  # SKILL.md 里的相对路径相对于 skill 自己的目录
+
+
+def test_skills_written_for_other_agents_and_authority_caveats():
+    p = _prompt(STEP5, skills_index=SKILL_LINE)
+    assert "tools you don't have" in p
+    assert "can't override" in p  # skill 是资料，不能压过用户、不能跳过审批
+
+
+def test_no_skills_section_without_index():
+    assert "# Skills" not in _prompt(STEP5)

@@ -35,6 +35,7 @@ from prompt import (
     load_project_context,
 )
 from providers import DeepSeekProvider, Provider, ToolCall, ToolResult, Usage
+from skills import Skill, discover_skills, skills_index
 from tools import ALL_TOOLS, Tool, ToolError
 
 # 同一次用户输入之后，最多连续几轮「模型要工具 → 执行 → 回灌」。防止模型原地打转、烧 token。
@@ -261,12 +262,34 @@ def _memory(cwd: str) -> tuple[str | None, str | None]:
     return memory_dir, index
 
 
+DEFAULT_SKILLS_DIR = "skills"  # 项目自己的 skill，进仓库、给所有人用（和只留本地的 Memory/ 不同）
+
+
+def _skills(cwd: str) -> list[Skill]:
+    """默认只扫 <cwd>/skills；MINI_HARNESS_SKILL_DIRS（: 分隔）显式追加，每项可以是 skill 集合目录，也可以是单个 skill。
+
+    项目目录排最前：重名时项目内的 skill 生效。相对路径按工作目录解析，支持 ~。
+    """
+    extra = [p.strip() for p in os.environ.get("MINI_HARNESS_SKILL_DIRS", "").split(os.pathsep) if p.strip()]
+    dirs = [os.path.normpath(os.path.join(cwd, os.path.expanduser(p))) for p in [DEFAULT_SKILLS_DIR, *extra]]
+    for d in dirs[1:]:
+        if not os.path.isdir(d):
+            print(f"\033[91mMINI_HARNESS_SKILL_DIRS 里的目录不存在：{d}（跳过）\033[0m")
+    skills, warnings = discover_skills(dirs)
+    for w in warnings:
+        print(f"\033[93m{w}\033[0m")
+    if skills:
+        print(f"已加载 {len(skills)} 个 skill：{', '.join(s.name for s in skills)}")
+    return skills
+
+
 def main() -> None:
     args = parse_args()
 
     cwd = os.getcwd()
     tools = tools_for_step(args.step)
     memory_dir, memory_index = _memory(cwd)
+    skills = _skills(cwd)
     project_context = load_project_context(cwd)
     if project_context:
         print(f"已加载 {AGENTS_FILE}（{len(project_context)} 字符）作为项目指令")
@@ -278,6 +301,7 @@ def main() -> None:
         memory_dir=memory_dir,
         memory_index=memory_index,
         today=datetime.now(UTC).astimezone().date().isoformat(),  # 本机时区的今天
+        skills_index=skills_index(skills),
     )
     Agent(DeepSeekProvider(), tools, system=build_system_prompt(ctx), max_tool_rounds=args.max_rounds).run()
 

@@ -17,6 +17,7 @@ import pytest
 from agent import Agent, tools_for_step
 from prompt import PromptContext, build_system_prompt, load_memory_index, load_project_context
 from providers import DeepSeekProvider, Reply, ToolCall, ToolResult
+from skills import discover_skills, skills_index
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -72,10 +73,18 @@ class LiveRun:
 
 @pytest.fixture
 def live_agent():
-    """run(*inputs, step=5, approve=True, project_context=None, memory_index=None, memory_dir=None, **agent_kwargs)"""
+    """run(*inputs, step=5, approve=True, project_context=None, memory_index=None, memory_dir=None,
+    skills_index=None, **agent_kwargs)"""
 
     def run(
-        *inputs, step=5, approve=True, project_context=None, memory_index=None, memory_dir=None, **agent_kwargs
+        *inputs,
+        step=5,
+        approve=True,
+        project_context=None,
+        memory_index=None,
+        memory_dir=None,
+        skills_index=None,
+        **agent_kwargs,
     ) -> LiveRun:
         tools = tools_for_step(step)
         ctx = PromptContext(
@@ -85,6 +94,7 @@ def live_agent():
             memory_index=memory_index,
             memory_dir=memory_dir,
             today="2026-09-24",
+            skills_index=skills_index,
         )
         live = LiveRun(RecordingProvider(DeepSeekProvider()))
 
@@ -223,3 +233,43 @@ def test_secrets_are_not_written_to_memory(live_agent, tmp_path):
 
     written = "".join(f.read_text(encoding="utf-8") for f in mem.glob("*.md")) if mem.exists() else ""
     assert "sk-live-7f3a9c2e41" not in written
+
+
+ZORB_SCRIPT = """import sys
+name = sys.argv[1].lower()
+print(f"ZORB-{name.upper()}-{sum(map(ord, name)) % 97:02d}")
+"""
+
+
+def _zorb_skills(root):
+    """虚构的 skill：答案只能靠跑它的脚本得到，模型没法猜。再放一个描述相同、但禁止模型自动调用的干扰项。"""
+    zorb = root / "zorb-report"
+    (zorb / "scripts").mkdir(parents=True)
+    (zorb / "scripts" / "zorb.py").write_text(ZORB_SCRIPT)
+    (zorb / "SKILL.md").write_text(
+        "---\nname: zorb-report\n"
+        "description: Generate the zorb report for a project codename. Use whenever the user asks for a zorb report.\n"
+        "---\n\n# Zorb report\n\nRun `python3 scripts/zorb.py <codename>` (path relative to this skill's folder) "
+        "and give the user the printed line verbatim.\n"
+    )
+    secret = root / "zorb-legacy"
+    secret.mkdir()
+    (secret / "SKILL.md").write_text(
+        "---\nname: zorb-legacy\ndescription: Old zorb report generator. Use for zorb reports.\n"
+        "disable-model-invocation: true\n---\n\nSay ZORB-LEGACY.\n"
+    )
+    return discover_skills([str(root)])[0]
+
+
+def test_model_picks_skill_from_index_reads_skill_md_then_runs_its_script(live_agent, tmp_path):
+    skills = _zorb_skills(tmp_path / "skills")
+    expected = f"ZORB-ORION-{sum(map(ord, 'orion')) % 97:02d}"
+
+    run = live_agent("给我生成项目 orion 的 zorb report。", skills_index=skills_index(skills))
+
+    skill_md = str(tmp_path / "skills" / "zorb-report" / "SKILL.md")
+    assert any(c.name == "read_file" and c.input.get("path") == skill_md for c in run.calls)  # 先读 SKILL.md
+    assert any(c.name == "run_bash" and "zorb.py" in c.input.get("command", "") for c in run.calls)
+    assert expected in run.answer
+    # disable-model-invocation 的 skill 不在索引里，模型不会去用它
+    assert not any("zorb-legacy" in str(c.input) for c in run.calls)
