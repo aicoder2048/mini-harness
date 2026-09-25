@@ -135,6 +135,7 @@ Ctrl-D 退出。工具调用会以绿色 `tool:` 行打印，失败以红色 `�
 | Ctrl+J，或行尾 `\` 再 Enter | 换行（任何终端都能用） |
 | ← → ↑ ↓ | 移动光标；在第一行按 ↑、最后一行按 ↓ 翻本会话的历史 |
 | Ctrl+C / Ctrl+D | 清空这一行 / 空行时退出 |
+| `/exit`、`/quit` | 退出本会话和程序 |
 
 很多终端默认让 Shift+Enter 和 Enter 发一样的字符，程序分不出来。能分出来的终端（kitty、WezTerm、Ghostty，
 iTerm2 开了「Report modifiers using CSI u」）会发转义序列，`cli_input.py` 识别常见的两种格式。
@@ -188,6 +189,8 @@ PDF 用的是 Anthropic SDK；本仓库换成 DeepSeek 的 OpenAI 兼容协议�
 - **二进制文件不崩溃**：`read_file` / `edit_file` 读到非 UTF-8 文件（图片、PDF）时作为错误结果回灌。
 - **工具调用上限**：同一次用户输入后最多连续 20 轮工具调用（`--max-rounds N` 可调），
   到了就暂停交回给你，回复「继续」接着做——防止模型原地打转烧 token。
+- **斜杠命令**：以 `/命令` 开头的输入由 harness 处理、不发给模型，目前有 `/exit`、`/quit`；未知命令列出可用的。
+  只有第一个词整个是 `/字母...` 才算命令，所以 `/Users/me/a.py 看看这个` 这种以路径开头的消息照常发给模型。
 - **多行输入**（`cli_input.py`，基于 `prompt_toolkit`）：Shift+Enter / Option+Enter / Ctrl+J / 行尾 `\` 换行，
   方向键编辑和翻历史；测试用 prompt_toolkit 的管道输入直接喂 Shift+Enter 的转义序列。
 - **终端渲染 Markdown**：模型回复用 `rich` 渲染；system prompt 的 `# Communication` 段告诉模型

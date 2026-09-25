@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -47,6 +48,27 @@ CONTEXT_BUDGET = 60_000  # 输入 token
 KEEP_TOOL_RESULTS = 5
 
 console = Console()  # 只用来把模型回复渲染成 Markdown；其余输出仍是普通 print
+
+
+# 斜杠命令：由 harness 自己处理，不发给模型。名字 → 说明（未知命令时列出来）
+SLASH_COMMANDS = {
+    "exit": "退出本会话和程序",
+    "quit": "同 /exit",
+}
+_SLASH_COMMAND = re.compile(r"/([A-Za-z][\w-]*)")
+
+
+def slash_command(text: str) -> str | None:
+    """输入是斜杠命令就返回命令名（小写），否则 None。
+
+    只看第一个词，而且整个词必须是 /字母...：这样 `/Users/szou/a.py 看看这个` 这种以路径开头的消息
+    不会被当成命令吞掉，照常发给模型。命令后面的参数目前不用。
+    """
+    words = text.split()
+    if not words:
+        return None
+    m = _SLASH_COMMAND.fullmatch(words[0])
+    return m.group(1).lower() if m else None
 
 
 class ConsoleApprover:
@@ -134,7 +156,7 @@ class Agent:
     def run(self) -> None:
         conversation: list[dict] = []
         tools = list(self.tools.values())
-        print(f"Chat with {self.provider.label} — {len(tools)} 个工具可用 (Ctrl-D 退出)")
+        print(f"Chat with {self.provider.label} — {len(tools)} 个工具可用（/exit、/quit 或 Ctrl-D 退出）")
 
         need_user_input = True
         tool_rounds = 0  # 自上次用户输入以来连续的工具轮数
@@ -144,6 +166,13 @@ class Agent:
                 if user_input is None:
                     break
                 if not user_input:
+                    continue
+                command = slash_command(user_input)
+                if command in ("exit", "quit"):
+                    break
+                if command is not None:
+                    available = "  ".join(f"/{name}（{desc}）" for name, desc in SLASH_COMMANDS.items())
+                    print(f"\033[91m未知命令 /{command}\033[0m。可用：{available}")
                     continue
                 conversation.append({"role": "user", "content": user_input})
                 tool_rounds = 0

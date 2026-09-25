@@ -2,7 +2,7 @@
 
 import pytest
 
-from agent import MAX_TOOL_ROUNDS, Agent, ConsoleApprover, _memory, parse_args, tools_for_step
+from agent import MAX_TOOL_ROUNDS, Agent, ConsoleApprover, _memory, parse_args, slash_command, tools_for_step
 from providers import Reply, ToolCall, ToolResult, Usage
 from tools import Tool, read_file
 
@@ -332,3 +332,50 @@ def test_explicit_relative_memory_dir_resolves_against_cwd(tmp_path, monkeypatch
     (tmp_path / "notes" / "n.md").write_text("# 另一个目录")
     memory_dir, index = _memory(str(tmp_path))
     assert memory_dir == str(tmp_path / "notes") and "另一个目录" in index
+
+
+# --- 斜杠命令 ------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("text", ["/exit", "/quit", "  /quit  ", "/EXIT", "/exit now"])
+def test_exit_and_quit_end_the_session_without_calling_the_model(text):
+    provider = FakeProvider([])
+    Agent(provider, [], scripted(text, "never sent")).run()
+    assert provider.chats == []
+
+
+def test_exit_after_some_conversation_stops_there():
+    provider = FakeProvider([Reply(texts=["hi"])])
+    Agent(provider, [], scripted("hello", "/quit", "never sent")).run()
+    assert len(provider.chats) == 1
+
+
+def test_unknown_command_is_not_sent_to_model_and_lists_commands(capsys):
+    provider = FakeProvider([Reply(texts=["ok"])])
+    Agent(provider, [], scripted("/foo", "hello")).run()
+    assert provider.chats[0] == [{"role": "user", "content": "hello"}]  # /foo 没进 conversation
+    out = capsys.readouterr().out
+    assert "/foo" in out and "/exit" in out and "/quit" in out
+
+
+@pytest.mark.parametrize(
+    "text,expected",
+    [
+        ("/exit", "exit"),
+        ("/Quit", "quit"),
+        ("/help me", "help"),
+        ("/Users/szou/a.py 看看这个", None),  # 路径不是命令：照常发给模型
+        ("/", None),
+        ("/123", None),
+        ("hello /exit", None),
+        ("", None),
+    ],
+)
+def test_slash_command_parsing(text, expected):
+    assert slash_command(text) == expected
+
+
+def test_path_starting_with_slash_goes_to_the_model():
+    provider = FakeProvider([Reply(texts=["ok"])])
+    Agent(provider, [], scripted("/Users/szou/a.py 看看这个")).run()
+    assert provider.chats[0][0]["content"] == "/Users/szou/a.py 看看这个"
