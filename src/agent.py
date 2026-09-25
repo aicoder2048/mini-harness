@@ -24,6 +24,7 @@ from datetime import UTC, datetime
 from rich.console import Console
 from rich.markdown import Markdown
 
+from cli_input import make_default_reader
 from prompt import (
     AGENTS_FILE,
     PromptContext,
@@ -46,14 +47,6 @@ CONTEXT_BUDGET = 60_000  # 输入 token
 KEEP_TOOL_RESULTS = 5
 
 console = Console()  # 只用来把模型回复渲染成 Markdown；其余输出仍是普通 print
-
-
-def prompt_user() -> str | None:
-    """读一行用户输入；Ctrl-D 返回 None。"""
-    try:
-        return input("\033[94mYou\033[0m: ")
-    except EOFError:
-        return None
 
 
 class ConsoleApprover:
@@ -94,7 +87,7 @@ class Agent:
         self,
         provider: Provider,
         tools: list[Tool],
-        get_user_input: Callable[[], str | None] = prompt_user,
+        get_user_input: Callable[[], str | None] | None = None,
         system: str = "",
         approve: Callable[[ToolCall], bool] | None = None,
         max_tool_rounds: int = MAX_TOOL_ROUNDS,
@@ -105,7 +98,8 @@ class Agent:
             raise ValueError(f"max_tool_rounds must be >= 1, got {max_tool_rounds}")
         self.provider = provider
         self.tools = {t.name: t for t in tools}
-        self.get_user_input = get_user_input
+        # 默认读终端（多行、方向键、历史），每个 Agent 一个，历史不跨会话；测试里注入脚本化输入
+        self.get_user_input = get_user_input or make_default_reader()
         self.system = system
         self.approve = approve or ConsoleApprover()  # 每个 Agent 一个新会话，不共享「a」的状态
         self.max_tool_rounds = max_tool_rounds

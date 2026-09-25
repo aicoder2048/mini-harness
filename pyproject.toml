@@ -5,6 +5,7 @@ description = "跟学 Thorsten Ball《How to Build an Agent》的 Python 实现�
 requires-python = ">=3.12"
 dependencies = [
     "openai>=1.0",
+    "prompt-toolkit>=3.0.53",
     "rich>=15.0.0",
 ]
 

@@ -96,6 +96,7 @@ src/
   providers.py    DeepSeekProvider：工具声明 / assistant 回灌 / 工具结果回灌的线上格式全收在这里
   prompt.py       system prompt：由工作目录 / 工具集 / git 分支 / AGENTS.md / 记忆索引拼出的分段 prompt
   agent.py        第 2–5 步：agent 循环 + 危险工具确认，--step 控制工具集
+  cli_input.py    终端输入：多行编辑、方向键、历史（prompt_toolkit）
 tests/            pytest：快速测试全用 fake；test_live.py 打真实 API（默认跳过，-m live 运行）
 AGENTS.md         给 agent 看的项目说明（命令、架构、约定、踩过的坑）
 CLAUDE.md         只有一行 `@AGENTS.md`：Claude Code 读 CLAUDE.md，靠这个 import 读到同一份说明
@@ -124,6 +125,20 @@ uv run --env-file .env src/agent.py             # 第 5 步（默认）：+ run_
 ```
 
 Ctrl-D 退出。工具调用会以绿色 `tool:` 行打印，失败以红色 `→ error` 打印并回灌给模型。
+
+输入框支持多行编辑：
+
+| 按键 | 作用 |
+|---|---|
+| Enter | 发送 |
+| Shift+Enter / Option+Enter | 换行（Shift+Enter 要终端能区分它，见下） |
+| Ctrl+J，或行尾 `\` 再 Enter | 换行（任何终端都能用） |
+| ← → ↑ ↓ | 移动光标；在第一行按 ↑、最后一行按 ↓ 翻本会话的历史 |
+| Ctrl+C / Ctrl+D | 清空这一行 / 空行时退出 |
+
+很多终端默认让 Shift+Enter 和 Enter 发一样的字符，程序分不出来。能分出来的终端（kitty、WezTerm、Ghostty，
+iTerm2 开了「Report modifiers using CSI u」）会发转义序列，`cli_input.py` 识别常见的两种格式。
+粘贴多行文本不会被中途提交。输入来自管道（`printf ... | uv run src/agent.py`）时退回普通的逐行读取。
 
 `run_bash` 每条命令执行前都会问 `允许执行? [Y/n/a]`：**回车或 `y` 允许这一次**，`n` 拒绝（作为错误回灌给模型），
 `a` 本会话内不再询问 `run_bash`；Ctrl-D 视为拒绝，输错会再问一次。
@@ -173,6 +188,8 @@ PDF 用的是 Anthropic SDK；本仓库换成 DeepSeek 的 OpenAI 兼容协议�
 - **二进制文件不崩溃**：`read_file` / `edit_file` 读到非 UTF-8 文件（图片、PDF）时作为错误结果回灌。
 - **工具调用上限**：同一次用户输入后最多连续 20 轮工具调用（`--max-rounds N` 可调），
   到了就暂停交回给你，回复「继续」接着做——防止模型原地打转烧 token。
+- **多行输入**（`cli_input.py`，基于 `prompt_toolkit`）：Shift+Enter / Option+Enter / Ctrl+J / 行尾 `\` 换行，
+  方向键编辑和翻历史；测试用 prompt_toolkit 的管道输入直接喂 Shift+Enter 的转义序列。
 - **终端渲染 Markdown**：模型回复用 `rich` 渲染；system prompt 的 `# Communication` 段告诉模型
   「输出会按 Markdown 渲染在一个窄终端里」，让它用列表、代码块，少用宽表格和 HTML。
 - **上下文管理**（参考 Vercel 课程模块 5）：
