@@ -251,3 +251,21 @@ def test_skills_written_for_other_agents_and_authority_caveats():
 
 def test_no_skills_section_without_index():
     assert "# Skills" not in _prompt(STEP5)
+
+
+def test_skills_section_says_how_to_handle_missing_script_dependencies():
+    # 实测：OpenAI skill-creator 的脚本要 PyYAML，系统 python3 没有；模型自己写了个假 yaml.py 让校验「通过」
+    p = _prompt(STEP5, skills_index=SKILL_LINE)
+    assert "uv run --with" in p
+    assert "stand-in" in p  # 不许伪造替代品
+
+
+def test_python_runs_through_uv_with_inline_dependencies():
+    # 用户要求：不用系统 python3；脚本在文件里声明依赖（PEP 723），uv run 自动建隔离环境
+    p = _prompt(STEP5)
+    assert "uv run" in p and "not the system `python3`" in p
+    assert "PEP 723" in p
+
+
+def test_no_python_running_rule_without_run_bash():
+    assert "PEP 723" not in _prompt(STEP4)

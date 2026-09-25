@@ -235,7 +235,11 @@ def test_secrets_are_not_written_to_memory(live_agent, tmp_path):
     assert "sk-live-7f3a9c2e41" not in written
 
 
-ZORB_SCRIPT = """import sys
+ZORB_SCRIPT = """# /// script
+# requires-python = ">=3.12"
+# dependencies = []
+# ///
+import sys
 name = sys.argv[1].lower()
 print(f"ZORB-{name.upper()}-{sum(map(ord, name)) % 97:02d}")
 """
@@ -249,7 +253,7 @@ def _zorb_skills(root):
     (zorb / "SKILL.md").write_text(
         "---\nname: zorb-report\n"
         "description: Generate the zorb report for a project codename. Use whenever the user asks for a zorb report.\n"
-        "---\n\n# Zorb report\n\nRun `python3 scripts/zorb.py <codename>` (path relative to this skill's folder) "
+        "---\n\n# Zorb report\n\nRun `uv run scripts/zorb.py <codename>` (path relative to this skill's folder) "
         "and give the user the printed line verbatim.\n"
     )
     secret = root / "zorb-legacy"

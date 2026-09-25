@@ -205,6 +205,10 @@ PDF 用的是 Anthropic SDK；本仓库换成 DeepSeek 的 OpenAI 兼容协议�
   认得 Claude Code 的调用开关：`disable-model-invocation: true` 不进索引（只能 `/` 调用），`user-invocable: false` 不进 `/` 菜单；
   `allowed-tools` 的免确认授权**故意不支持**（skill 是外部文本，不能给自己开绿灯）。frontmatter 自己解析、不依赖 PyYAML，
   用本机 58 个真实 skill 和 PyYAML 逐个对照零差异。为别的 agent 写的 skill 若依赖 `Agent`、`WebFetch` 等工具，这里用不了。
+- **Python 一律经 uv 运行**：system prompt 要求用 `uv run <脚本>` 而不是系统 `python3`；自己写的脚本用
+  PEP 723 内联声明依赖（`# /// script` 块，没有依赖也写 `dependencies = []`），uv 会给它单独的隔离环境，
+  不借用所在项目的 `.venv`。skill 的脚本若没有声明、又缺包，用 `uv run --with <包>` 补上，**绝不伪造替代品**
+  （实测踩过：模型为了让校验「通过」自己写了个假的 `yaml.py`）。
 - **斜杠命令**：以 `/命令` 开头的输入由 harness 处理、不发给模型，目前有 `/exit`、`/quit`；未知命令列出可用的。
   输入框开头敲 `/` 会弹出补全菜单（`SlashCommandCompleter`，命令表由 `agent.py` 传入，避免循环引用）。
   只有第一个词整个是 `/字母...` 才算命令，所以 `/Users/me/a.py 看看这个` 这种以路径开头的消息照常发给模型。

@@ -10,7 +10,10 @@ Clarity beats features: keep changes small and easy to read.
   Run them after changing `providers.py`, `prompt.py`, tool descriptions or context pruning, or when asked.
 - Lint / format check: `uvx ruff check src tests && uvx ruff format --check src tests`
 - Auto-fix formatting: `uvx ruff format src tests`
-- Use `uv` for everything Python; never `pip install`. Runtime dependencies are `openai`, `rich` (Markdown rendering) and
+- Use `uv` for everything Python; never `pip install`, and never run scripts with the system `python3`.
+  Stand-alone scripts (e.g. a skill's `scripts/`) declare their dependencies inline with a PEP 723
+  `# /// script` block (`dependencies = []` if none) and run with `uv run <script>`: uv then gives them an
+  isolated environment instead of borrowing this project's `.venv`. Runtime dependencies are `openai`, `rich` (Markdown rendering) and
   `prompt_toolkit` (multi-line input editing) — no new ones without asking.
 - Do NOT run the agent itself (`src/agent.py`, `src/step1_chat.py`) to verify a change: it calls the paid
   DeepSeek API and waits for interactive input. Verify with the tests above instead.
