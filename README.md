@@ -48,6 +48,7 @@ context_t+1 = H(context_t, output_t)    # harness：执行工具、回灌结果�
 | **Context** 对话历史 | 每轮把 conversation 全量重发 | 服务端无状态，「记忆」只存在于本地这个列表 | `step1_chat.py`、`Agent.run` |
 | **Context** system prompt | 写「策略」而非「能力」；按实际挂载的工具拼段 | 工具说明「能做什么」，prompt 说明「该怎么做」 | `prompt.py` `build_system_prompt` |
 | **Context** 项目上下文 | 启动时读 `AGENTS.md` 注入 prompt | harness 是通用的，每个项目各有各的命令和约定 | `prompt.py` `load_project_context` |
+| **Context** 技能（skills） | 启动时把 skill 列成**索引**（名字 + 何时用）；模型判断要用时 `read_file` 读 SKILL.md，再 `run_bash` 跑它的脚本；也可以 `/skill名` 主动调用 | 专业知识全塞进 system prompt 会很快涨到上万 token；按需加载是渐进式披露 | `skills.py`、`prompt.py` `_skills_section` |
 | **Context** 跨会话记忆 | **读**：启动时把 `Memory/` 的笔记列成索引，正文按需 `read_file`；**写**：prompt 告诉模型何时、怎么用 `edit_file` 记笔记 | 模型无状态，跨会话「记得什么」全由 harness 决定；全文注入会在开工前就占掉上万 token | `prompt.py` `load_memory_index`、`_memory_section` |
 | **Context** 用量遥测 | 每次调用后在 stderr 打印 input / cached / output token | 看不见曲线，就判断不了修复有没有用 | `Agent._log_usage` |
 | **Context** 修剪 | 输入超预算时，把旧工具结果**批量**换成占位符 | 历史只增不减；逐轮滑动修剪会让前缀缓存全部失效 | `Agent.run`、`DeepSeekProvider.prune_tool_results` |
@@ -96,11 +97,13 @@ src/
   providers.py    DeepSeekProvider：工具声明 / assistant 回灌 / 工具结果回灌的线上格式全收在这里
   prompt.py       system prompt：由工作目录 / 工具集 / git 分支 / AGENTS.md / 记忆索引拼出的分段 prompt
   agent.py        第 2–5 步：agent 循环 + 危险工具确认，--step 控制工具集
-  cli_input.py    终端输入：多行编辑、方向键、历史（prompt_toolkit）
+  cli_input.py    终端输入：多行编辑、方向键、历史、斜杠命令补全（prompt_toolkit）
+  skills.py       Skill：发现 SKILL.md、解析 frontmatter、生成索引（Agent Skills 标准）
 tests/            pytest：快速测试全用 fake；test_live.py 打真实 API（默认跳过，-m live 运行）
 AGENTS.md         给 agent 看的项目说明（命令、架构、约定、踩过的坑）
 CLAUDE.md         只有一行 `@AGENTS.md`：Claude Code 读 CLAUDE.md，靠这个 import 读到同一份说明
 .env.example      环境变量示例；复制成 .env 再填 key（.env 已在 .gitignore，不会提交）
+skills/           项目自己的 skill（进仓库），自带示例 run-checks
 Memory/           跨会话记忆：普通 Markdown 笔记，启动时列成索引（已在 .gitignore，只留本地）
 ```
 
@@ -136,6 +139,7 @@ Ctrl-D 退出。工具调用会以绿色 `tool:` 行打印，失败以红色 `�
 | ← → ↑ ↓ | 移动光标；在第一行按 ↑、最后一行按 ↓ 翻本会话的历史 |
 | Ctrl+C / Ctrl+D | 清空这一行 / 空行时退出 |
 | `/exit`、`/quit` | 退出本会话和程序 |
+| `/skill名 [参数]` | 主动调用一个 skill（把它的 SKILL.md 和参数一起发给模型） |
 | 输入 `/` | 弹出命令菜单（带说明），继续输入按前缀筛选；Tab 或 ↑↓ 选中，Enter 发送 |
 
 很多终端默认让 Shift+Enter 和 Enter 发一样的字符，程序分不出来。能分出来的终端（kitty、WezTerm、Ghostty，
@@ -153,6 +157,7 @@ iTerm2 开了「Report modifiers using CSI u」）会发转义序列，`cli_inpu
 | `DEEPSEEK_API_KEY` | （必填） | DeepSeek key，放 `.env`（照 `.env.example`）或 export |
 | `DEEPSEEK_MODEL` | `deepseek-v4-flash` | 可换 `deepseek-v4-pro` |
 | `DEEPSEEK_BASE_URL` | `https://api.deepseek.com` | 一般不用改 |
+| `MINI_HARNESS_SKILL_DIRS` | （不设 = 只用 `skills/`） | 额外的 skill，`:` 分隔；每项可以是 skill 集合目录，也可以是单个 skill，如 `~/.claude/skills/stock-quote` |
 | `MINI_HARNESS_MEMORY_DIR` | `Memory` | 记忆笔记目录，相对路径按工作目录解析：默认即 `<项目>/Memory`（已在 `.gitignore`，只留本地）。目录不存在就不加载 |
 
 DeepSeek 默认开思考模式；代码里 `reasoning_effort="low"`，改 `providers.py` 里的构造参数即可调。
@@ -191,6 +196,13 @@ PDF 用的是 Anthropic SDK；本仓库换成 DeepSeek 的 OpenAI 兼容协议�
 - **二进制文件不崩溃**：`read_file` / `edit_file` 读到非 UTF-8 文件（图片、PDF）时作为错误结果回灌。
 - **工具调用上限**：同一次用户输入后最多连续 20 轮工具调用（`--max-rounds N` 可调），
   到了就暂停交回给你，回复「继续」接着做——防止模型原地打转烧 token。
+- **技能（skills）**（参考 Vercel 课程 11.1，遵循 [Agent Skills](https://agentskills.io) 标准）：
+  默认只扫描项目内的 `skills/`；`MINI_HARNESS_SKILL_DIRS` 显式追加（可以只挑某几个 skill）。三层渐进式披露：
+  ① 启动时每个 skill 一行进 `# Skills` 索引；② 模型判断要用时 `read_file` 读 SKILL.md；③ 按 SKILL.md 跑 `scripts/`。
+  **没有新工具**。`/skill名` 主动调用时，SKILL.md 正文和参数作为一条 user 消息发给模型。
+  认得 Claude Code 的调用开关：`disable-model-invocation: true` 不进索引（只能 `/` 调用），`user-invocable: false` 不进 `/` 菜单；
+  `allowed-tools` 的免确认授权**故意不支持**（skill 是外部文本，不能给自己开绿灯）。frontmatter 自己解析、不依赖 PyYAML，
+  用本机 58 个真实 skill 和 PyYAML 逐个对照零差异。为别的 agent 写的 skill 若依赖 `Agent`、`WebFetch` 等工具，这里用不了。
 - **斜杠命令**：以 `/命令` 开头的输入由 harness 处理、不发给模型，目前有 `/exit`、`/quit`；未知命令列出可用的。
   输入框开头敲 `/` 会弹出补全菜单（`SlashCommandCompleter`，命令表由 `agent.py` 传入，避免循环引用）。
   只有第一个词整个是 `/字母...` 才算命令，所以 `/Users/me/a.py 看看这个` 这种以路径开头的消息照常发给模型。

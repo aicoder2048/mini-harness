@@ -425,3 +425,70 @@ def test_explicit_missing_skill_dir_warns(tmp_path, monkeypatch, capsys):
     monkeypatch.setenv("MINI_HARNESS_SKILL_DIRS", "nope")
     assert _skills(str(tmp_path)) == []
     assert "不存在" in capsys.readouterr().out
+
+
+# --- /skill名：用户主动调用 ------------------------------------------------------
+
+from skills import discover_skills
+
+
+def _skill_set(root, *specs):
+    """specs: (name, frontmatter 额外行, 正文)。返回 discover_skills 的结果。"""
+    for name, extra, body in specs:
+        d = root / name
+        d.mkdir(parents=True)
+        (d / "SKILL.md").write_text(f"---\nname: {name}\ndescription: desc of {name}\n{extra}---\n{body}\n")
+    return discover_skills([str(root)])[0]
+
+
+def test_slash_skill_sends_skill_md_and_request_as_one_user_message(tmp_path):
+    skills = _skill_set(tmp_path, ("stock-quote", "", "Run scripts/quote.py SYMBOL."))
+    provider = FakeProvider([Reply(texts=["ok"])])
+
+    Agent(provider, [], scripted("/stock-quote TSLA META"), skills=skills).run()
+
+    [message] = provider.chats[0]
+    assert message["role"] == "user"
+    assert "Run scripts/quote.py SYMBOL." in message["content"]  # SKILL.md 正文
+    assert "TSLA META" in message["content"]  # 用户的参数
+    assert str(tmp_path / "stock-quote") in message["content"]  # 告诉模型相对路径以哪里为准
+
+
+def test_slash_skill_works_even_when_model_may_not_invoke_it(tmp_path):
+    skills = _skill_set(tmp_path, ("deploy", "disable-model-invocation: true\n", "Deploy steps."))
+    provider = FakeProvider([Reply(texts=["ok"])])
+    Agent(provider, [], scripted("/deploy"), skills=skills).run()
+    assert "Deploy steps." in provider.chats[0][0]["content"]
+
+
+def test_user_invocable_false_skill_is_not_a_slash_command(tmp_path, capsys):
+    skills = _skill_set(tmp_path, ("background", "user-invocable: false\n", "Background knowledge."))
+    provider = FakeProvider([])
+    agent = Agent(provider, [], scripted("/background"), skills=skills)
+    assert "background" not in agent.commands
+    agent.run()
+    assert provider.chats == [] and "未知命令" in capsys.readouterr().out
+
+
+def test_builtin_commands_win_over_skills_with_the_same_name(tmp_path, capsys):
+    skills = _skill_set(tmp_path, ("exit", "", "should never load"))
+    provider = FakeProvider([])
+    Agent(provider, [], scripted("/exit", "never sent"), skills=skills).run()
+    assert provider.chats == []
+    assert "exit" in capsys.readouterr().out  # 启动时提醒这个 skill 被内置命令遮住了
+
+
+def test_skills_join_the_completion_menu(tmp_path):
+    skills = _skill_set(tmp_path, ("stock-quote", "", "x"))
+    agent = Agent(FakeProvider([]), [], scripted(), skills=skills)
+    assert {"exit", "quit", "stock-quote"} <= set(agent.commands)
+    assert agent.commands["stock-quote"] == "desc of stock-quote"
+
+
+def test_unreadable_skill_md_is_reported_not_sent(tmp_path, capsys):
+    skills = _skill_set(tmp_path, ("gone", "", "x"))
+    (tmp_path / "gone" / "SKILL.md").unlink()  # 启动后被删了
+    provider = FakeProvider([Reply(texts=["ok"])])
+    Agent(provider, [], scripted("/gone", "hello"), skills=skills).run()
+    assert provider.chats[0] == [{"role": "user", "content": "hello"}]
+    assert "gone" in capsys.readouterr().out

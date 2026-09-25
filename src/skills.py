@@ -21,8 +21,10 @@ import re
 from dataclasses import dataclass
 
 SKILL_FILE = "SKILL.md"
-MAX_DESCRIPTION_CHARS = 250  # 索引里每条描述的上限（标准允许 1024）
-MAX_INDEX_CHARS = 4_000  # 整个索引段的上限
+# 描述不截短：「什么时候用」通常写在描述后半段（skill-creator 的建议），正是模型选 skill 的依据。
+# 上限取标准允许的最大值，只防不合规的超长描述；目录由用户显式挑选，数量有限，总量上限够用。
+MAX_DESCRIPTION_CHARS = 1_024
+MAX_INDEX_CHARS = 8_000
 _NAME = re.compile(r"[a-z0-9]+(-[a-z0-9]+)*")  # 标准：小写字母、数字、单个连字符
 _KEY = re.compile(r"([A-Za-z][\w-]*):(.*)")
 _BLOCK = (">", ">-", ">+", "|", "|-", "|+")

@@ -21,7 +21,9 @@ Clarity beats features: keep changes small and easy to read.
 - `src/providers.py` — the only place that knows DeepSeek's wire format (OpenAI-compatible). Must stay swappable.
 - `src/prompt.py` — `build_system_prompt(PromptContext)` is a pure function; I/O (git, AGENTS.md, memory index) lives in
   separate functions called from `main()`.
-- `src/agent.py` — the loop. Depends on the three modules above; nothing depends on it.
+- `src/skills.py` — discovers skills (Agent Skills standard: `<dir>/<name>/SKILL.md`), parses frontmatter
+  without PyYAML, builds the `# Skills` index. Project skills live in `skills/` and ARE committed.
+- `src/agent.py` — the loop. Depends on the modules above (and `cli_input.py`); nothing depends on it.
 - `src/` is on the pytest path, so tests import `agent`, `tools`, ... (not `src.agent`).
 
 ## Conventions

@@ -36,7 +36,7 @@ from prompt import (
 )
 from providers import DeepSeekProvider, Provider, ToolCall, ToolResult, Usage
 from skills import Skill, discover_skills, skills_index
-from tools import ALL_TOOLS, Tool, ToolError
+from tools import ALL_TOOLS, Tool, ToolError, read_file
 
 # 同一次用户输入之后，最多连续几轮「模型要工具 → 执行 → 回灌」。防止模型原地打转、烧 token。
 # 到上限就暂停交回给用户；教程（Vercel Academy harness）里对应 stopWhen: stepCountIs(10)。
@@ -116,13 +116,25 @@ class Agent:
         max_tool_rounds: int = MAX_TOOL_ROUNDS,
         context_budget: int = CONTEXT_BUDGET,
         keep_tool_results: int = KEEP_TOOL_RESULTS,
+        skills: list[Skill] | None = None,
     ) -> None:
         if max_tool_rounds < 1:
             raise ValueError(f"max_tool_rounds must be >= 1, got {max_tool_rounds}")
         self.provider = provider
         self.tools = {t.name: t for t in tools}
+        # 用户能用 /名字 调用的 skill：user-invocable: false 的只给模型用；和内置命令重名的被内置命令遮住
+        self.skills: dict[str, Skill] = {}
+        for skill in skills or []:
+            if not skill.user_invocable:
+                continue
+            if skill.name in SLASH_COMMANDS:
+                print(f"\033[93mskill {skill.name} 与内置命令 /{skill.name} 重名，/{skill.name} 仍是内置命令\033[0m")
+                continue
+            self.skills[skill.name] = skill
+        # 斜杠命令表（补全菜单、未知命令提示都用它）：内置命令 + 可调用的 skill
+        self.commands = {**SLASH_COMMANDS, **{name: s.description for name, s in self.skills.items()}}
         # 默认读终端（多行、方向键、历史），每个 Agent 一个，历史不跨会话；测试里注入脚本化输入
-        self.get_user_input = get_user_input or make_default_reader(SLASH_COMMANDS)
+        self.get_user_input = get_user_input or make_default_reader(self.commands)
         self.system = system
         self.approve = approve or ConsoleApprover()  # 每个 Agent 一个新会话，不共享「a」的状态
         self.max_tool_rounds = max_tool_rounds
@@ -149,6 +161,27 @@ class Agent:
         return ToolResult(call.id, error, is_error=True)
 
     @staticmethod
+    def _skill_message(skill: Skill, user_input: str) -> str | None:
+        """/skill名 [参数]：把 SKILL.md 正文和用户参数合成一条 user 消息（和 Claude Code 一样，之后一直留在对话里）。
+
+        正文用 read_file 读，沿用它的行数 / 字符上限。读不到就提示并返回 None（不发给模型）。
+        """
+        try:
+            body = read_file.run({"path": skill.path})
+        except ToolError as e:
+            print(f"\033[91m读取 skill {skill.name} 失败：{e}\033[0m")
+            return None
+        parts = user_input.strip().split(maxsplit=1)
+        request = parts[1] if len(parts) > 1 else "(no extra input: follow the skill's default workflow)"
+        print(f"\033[2m· 已加载 skill {skill.name}\033[0m")
+        return (
+            f'The user invoked the skill "{skill.name}". Follow its SKILL.md below. '
+            f"Paths in it are relative to {skill.directory}.\n\n"
+            f'<skill name="{skill.name}" path="{skill.path}">\n{body}\n</skill>\n\n'
+            f"User request: {request}"
+        )
+
+    @staticmethod
     def _log_usage(usage: Usage) -> None:
         """每次调模型后一行灰字，打到 stderr：不和回复混在一起。看 in 的数字怎么随轮数涨，就是上下文管理的起点。"""
         line = f"· in {usage.input_tokens:,} (cached {usage.cached_tokens:,}) · out {usage.output_tokens:,}"
@@ -171,11 +204,17 @@ class Agent:
                 command = slash_command(user_input)
                 if command in ("exit", "quit"):
                     break
-                if command is not None:
-                    available = "  ".join(f"/{name}（{desc}）" for name, desc in SLASH_COMMANDS.items())
-                    print(f"\033[91m未知命令 /{command}\033[0m。可用：{available}")
+                if command in self.skills:
+                    message = self._skill_message(self.skills[command], user_input)
+                    if message is None:
+                        continue
+                    conversation.append({"role": "user", "content": message})
+                elif command is not None:
+                    available = "  ".join(f"/{name}" for name in self.commands)
+                    print(f"\033[91m未知命令 /{command}\033[0m。可用：{available}（输入 / 看说明）")
                     continue
-                conversation.append({"role": "user", "content": user_input})
+                else:
+                    conversation.append({"role": "user", "content": user_input})
                 tool_rounds = 0
 
             # provider.chat 会把 assistant 回复按本家格式 append 进 conversation。
@@ -303,7 +342,9 @@ def main() -> None:
         today=datetime.now(UTC).astimezone().date().isoformat(),  # 本机时区的今天
         skills_index=skills_index(skills),
     )
-    Agent(DeepSeekProvider(), tools, system=build_system_prompt(ctx), max_tool_rounds=args.max_rounds).run()
+    Agent(
+        DeepSeekProvider(), tools, system=build_system_prompt(ctx), max_tool_rounds=args.max_rounds, skills=skills
+    ).run()
 
 
 if __name__ == "__main__":
