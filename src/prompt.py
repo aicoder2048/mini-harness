@@ -130,6 +130,13 @@ def _memory_section(ctx: PromptContext, can_edit: bool) -> str:
                 "will still be true and useful in a future session: a decision and why, a command that works, a pitfall."
             ),
             "- Don't save task progress, todo lists, or anything already in the code or AGENTS.md. Never save secrets.",
+            # 实际发生过：agent 把几百行分析脚本存进 Memory/（理由是 /tmp 会被清空）。代码当记忆没法测试、会和正文漂移，
+            # 索引也只显示标题。可复用的代码该是一个 skill 或工具，笔记里只留「用哪个、为什么」。
+            (
+                "- Notes hold knowledge, not code: don't save scripts or long code blocks in the notes directory. "
+                "If you built something reusable, tell the user and suggest turning it into a skill; "
+                "the note should only say which tool to use and why."
+            ),
             "- If it is a rule every contributor to this project should follow, suggest adding it to AGENTS.md instead.",
             f"- One topic per file: {ctx.memory_dir}/<short-topic-slug>.md, created with edit_file (empty old_str).",
             (

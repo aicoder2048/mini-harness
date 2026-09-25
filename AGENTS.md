@@ -52,4 +52,6 @@ Clarity beats features: keep changes small and easy to read.
 - Memory notes are plain Markdown files in `Memory/` (the `MINI_HARNESS_MEMORY_DIR` default). The folder is
   gitignored and stays local. Never commit memory notes: deleting them later does not remove them from git history.
   Don't add a third-party memory tool (e.g. Basic Memory) unless the project actually needs it.
+  Notes hold knowledge, not code: reusable scripts belong in a skill (e.g. `~/.claude/skills/<name>/scripts/`),
+  and the note just points to it.
 - `docs/*.pdf` are reference material — don't edit them.

@@ -222,3 +222,10 @@ def test_read_only_tool_set_shows_index_but_no_write_rules():
 
 def test_no_memory_section_without_dir_or_index():
     assert "# Memory" not in _prompt(STEP5, today="2026-09-24")
+
+
+def test_write_rules_say_notes_are_knowledge_not_code():
+    # 实际发生过：agent 把几百行分析脚本当「记忆」存进 Memory/（因为 /tmp 会被清空）
+    p = _mem_prompt(STEP4)
+    assert "not code" in p
+    assert "skill" in p  # 可复用的代码应该建议做成 skill
