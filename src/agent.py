@@ -301,11 +301,13 @@ def _memory(cwd: str) -> tuple[str | None, str | None]:
     return memory_dir, index
 
 
-DEFAULT_SKILLS_DIR = "skills"  # 项目自己的 skill，进仓库、给所有人用（和只留本地的 Memory/ 不同）
+# 项目级 skill 的通用位置（Amp、Cline、Warp、Zed、Vercel skills CLI 的 universal 都用它），不绑定某个 agent；
+# .claude/skills 是 Claude Code 自己的目录，这里不读。
+DEFAULT_SKILLS_DIR = os.path.join(".agents", "skills")
 
 
 def _skills(cwd: str) -> list[Skill]:
-    """默认只扫 <cwd>/skills；MINI_HARNESS_SKILL_DIRS（: 分隔）显式追加，每项可以是 skill 集合目录，也可以是单个 skill。
+    """默认只扫 <cwd>/.agents/skills；MINI_HARNESS_SKILL_DIRS（: 分隔）显式追加，每项可以是 skill 集合目录，也可以是单个 skill。
 
     项目目录排最前：重名时项目内的 skill 生效。相对路径按工作目录解析，支持 ~。
     """

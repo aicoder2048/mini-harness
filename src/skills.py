@@ -122,7 +122,7 @@ def discover_skills(dirs: list[str]) -> tuple[list[Skill], list[str]]:
     """按顺序扫描目录，返回 (skills, 警告)。
 
     每个目录要么本身就是一个 skill（里面直接有 SKILL.md），要么是 skill 的集合（往下找一层）。
-    重名时先找到的生效：项目内的 skills/ 排在最前，能覆盖外部同名 skill。不存在的目录直接跳过。
+    重名时先找到的生效：项目内的 .agents/skills/ 排在最前，能覆盖外部同名 skill。不存在的目录直接跳过。
     """
     found: dict[str, Skill] = {}
     warnings: list[str] = []
@@ -143,6 +143,9 @@ def discover_skills(dirs: list[str]) -> tuple[list[Skill], list[str]]:
             except (OSError, ValueError) as e:
                 warnings.append(f"跳过 skill {os.path.dirname(skill_md)}：{e}")
                 continue
+            folder = os.path.basename(skill.directory)
+            if skill.name != folder:  # 标准要求一致；仍然加载（能用优先），但提醒
+                warnings.append(f"skill 名 {skill.name} 与目录名 {folder} 不一致（Agent Skills 标准要求一致）")
             if skill.name in found:
                 warnings.append(
                     f"忽略重名 skill {skill.name}（{skill.directory}），已使用 {found[skill.name].directory}"

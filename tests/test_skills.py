@@ -147,3 +147,11 @@ def test_index_is_none_without_model_invocable_skills(tmp_path):
     _skill(tmp_path, "manual", "name: manual\ndescription: m\ndisable-model-invocation: true")
     assert skills_index(discover_skills([str(tmp_path)])[0]) is None
     assert skills_index([]) is None
+
+
+def test_name_must_match_directory_name(tmp_path):
+    # 标准：name 必须和所在目录名一致。不一致时仍加载（能用优先），但给出警告
+    _skill(tmp_path, "folder-name", "name: other-name\ndescription: x")
+    found, warnings = discover_skills([str(tmp_path)])
+    assert [s.name for s in found] == ["other-name"]
+    assert len(warnings) == 1 and "folder-name" in warnings[0] and "other-name" in warnings[0]

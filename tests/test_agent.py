@@ -400,10 +400,18 @@ def _write_skill(root, name, desc="d"):
     return d
 
 
-def test_skills_default_to_project_skills_dir(tmp_path, monkeypatch):
+def test_skills_default_to_project_dot_agents_skills_dir(tmp_path, monkeypatch):
+    # 通用约定（Amp、Cline、Warp、Zed、Vercel skills CLI 的 universal）：项目级 .agents/skills/，不绑定某个 agent
     monkeypatch.delenv("MINI_HARNESS_SKILL_DIRS", raising=False)
-    _write_skill(tmp_path / "skills", "run-checks")
+    _write_skill(tmp_path / ".agents" / "skills", "run-checks")
     assert [s.name for s in _skills(str(tmp_path))] == ["run-checks"]
+
+
+def test_agent_specific_dirs_are_not_scanned_by_default(tmp_path, monkeypatch):
+    monkeypatch.delenv("MINI_HARNESS_SKILL_DIRS", raising=False)
+    _write_skill(tmp_path / ".claude" / "skills", "claude-only")
+    _write_skill(tmp_path / "skills", "old-location")
+    assert _skills(str(tmp_path)) == []
 
 
 def test_no_skills_dir_is_silent(tmp_path, monkeypatch, capsys):
@@ -413,7 +421,7 @@ def test_no_skills_dir_is_silent(tmp_path, monkeypatch, capsys):
 
 
 def test_extra_skill_dirs_are_added_after_project_and_can_be_single_skills(tmp_path, monkeypatch):
-    _write_skill(tmp_path / "skills", "run-checks", "project")
+    _write_skill(tmp_path / ".agents" / "skills", "run-checks", "project")
     single = _write_skill(tmp_path / "elsewhere", "stock-quote")
     _write_skill(tmp_path / "global", "run-checks", "global")  # 重名：项目内的优先
     monkeypatch.setenv("MINI_HARNESS_SKILL_DIRS", f"{single}:global")  # 相对路径按工作目录解析

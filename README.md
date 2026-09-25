@@ -103,7 +103,7 @@ tests/            pytest：快速测试全用 fake；test_live.py 打真实 API�
 AGENTS.md         给 agent 看的项目说明（命令、架构、约定、踩过的坑）
 CLAUDE.md         只有一行 `@AGENTS.md`：Claude Code 读 CLAUDE.md，靠这个 import 读到同一份说明
 .env.example      环境变量示例；复制成 .env 再填 key（.env 已在 .gitignore，不会提交）
-skills/           项目自己的 skill（进仓库），自带示例 run-checks
+.agents/skills/   项目级 skill（通用约定的位置，不绑定某个 agent），自带示例 run-checks
 Memory/           跨会话记忆：普通 Markdown 笔记，启动时列成索引（已在 .gitignore，只留本地）
 ```
 
@@ -157,7 +157,7 @@ iTerm2 开了「Report modifiers using CSI u」）会发转义序列，`cli_inpu
 | `DEEPSEEK_API_KEY` | （必填） | DeepSeek key，放 `.env`（照 `.env.example`）或 export |
 | `DEEPSEEK_MODEL` | `deepseek-v4-flash` | 可换 `deepseek-v4-pro` |
 | `DEEPSEEK_BASE_URL` | `https://api.deepseek.com` | 一般不用改 |
-| `MINI_HARNESS_SKILL_DIRS` | （不设 = 只用 `skills/`） | 额外的 skill，`:` 分隔；每项可以是 skill 集合目录，也可以是单个 skill，如 `~/.claude/skills/stock-quote` |
+| `MINI_HARNESS_SKILL_DIRS` | （不设 = 只用 `.agents/skills/`） | 额外的 skill，`:` 分隔；每项可以是 skill 集合目录（如用户级的 `~/.agents/skills`），也可以是单个 skill |
 | `MINI_HARNESS_MEMORY_DIR` | `Memory` | 记忆笔记目录，相对路径按工作目录解析：默认即 `<项目>/Memory`（已在 `.gitignore`，只留本地）。目录不存在就不加载 |
 
 DeepSeek 默认开思考模式；代码里 `reasoning_effort="low"`，改 `providers.py` 里的构造参数即可调。
@@ -197,7 +197,9 @@ PDF 用的是 Anthropic SDK；本仓库换成 DeepSeek 的 OpenAI 兼容协议�
 - **工具调用上限**：同一次用户输入后最多连续 20 轮工具调用（`--max-rounds N` 可调），
   到了就暂停交回给你，回复「继续」接着做——防止模型原地打转烧 token。
 - **技能（skills）**（参考 Vercel 课程 11.1，遵循 [Agent Skills](https://agentskills.io) 标准）：
-  默认只扫描项目内的 `skills/`；`MINI_HARNESS_SKILL_DIRS` 显式追加（可以只挑某几个 skill）。三层渐进式披露：
+  默认只扫描项目内的 `.agents/skills/`——Amp、Cline、Warp、Zed 等和 Vercel `skills` CLI 共用的通用位置，
+  不读 Claude Code 专用的 `.claude/skills`，所以 mini-harness 不依赖任何特定 agent；`MINI_HARNESS_SKILL_DIRS` 显式追加。
+  SKILL.md 里引用自己的文件一律用**相对 skill 根目录的路径**（`scripts/quote.py`），这是标准的要求，skill 放哪都能用。三层渐进式披露：
   ① 启动时每个 skill 一行进 `# Skills` 索引；② 模型判断要用时 `read_file` 读 SKILL.md；③ 按 SKILL.md 跑 `scripts/`。
   **没有新工具**。`/skill名` 主动调用时，SKILL.md 正文和参数作为一条 user 消息发给模型。
   认得 Claude Code 的调用开关：`disable-model-invocation: true` 不进索引（只能 `/` 调用），`user-invocable: false` 不进 `/` 菜单；

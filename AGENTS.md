@@ -22,7 +22,9 @@ Clarity beats features: keep changes small and easy to read.
 - `src/prompt.py` — `build_system_prompt(PromptContext)` is a pure function; I/O (git, AGENTS.md, memory index) lives in
   separate functions called from `main()`.
 - `src/skills.py` — discovers skills (Agent Skills standard: `<dir>/<name>/SKILL.md`), parses frontmatter
-  without PyYAML, builds the `# Skills` index. Project skills live in `skills/` and ARE committed.
+  without PyYAML, builds the `# Skills` index. Project skills live in `.agents/skills/` (the agent-neutral
+  convention; not `.claude/skills`). Shared ones are committed; personal ones are excluded via `.git/info/exclude`.
+  Inside a SKILL.md, reference the skill's own files with paths relative to the skill folder (`scripts/x.py`).
 - `src/agent.py` — the loop. Depends on the modules above (and `cli_input.py`); nothing depends on it.
 - `src/` is on the pytest path, so tests import `agent`, `tools`, ... (not `src.agent`).
 
@@ -54,6 +56,6 @@ Clarity beats features: keep changes small and easy to read.
 - Memory notes are plain Markdown files in `Memory/` (the `MINI_HARNESS_MEMORY_DIR` default). The folder is
   gitignored and stays local. Never commit memory notes: deleting them later does not remove them from git history.
   Don't add a third-party memory tool (e.g. Basic Memory) unless the project actually needs it.
-  Notes hold knowledge, not code: reusable scripts belong in a skill (e.g. `~/.claude/skills/<name>/scripts/`),
+  Notes hold knowledge, not code: reusable scripts belong in a skill (`.agents/skills/<name>/scripts/`),
   and the note just points to it.
 - `docs/*.pdf` are reference material — don't edit them.
