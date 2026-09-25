@@ -121,7 +121,7 @@ class Agent:
         self.provider = provider
         self.tools = {t.name: t for t in tools}
         # 默认读终端（多行、方向键、历史），每个 Agent 一个，历史不跨会话；测试里注入脚本化输入
-        self.get_user_input = get_user_input or make_default_reader()
+        self.get_user_input = get_user_input or make_default_reader(SLASH_COMMANDS)
         self.system = system
         self.approve = approve or ConsoleApprover()  # 每个 Agent 一个新会话，不共享「a」的状态
         self.max_tool_rounds = max_tool_rounds
