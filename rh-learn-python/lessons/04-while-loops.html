@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>while 循环 · 拆机学 Python 04</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap">
+<link rel="stylesheet" href="../assets/course.css">
+<script src="../assets/course.js"></script>
+</head>
+<body data-lesson="04" data-root="../">
+<div class="page">
+
+<header class="hero">
+  <p class="eyebrow">第 04 课 · 第 1 单元 · 通电</p>
+  <h1>while 循环</h1>
+  <p class="lede">机器人答完一次不会停：问你、问 AI、跑工具，再转一圈。这就是循环，机器人的心跳。</p>
+  <div class="bench" aria-label="今天放在工作台上的零件">
+    <span class="prompt">$</span> <span>teardown</span> <span class="path">src/step1_chat.py</span> <span>--lines 28-43</span> <span class="cursor" aria-hidden="true"></span>
+  </div>
+  <dl class="hero-meta">
+    <div><dt>工作台上的零件</dt><dd>聊天循环 · <code>Agent.run</code></dd></div>
+    <div><dt>时长</dt><dd>约 30 分钟</dd></div>
+    <div><dt>你会学到</dt><dd><code>while</code> · <code>break</code> · <code>continue</code> · 刹车</dd></div>
+  </dl>
+</header>
+
+<main class="lesson">
+
+<section>
+  <h2>重复做事</h2>
+  <p><code>while 条件:</code> 会先检查条件：是 <code>True</code> 就运行缩进的代码块，然后跳回来再检查，直到条件变成 <code>False</code>。</p>
+  <div class="cell">
+    <script type="text/x-python">
+countdown = 3
+while countdown > 0:
+    print("倒计时", countdown)
+    countdown -= 1          # 每圈减 1，一步步走向出口
+print("发射！")
+    </script>
+  </div>
+  <div class="quiz" id="q-04-count" data-answer="b">
+    <p class="q">这段代码会打印几行？</p>
+    <div class="snippet"><script type="text/x-python">
+rounds = 0
+while rounds < 3:
+    print("工具轮", rounds)
+    rounds += 1
+    </script></div>
+    <ol class="options">
+      <li data-why="再数一遍：rounds 依次是 0、1、2，都小于 3。">2</li>
+      <li>3</li>
+      <li data-why="rounds 到 3 时，3 &lt; 3 是 False，第四圈不会发生。">4</li>
+      <li data-why="rounds 每圈加 1，总会到 3。">永远停不下来</li>
+    </ol>
+    <div class="explain"><p>打印 0、1、2 三行。计数器从 0 开始、用 <code>&lt; 3</code> 判断，正好跑 3 圈。</p></div>
+  </div>
+  <p class="takeaway">条件为 True 就再跑一圈，变成 False 就离开。</p>
+</section>
+
+<section>
+  <h2>跳出与跳过</h2>
+  <p>聊天要聊到用户想走为止，事先不知道几圈。这时写 <code>while True:</code>，再在里面控制：</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>关键字</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><code>break</code></td><td>马上离开整个循环</td></tr>
+        <tr><td><code>continue</code></td><td>跳过这一圈剩下的部分，直接开始下一圈</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="cell" data-inputs="hi||最近怎么样？|quit|这一行不会被读到">
+    <script type="text/x-python">
+while True:
+    text = input("You: ")
+    if text == "quit":
+        break                 # 离开循环
+    if not text:
+        continue              # 空行：跳过下面的复读
+    print("复读：" + text)
+print("循环结束。")
+    </script>
+  </div>
+  <p class="takeaway"><code>break</code> 结束循环，<code>continue</code> 只结束这一圈。</p>
+</section>
+
+<section>
+  <h2>机器人的心跳</h2>
+  <p>机器人第一个版本的全部聊天代码，就是一个 <code>while True</code> 循环：</p>
+  <figure class="excerpt" data-file="src/step1_chat.py" data-start="28" data-highlight="28,32,34">
+<script type="text/x-python">
+    while True:
+        try:
+            user_input = input("\033[94mYou\033[0m: ")
+        except EOFError:
+            break
+        if not user_input:
+            continue
+
+        conversation.append({"role": "user", "content": user_input})
+        response = client.chat.completions.create(
+            model=MODEL, max_tokens=1024, messages=conversation, reasoning_effort="low"
+        )
+        message = response.choices[0].message
+        conversation.append({"role": "assistant", "content": message.content})
+
+        print(f"\033[93mDeepSeek\033[0m: {message.content}")
+    </script>
+    <figcaption>
+      <p>按 <kbd>Ctrl</kbd>+<kbd>D</kbd> 时 <code>break</code> 结束聊天（<code>try</code> 在第 09 课讲）；空消息就 <code>continue</code> 再问一次；其余情况问 AI、打印回答，再转一圈。</p>
+    </figcaption>
+  </figure>
+  <div class="quiz" id="q-04-empty" data-answer="c">
+    <p class="q">什么都不打就按回车，会发生什么？</p>
+    <ol class="options">
+      <li data-why="看第 33–34 行：空消息走不到发送那一行。">一条空消息发给 AI</li>
+      <li data-why="那是 break，只有按 Ctrl+D 才会发生。">程序停止</li>
+      <li><code>continue</code> 跳回开头，再问一次</li>
+      <li data-why="空字符串很正常，Python 只是把它当成 False。">Python 报错</li>
+    </ol>
+    <div class="explain"><p><code>""</code> 算作 False，<code>not user_input</code> 为 True，于是 <code>continue</code>。这还省了一次 API 请求的钱。</p></div>
+  </div>
+  <p class="takeaway">整个聊天机器人就是一个 <code>while True</code> 循环。</p>
+</section>
+
+<section>
+  <h2>agent 的开关</h2>
+  <p>chatbot 和 agent 在代码上只差一个布尔变量：<code>need_user_input</code>。AI 要用工具时，机器人跑完工具<strong>不等你</strong>，直接再问 AI。</p>
+  <figure class="excerpt" data-file="src/agent.py" data-start="237" data-highlight="238,248">
+<script type="text/x-python">
+            if not results:
+                need_user_input = True  # 没工具调用 → 回到用户
+                continue
+
+            conversation.extend(self.provider.tool_results(results))
+            tool_rounds += 1
+            if tool_rounds >= self.max_tool_rounds:
+                # 结果已经回灌，每个 tool_call id 都有回复；用户下一句（比如「继续」）接在 tool 消息后面即可。
+                print(f"\033[91m已连续 {tool_rounds} 轮工具调用，先暂停交回给你；回复「继续」让它接着做。\033[0m")
+                need_user_input = True
+                continue
+            need_user_input = False  # 有工具调用 → 不等用户，直接再问模型
+    </script>
+    <figcaption>
+      <p>看两条注释：没工具调用就回到你（第 238 行），有工具调用就直接再问模型（第 248 行）。中间几行是刹车，下一步讲。</p>
+    </figcaption>
+  </figure>
+  <p>下面用假 AI 演一遍：你输入的数字，就是假 AI 需要跑几轮工具。</p>
+  <div class="cell" data-inputs="0|2|quit" data-label="试一试 · 假的 agent 循环">
+    <script type="text/x-python">
+need_user_input = True
+tool_rounds = 0
+tools_needed = 0
+
+while True:
+    if need_user_input:
+        question = input("\033[94mYou\033[0m: ")
+        if question == "quit":
+            break
+        tools_needed = int(question)   # 假 AI 需要跑这么多轮工具
+        tool_rounds = 0
+
+    if tools_needed == 0:
+        print(f"\033[93mModel\033[0m: 这是我的回答（用了 {tool_rounds} 轮工具）。")
+        need_user_input = True         # 没有工具调用：回到用户
+        continue
+
+    tools_needed -= 1
+    tool_rounds += 1
+    print(f"\033[92mtool\033[0m: 第 {tool_rounds} 轮完成")
+    need_user_input = False            # 有工具调用：直接再问模型
+
+print("再见！")
+    </script>
+  </div>
+  <div class="quiz" id="q-04-flag" data-answer="b">
+    <p class="q">工具跑完，<code>need_user_input = False</code>。下一圈会怎样？</p>
+    <ol class="options">
+      <li data-why="标志为 False 时，「if need_user_input:」那一块被跳过。">等你输入</li>
+      <li>不问你，直接把工具结果发回给 AI</li>
+      <li data-why="只有 break 才会结束循环，这个标志只决定要不要问你。">程序结束</li>
+      <li data-why="跑哪个工具由 AI 在下一次回复里决定。">同一个工具再跑一次</li>
+    </ol>
+    <div class="explain"><p>所以你只说一句话，机器人就能连着读文件、列目录、改文件。</p></div>
+  </div>
+  <p class="takeaway"><code>need_user_input</code> 决定：这一圈是问你，还是直接问 AI。</p>
+</section>
+
+<section>
+  <h2>装上刹车</h2>
+  <p>如果没有任何代码能让条件变成 False，循环就停不下来，叫<strong>死循环</strong>。运行看看（页面几秒后会帮你停下）：</p>
+  <div class="cell" data-expect-error="RanTooLong" data-label="试一试 · 一个死循环">
+    <script type="text/x-python">
+count = 0
+while count < 5:
+    message = "count 是 " + str(count)   # 糟糕：没有一行让 count 变大
+print("完成！")                          # 永远走不到
+    </script>
+  </div>
+  <p>AI 也可能糊涂，一直要求用工具，而每一轮都花钱。所以机器人给工具轮数设了上限 <code>MAX_TOOL_ROUNDS = 20</code>，到了就暂停，交回给你。</p>
+  <aside class="callout principle">
+    <p class="callout-label">编程原则</p>
+    <h4>每个循环都要有出口</h4>
+    <p>写循环前先问：它靠什么停下？要是靠别人（AI、用户），再加一个最多几圈的预算。</p>
+  </aside>
+  <p class="takeaway">死循环多半是忘了更新计数器；不可控的循环要加上限。</p>
+</section>
+
+<section>
+  <h2>动手挑战</h2>
+  <section class="challenge" id="ch-04-echo">
+    <div class="challenge-head"><span class="badge">挑战</span><h3>带刹车的复读机器人</h3></div>
+    <p>补全代码：输入 <code>quit</code> 就 <code>break</code>；空行用 <code>continue</code> 跳过、不计数；其他行复读成 <code>复读：文字</code>。复读满 3 条后打印 <code>刹车：已经 3 条消息，停下。</code> 并停止。</p>
+    <div class="cell" data-inputs="hi||最近怎么样？|不错|多出来的一条">
+      <script type="text/x-python">
+messages = 0
+while True:
+    text = input("You: ")
+    # 1. text 是 "quit" 时停下
+    # 2. 用 continue 跳过空行
+    print("复读：" + text)
+    # 3. 给消息计数，满 3 条就停下（先打印刹车那一行）
+      </script>
+      <script type="text/x-python" class="check">
+import io, contextlib
+
+def run_with(*answers):
+    feed = iter(answers)
+    def fake_input(prompt=""):
+        try:
+            return next(feed)
+        except StopIteration:
+            raise EOFError
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        try:
+            exec(__source__, {"__name__": "__main__", "input": fake_input})
+        except EOFError:
+            raise AssertionError(f"输入是 {list(answers)} 时，你的循环还在要更多输入。用 break 离开循环。")
+    return buf.getvalue()
+
+out = run_with("a", "b", "quit")
+assert "复读：a" in out and "复读：b" in out, "每一条普通输入都要复读成「复读：<文字>」。"
+assert "复读：quit" not in out, "「quit」应该在被复读之前就让循环停下。"
+assert "刹车" not in out, "只输入了 2 条消息，刹车还不该触发。"
+
+out = run_with("", "a", "quit")
+assert out.count("复读：") == 1, "空行应该用 continue 跳过（不要复读）。"
+
+out = run_with("a", "b", "c", "d")
+assert "复读：c" in out, "第 3 条消息还是要复读的。"
+assert "复读：d" not in out, "满 3 条之后循环就该停了，所以「d」不会被复读。"
+assert "刹车：已经 3 条消息，停下。" in out, "刹车触发时，准确打印「刹车：已经 3 条消息，停下。」。"
+
+out = run_with("a", "", "b", "", "c", "d")
+assert "复读：c" in out and "复读：d" not in out, "空行不应该算进那 3 条消息里。"
+      </script>
+      <script type="text/x-python" class="solution">
+messages = 0
+while True:
+    text = input("You: ")
+    if text == "quit":
+        break
+    if not text:
+        continue
+    print("复读：" + text)
+    messages += 1
+    if messages >= 3:
+        print("刹车：已经 3 条消息，停下。")
+        break
+      </script>
+    </div>
+    <details class="hint"><summary>提示</summary><p>两个检查放在 <code>print</code> 之前；打印后 <code>messages += 1</code>，满 3 条就先打印再 <code>break</code>。</p></details>
+  </section>
+
+  <section class="challenge" id="ch-04-brake">
+    <div class="challenge-head"><span class="badge">挑战</span><h3>给 agent 循环装上刹车</h3></div>
+    <p>加一行 <code>MAX_TOOL_ROUNDS = 3</code>。每跑完一轮工具，若 <code>tool_rounds</code> 到了上限，就打印以 <code>暂停</code> 开头的话，设 <code>need_user_input = True</code> 并 <code>continue</code>。</p>
+    <div class="cell" data-inputs="2|5|quit">
+      <script type="text/x-python">
+need_user_input = True
+tool_rounds = 0
+tools_needed = 0
+
+while True:
+    if need_user_input:
+        question = input("You: ")
+        if question == "quit":
+            break
+        tools_needed = int(question)
+        tool_rounds = 0
+
+    if tools_needed == 0:
+        print(f"Model: 这是我的回答（用了 {tool_rounds} 轮工具）。")
+        need_user_input = True
+        continue
+
+    tools_needed -= 1
+    tool_rounds += 1
+    print(f"tool: 第 {tool_rounds} 轮")
+    need_user_input = False
+
+print("再见！")
+      </script>
+      <script type="text/x-python" class="check">
+import io, contextlib
+
+def run_with(*answers):
+    feed = iter(answers)
+    def fake_input(prompt=""):
+        try:
+            return next(feed)
+        except StopIteration:
+            raise EOFError
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        try:
+            exec(__source__, {"__name__": "__main__", "input": fake_input})
+        except EOFError:
+            raise AssertionError(f"输入是 {list(answers)} 时，你的循环要的输入比预期多。「quit」还能 break 吗？")
+    return buf.getvalue()
+
+assert "MAX_TOOL_ROUNDS" in __source__, "创建一个叫 MAX_TOOL_ROUNDS 的变量，用它来表示上限。"
+
+out = run_with("5", "quit")
+assert "第 3 轮" in out, "需要 5 轮时，第 1 到第 3 轮还是应该照常运行。"
+assert "第 4 轮" not in out, "刹车应该在第 3 轮之后停下循环（MAX_TOOL_ROUNDS = 3）。"
+assert "暂停" in out, "刹车触发时，打印一行以「暂停」开头的话。"
+assert "再见！" in out, "暂停之后机器人应该重新问你，所以输入 quit 后还是会打印「再见！」。"
+
+out = run_with("2", "quit")
+assert "用了 2 轮工具" in out, "2 轮没有超过上限，所以模型还是应该给出回答。"
+assert "暂停" not in out, "只跑 2 轮时，刹车不该触发。"
+
+out = run_with("5", "1", "quit")
+assert "用了 1 轮工具" in out, "暂停之后，下一个问题应该重新从 0 开始计数。"
+      </script>
+      <script type="text/x-python" class="solution">
+MAX_TOOL_ROUNDS = 3
+need_user_input = True
+tool_rounds = 0
+tools_needed = 0
+
+while True:
+    if need_user_input:
+        question = input("You: ")
+        if question == "quit":
+            break
+        tools_needed = int(question)
+        tool_rounds = 0
+
+    if tools_needed == 0:
+        print(f"Model: 这是我的回答（用了 {tool_rounds} 轮工具）。")
+        need_user_input = True
+        continue
+
+    tools_needed -= 1
+    tool_rounds += 1
+    print(f"tool: 第 {tool_rounds} 轮")
+    if tool_rounds >= MAX_TOOL_ROUNDS:
+        print(f"暂停：已连续 {tool_rounds} 轮工具调用，交回给你。")
+        need_user_input = True
+        continue
+    need_user_input = False
+
+print("再见！")
+      </script>
+    </div>
+    <details class="hint"><summary>提示</summary><p>新的 <code>if</code> 放在 <code>tool_rounds += 1</code> 之后、<code>need_user_input = False</code> 之前，和真 <code>agent.py</code> 一样。</p></details>
+  </section>
+</section>
+
+<section class="keywords">
+  <h2>小结</h2>
+  <ul class="recap">
+    <li><code>while 条件:</code> 重复代码块，直到条件变成 False。</li>
+    <li><code>break</code> 离开循环，<code>continue</code> 跳到下一圈。</li>
+    <li><code>need_user_input</code> 决定问你还是直接问 AI。</li>
+    <li>每个循环都要有出口；不可控的循环加上限。</li>
+  </ul>
+  <h3>关键词</h3>
+  <dl>
+    <div><dt>循环 <span class="en">loop</span></dt><dd>重复运行的一段代码。</dd></div>
+    <div><dt>计数器 <span class="en">counter</span></dt><dd>每圈都变的变量。</dd></div>
+    <div><dt>跳出 <span class="en">break</span></dt><dd>立刻离开循环。</dd></div>
+    <div><dt>跳过 <span class="en">continue</span></dt><dd>直接开始下一圈。</dd></div>
+    <div><dt>死循环 <span class="en">endless loop</span></dt><dd>永远停不下来的循环。</dd></div>
+    <div><dt>标志变量 <span class="en">flag</span></dt><dd>决定下一步做什么的 True/False。</dd></div>
+  </dl>
+</section>
+
+</main>
+</div>
+</body>
+</html>

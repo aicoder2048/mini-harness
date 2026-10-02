@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>类与对象 · 拆机学 Python 12</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap">
+<link rel="stylesheet" href="../assets/course.css">
+<script src="../assets/course.js"></script>
+</head>
+<body data-lesson="12" data-root="../">
+<div class="page">
+
+<header class="hero">
+  <p class="eyebrow">第 12 课 · 第 4 单元 · 接线</p>
+  <h1>类与对象</h1>
+  <p class="lede">机器人把一个工具的所有信息装进一个「对象」，还能把整个大脑换成假的。</p>
+  <div class="bench" aria-label="今天工作台上的零件">
+    <span class="prompt">$</span> <span>teardown</span> <span class="path">src/tools.py</span> <span>--lines 24-30</span> <span class="cursor" aria-hidden="true"></span>
+  </div>
+  <dl class="hero-meta">
+    <div><dt>工作台上的零件</dt><dd><code>Tool</code>、<code>ConsoleApprover</code>、<code>Provider</code></dd></div>
+    <div><dt>时长</dt><dd>约 35 分钟</dd></div>
+    <div><dt>你会学到</dt><dd>类和对象 · <code>self</code> · 继承 · 可替换的零件</dd></div>
+  </dl>
+</header>
+
+<main class="lesson">
+
+<section>
+  <h2>类是蓝图</h2>
+  <p>一个工具有好几条信息：名字、要不要先问你……用字典存，键名拼错了也没人发现。<strong>类</strong>是一张蓝图，规定了到底有哪些信息，按它造出来的<strong>对象</strong>都得遵守：</p>
+  <div class="cell" data-expect-error="TypeError" data-label="试一试 · 类把拼写错误抓出来了">
+    <script type="text/x-python">
+from dataclasses import dataclass
+
+# 用字典：键名拼错了，没人发现
+run_bash = {"name": "run_bash", "needs_aproval": True}
+print("字典版要不要先问你：", run_bash.get("needs_approval", False))   # False！
+
+# 用类：同样的拼写错误，当场报错
+@dataclass
+class Tool:
+    name: str
+    needs_approval: bool = False
+
+run_bash = Tool(name="run_bash", needs_aproval=True)
+    </script>
+  </div>
+  <aside class="callout analogy">
+    <p class="callout-label">打个比方</p>
+    <p>类像一张空白登记表，对象是一张填好的表。表上没有的格子，你没法往里写。</p>
+  </aside>
+  <p class="takeaway">类是蓝图，对象是照着蓝图造出来的东西。</p>
+</section>
+
+<section>
+  <h2>工具的蓝图</h2>
+  <p>机器人的每个工具都照着这张 7 行的蓝图造：</p>
+  <figure class="excerpt" data-file="src/tools.py" data-start="24" data-highlight="24,30">
+    <script type="text/x-python">
+@dataclass(frozen=True)
+class Tool:
+    name: str
+    description: str
+    input_schema: dict[str, Any]
+    run: Callable[[dict[str, Any]], str]
+    needs_approval: bool = False  # True → agent 执行前先问用户（run_bash 这类能动整台机器的工具）
+    </script>
+    <figcaption>
+      <p>每行是一个<strong>字段</strong>。<code>@dataclass</code> 替你写好创建对象的代码，<code>frozen=True</code> 让造好的工具不能再改。</p>
+    </figcaption>
+  </figure>
+  <div class="cell">
+    <script type="text/x-python">
+from collections.abc import Callable
+from dataclasses import dataclass
+
+@dataclass(frozen=True)
+class Tool:
+    name: str
+    run: Callable
+    needs_approval: bool = False
+
+def _count_words(args):
+    return str(len(args["text"].split()))
+
+count_words = Tool(name="count_words", run=_count_words)   # 像调用函数一样造对象
+
+print(count_words.name)                  # 用点号读字段
+print(count_words.needs_approval)        # 没填，所以是默认值
+print(count_words.run({"text": "the robot reads real files"}))
+    </script>
+  </div>
+  <div class="quiz" id="q-12-class-object" data-answer="b">
+    <p class="q">机器人里有一行 <code>read_file = Tool(name="read_file", ...)</code>。哪个是类，哪个是对象？</p>
+    <ol class="options">
+      <li data-why="正好反了。蓝图是用 class 定义的那个。"><code>read_file</code> 是类，<code>Tool</code> 是对象</li>
+      <li><code>Tool</code> 是类，<code>read_file</code> 是按它造出来的对象</li>
+      <li data-why="read_file 是调用 Tool(...) 得到的，是一张填好的表。">两个都是类</li>
+      <li data-why="Tool 是用 class 定义的，read_file 是调用它的结果。">两个都是函数</li>
+    </ol>
+    <div class="explain"><p><code>Tool</code> 是空白表格，<code>read_file</code>、<code>run_bash</code> 是填好的表。对象也叫<strong>实例</strong>。</p></div>
+  </div>
+  <details class="more">
+    <summary>多了解一点：冻结的对象改不了</summary>
+    <p><code>frozen=True</code> 之后，谁想偷偷关掉安全开关，Python 都会拒绝：</p>
+    <div class="cell" data-expect-error="FrozenInstanceError">
+      <script type="text/x-python">
+from dataclasses import dataclass
+
+@dataclass(frozen=True)
+class Tool:
+    name: str
+    needs_approval: bool = False
+
+run_bash = Tool("run_bash", needs_approval=True)
+run_bash.needs_approval = False   # 偷偷关掉安全检查
+      </script>
+    </div>
+  </details>
+  <p class="takeaway"><code>Tool(...)</code> 造对象，<code>tool.name</code> 读字段。</p>
+</section>
+
+<section>
+  <h2>self 与状态</h2>
+  <p>不用 <code>@dataclass</code> 时，自己写 <code>__init__</code>：每造一个对象，它就自动运行一次。类里的函数叫<strong>方法</strong>，第一个参数 <code>self</code> 就是「这一个对象」：</p>
+  <div class="cell">
+    <script type="text/x-python">
+class Brake:
+    def __init__(self, limit):
+        self.limit = limit      # 每个刹车记住自己的上限
+        self.rounds = 0         # 和自己的计数
+
+    def tick(self):
+        self.rounds += 1
+        return self.rounds >= self.limit   # True 表示该停了
+
+
+strict = Brake(2)
+relaxed = Brake(20)
+print(strict.tick(), strict.tick())    # 第 1 轮、第 2 轮
+print(relaxed.tick(), relaxed.rounds)  # 各数各的
+    </script>
+  </div>
+  <figure class="excerpt" data-file="src/agent.py" data-start="85">
+    <script type="text/x-python">
+    def __init__(self, read: Callable[[str], str] = input) -> None:
+        self.read = read
+        self.always: set[str] = set()  # 本会话内不再询问的工具名
+    </script>
+    <figcaption>
+      <p>这是 <code>ConsoleApprover</code> 的 <code>__init__</code>。你回答 <kbd>a</kbd>，它就把工具名加进 <code>self.always</code>，以后不再问。</p>
+    </figcaption>
+  </figure>
+  <div class="quiz" id="q-12-self" data-answer="b">
+    <p class="q"><code>ConsoleApprover</code> 里运行 <code>self.always.add(call.name)</code> 时，<code>self</code> 是什么？</p>
+    <ol class="options">
+      <li data-why="如果是类本身，所有授权对象就会共用一个集合。self 永远是某一个具体的对象。">类 <code>ConsoleApprover</code> 本身</li>
+      <li>此刻正在被询问的那一个授权对象</li>
+      <li data-why="工具调用是名叫 call 的那个参数。self 是方法所属的对象。">正在等待授权的那次工具调用</li>
+      <li data-why="两个 Agent 各有自己的授权对象，各自的 self.always 互不相干。">一个全局变量</li>
+    </ol>
+    <div class="explain"><p>每个 <code>Agent</code> 都有自己的授权对象，所以在一个会话里回答 <kbd>a</kbd>，不会影响另一个会话。</p></div>
+  </div>
+  <p class="takeaway">会变的数据放在 <code>self</code> 上，每个对象各有一份。</p>
+</section>
+
+<section>
+  <h2>继承</h2>
+  <p>新类可以是某个已有类的「一种」。机器人的工具出错时，用的是自己的错误类型：</p>
+  <figure class="excerpt" data-file="src/tools.py" data-start="33">
+    <script type="text/x-python">
+class ToolError(Exception):
+    """工具执行失败。会被包成 is_error 的结果回灌给模型，让它自己纠错。"""
+    </script>
+    <figcaption>
+      <p>括号里的 <code>Exception</code> 表示 <code>ToolError</code> <strong>继承</strong>了它：它是一种异常，能被抛出和捕获（第 09 课）。</p>
+    </figcaption>
+  </figure>
+  <p class="takeaway"><code>class 新类(旧类):</code> 表示新类是旧类的一种。</p>
+</section>
+
+<section>
+  <h2>换大脑</h2>
+  <p><code>agent.py</code> 从不写死「用 DeepSeek」。它只要求大脑有固定的几个方法，这个「插头形状」写在 <code>Provider</code> 里：</p>
+  <figure class="excerpt" data-file="src/providers.py" data-start="59">
+    <script type="text/x-python">
+class Provider(Protocol):
+    """agent 循环依赖的接口；测试里用 fake 实现替换。"""
+
+    label: str  # 终端里打印的名字
+
+    def chat(self, conversation: list[dict], tools: list[Tool], system: str = "") -> Reply:
+        """发送 system + 整个 conversation；把 assistant 回复 append 进去；返回归一化的 Reply。
+        system 怎么编码是各家协议的事，不存进 conversation。"""
+    </script>
+    <figcaption>
+      <p>真的 <code>DeepSeekProvider</code> 和测试用的 <code>FakeProvider</code> 都有这些方法，所以都能插进来。测试用假大脑，不联网也不花钱。</p>
+    </figcaption>
+  </figure>
+  <div class="cell" data-label="试一试 · 两个大脑，一个插座">
+    <script type="text/x-python">
+class EchoBrain:
+    label = "Echo"
+
+    def chat(self, text):
+        return f"你说的是：{text}"
+
+
+class ShoutBrain:
+    label = "Shout"
+
+    def chat(self, text):
+        return text.upper() + "!!!"
+
+
+def talk(brain, text):
+    # talk() 不管是哪个大脑，只要有 .label 和 .chat()
+    print(f"{brain.label}: {brain.chat(text)}")
+
+
+for brain in [EchoBrain(), ShoutBrain()]:
+    talk(brain, "hello robot")
+    </script>
+  </div>
+  <aside class="callout principle">
+    <p class="callout-label">编程原则</p>
+    <h4>依赖插头，不依赖设备</h4>
+    <p>照着零件「能做什么」来写代码，再从外面把零件传进来（<code>Agent(provider, ...)</code>）。这样测试时每个零件都能换成假的。</p>
+  </aside>
+  <p class="takeaway">只要方法对得上，什么大脑都能插进 <code>Agent</code>。</p>
+</section>
+
+<section>
+  <h2>动手挑战</h2>
+  <section class="challenge" id="ch-12-approver">
+    <div class="challenge-head"><span class="badge">挑战</span><h3>做一个你自己的授权器</h3></div>
+    <p>写 <code>Approver</code>：<code>__init__</code> 建空集合 <code>self.always</code>；<code>decide(tool_name, answer)</code> 在回答 <code>""</code>/<code>y</code>/<code>yes</code> 时允许，<code>a</code> 时记住并允许，其余拒绝。</p>
+    <div class="cell">
+      <script type="text/x-python">
+class Approver:
+    def __init__(self):
+        pass   # 在这里创建一个叫 self.always 的空集合
+
+    def decide(self, tool_name, answer):
+        return False   # 换成真正的规则
+
+
+session = Approver()
+print(session.decide("run_bash", "y"))    # 应该是 True
+print(session.decide("run_bash", "n"))    # 应该是 False
+print(session.decide("run_bash", "a"))    # True，而且记住了
+print(session.decide("run_bash", "n"))    # True：run_bash 现在一直被允许
+      </script>
+      <script type="text/x-python" class="check">
+a = Approver()
+assert hasattr(a, "always") and isinstance(a.always, set), "__init__ 里应该写 self.always = set()。"
+assert a.decide("run_bash", "y") is True, 'decide("run_bash", "y") 应该返回 True。'
+assert a.decide("run_bash", "  YES ") is True, '用 .strip().lower() 清理回答："  YES " 也应该算「是」。'
+assert a.decide("run_bash", "") is True, "空回答（直接按回车）应该表示「是」。"
+assert a.decide("run_bash", "n") is False, 'decide("run_bash", "n") 应该返回 False。'
+assert a.decide("run_bash", "maybe") is False, "其他任何回答都应该返回 False。"
+assert a.decide("run_bash", "a") is True, '"a" 应该返回 True。'
+assert a.decide("run_bash", "n") is True, '回答过 "a" 之后，run_bash 应该不再询问、直接允许，就算这次回答的是 "n"。'
+assert a.decide("edit_file", "n") is False, '对 run_bash 回答 "a"，不能连带允许 edit_file 这样的其他工具。'
+b = Approver()
+assert b.decide("run_bash", "n") is False, "新建的 Approver 应该从一个空集合开始。你是不是把集合写在了类上，而不是 __init__ 里？"
+      </script>
+      <script type="text/x-python" class="solution">
+class Approver:
+    def __init__(self):
+        self.always = set()
+
+    def decide(self, tool_name, answer):
+        if tool_name in self.always:
+            return True
+        answer = answer.strip().lower()
+        if answer in ("", "y", "yes"):
+            return True
+        if answer == "a":
+            self.always.add(tool_name)
+            return True
+        return False
+
+
+session = Approver()
+print(session.decide("run_bash", "y"))
+print(session.decide("run_bash", "n"))
+print(session.decide("run_bash", "a"))
+print(session.decide("run_bash", "n"))
+      </script>
+    </div>
+    <details class="hint"><summary>提示</summary><p>先查 <code>tool_name in self.always</code>，再 <code>answer.strip().lower()</code>；集合要在 <code>__init__</code> 里建。</p></details>
+  </section>
+
+  <section class="challenge" id="ch-12-brains">
+    <div class="challenge-head"><span class="badge">挑战</span><h3>什么大脑都行</h3></div>
+    <p>给 <code>RobotBrain</code> 加 <code>reply</code>：<code>"hi"</code> 返回 <code>"BEEP HI"</code>。<code>talk</code> 要<strong>返回</strong> <code>"标签: 回复"</code>，换个大脑也能用。</p>
+    <div class="cell">
+      <script type="text/x-python">
+class ParrotBrain:
+    label = "Parrot"
+
+    def reply(self, text):
+        return text          # 你说什么它就学什么
+
+
+class RobotBrain:
+    label = "Robot"
+    # 在这里加一个 reply 方法
+
+
+def talk(brain, text):
+    return ""   # 返回 "<label>: <回复>"
+
+
+print(talk(ParrotBrain(), "hi"))
+print(talk(RobotBrain(), "hi"))
+      </script>
+      <script type="text/x-python" class="check">
+assert hasattr(RobotBrain(), "reply"), "RobotBrain 需要一个 reply(self, text) 方法。"
+got = RobotBrain().reply("hi")
+assert got == "BEEP HI", f'RobotBrain().reply("hi") 应该返回 "BEEP HI"，现在是 {got!r}。'
+got = talk(ParrotBrain(), "hi")
+assert got == "Parrot: hi", f'talk(ParrotBrain(), "hi") 应该返回 "Parrot: hi"，现在是 {got!r}。'
+got = talk(RobotBrain(), "hi")
+assert got == "Robot: BEEP HI", f'talk(RobotBrain(), "hi") 应该返回 "Robot: BEEP HI"，现在是 {got!r}。'
+
+
+class _SecretBrain:
+    label = "Mirror"
+
+    def reply(self, text):
+        return text[::-1]
+
+
+got = talk(_SecretBrain(), "robot")
+assert got == "Mirror: tobor", f"talk() 换了一个大脑就不灵了（得到的是 {got!r}）。要用 brain.label 和 brain.reply(text)，不要写死文字。"
+      </script>
+      <script type="text/x-python" class="solution">
+class ParrotBrain:
+    label = "Parrot"
+
+    def reply(self, text):
+        return text
+
+
+class RobotBrain:
+    label = "Robot"
+
+    def reply(self, text):
+        return "BEEP " + text.upper()
+
+
+def talk(brain, text):
+    return f"{brain.label}: {brain.reply(text)}"
+
+
+print(talk(ParrotBrain(), "hi"))
+print(talk(RobotBrain(), "hi"))
+      </script>
+    </div>
+    <details class="hint"><summary>提示</summary><p><code>def reply(self, text):</code>；<code>talk</code> 里 <code>return f"{brain.label}: {brain.reply(text)}"</code>。</p></details>
+  </section>
+</section>
+
+<section class="keywords">
+  <h2>小结</h2>
+  <ul class="recap">
+    <li>类是蓝图，对象是造出来的东西：<code>Tool(...)</code>。</li>
+    <li><code>@dataclass</code> 按字段造类；<code>frozen=True</code> 造好就不能改。</li>
+    <li><code>__init__</code> 设置新对象；<code>self</code> 就是「这个对象」。</li>
+    <li>方法对得上的零件都能插进来，所以测试能用假大脑。</li>
+  </ul>
+  <h3>关键词</h3>
+  <dl>
+    <div><dt>类 <span class="en">class</span></dt><dd>规定对象有哪些信息的蓝图。</dd></div>
+    <div><dt>对象 / 实例 <span class="en">object / instance</span></dt><dd>照着类造出来的东西。</dd></div>
+    <div><dt>方法 <span class="en">method</span></dt><dd>写在类里的函数。</dd></div>
+    <div><dt>数据类 <span class="en">dataclass</span></dt><dd>按字段自动生成的类。</dd></div>
+    <div><dt>继承 <span class="en">inheritance</span></dt><dd>新类是旧类的一种。</dd></div>
+    <div><dt>依赖注入 <span class="en">dependency injection</span></dt><dd>从外面把零件传进去。</dd></div>
+  </dl>
+</section>
+
+</main>
+</div>
+</body>
+</html>

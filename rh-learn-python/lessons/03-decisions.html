@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>做判断 · 拆机学 Python 03</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap">
+<link rel="stylesheet" href="../assets/course.css">
+<script src="../assets/course.js"></script>
+</head>
+<body data-lesson="03" data-root="../">
+<div class="page">
+
+<header class="hero">
+  <p class="eyebrow">第 03 课 · 第 1 单元 · 通电</p>
+  <h1>做判断</h1>
+  <p class="lede">机器人跑命令前会问「允许执行? [Y/n/a]」，再根据你的回答做选择。</p>
+  <div class="bench" aria-label="今天放在工作台上的零件">
+    <span class="prompt">$</span> <span>teardown</span> <span class="path">src/agent.py</span> <span>--lines 75-105</span> <span class="cursor" aria-hidden="true"></span>
+  </div>
+  <dl class="hero-meta">
+    <div><dt>工作台上的零件</dt><dd>请求授权的 <code>ConsoleApprover</code></dd></div>
+    <div><dt>时长</dt><dd>约 35 分钟</dd></div>
+    <div><dt>你会学到</dt><dd>比较 · <code>if</code> / <code>elif</code> / <code>else</code> · <code>and</code> / <code>or</code> / <code>in</code></dd></div>
+  </dl>
+</header>
+
+<main class="lesson">
+
+<section>
+  <h2>是或否</h2>
+  <p>每个判断都从一个是 / 否问题开始。比较两样东西，就得到 <code>True</code> 或 <code>False</code>，这叫<strong>布尔值</strong>。</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>运算符</th><th>问的是</th><th>例子</th></tr></thead>
+      <tbody>
+        <tr><td><code>==</code> / <code>!=</code></td><td>相等吗 / 不相等吗</td><td><code>5 == 5</code> → <code>True</code></td></tr>
+        <tr><td><code>&lt;</code> / <code>&gt;</code></td><td>小于 / 大于</td><td><code>3 &gt; 10</code> → <code>False</code></td></tr>
+        <tr><td><code>&lt;=</code> / <code>&gt;=</code></td><td>小于等于 / 大于等于</td><td><code>20 &gt;= 20</code> → <code>True</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="cell">
+    <script type="text/x-python">
+tool_rounds = 20
+MAX_TOOL_ROUNDS = 20
+print(tool_rounds >= MAX_TOOL_ROUNDS)   # 该停下来问问人了吗？
+print("yes" == "Yes")                   # 大小写不同就不相等
+    </script>
+  </div>
+  <div class="quiz" id="q-03-equals" data-answer="b">
+    <p class="q">哪一行是在<strong>问</strong>用户有没有输入 "y"？</p>
+    <ol class="options">
+      <li data-why="一个 = 是把 &quot;y&quot; 存进 answer，并没有提问。">answer = "y"</li>
+      <li>answer == "y"</li>
+      <li data-why="Python 没有 =! 这个运算符。「不等于」要写成 !=。">answer =! "y"</li>
+      <li data-why="这是在问 answer 是不是「不等于」&quot;y&quot;。">answer != "y"</li>
+    </ol>
+    <div class="explain"><p>一个 <code>=</code> 是存值，两个 <code>==</code> 是提问。这是新手最常弄混的地方。</p></div>
+  </div>
+  <p class="takeaway"><code>=</code> 是存，<code>==</code> 是问。</p>
+</section>
+
+<section>
+  <h2>if 和 elif</h2>
+  <p><code>if 条件:</code> 后面缩进 4 格的几行，只在条件为 <code>True</code> 时运行。<code>elif</code> 是「否则如果」，<code>else</code> 是「否则」。Python 从上往下看，<strong>只运行第一个</strong>成立的分支。</p>
+  <div class="cell">
+    <script type="text/x-python">
+answer = "n"
+
+if answer == "y":
+    print("允许")
+elif answer == "n":
+    print("拒绝")
+elif answer == "a":
+    print("本会话内都允许")
+else:
+    print("没看懂，再问一次。")
+print("决定已做出")      # 没缩进：总会运行
+    </script>
+  </div>
+  <p>试试把 <code>answer</code> 改成 <code>"a"</code> 或拼错的 <code>"yse"</code>。</p>
+  <div class="quiz" id="q-03-elif" data-answer="a">
+    <p class="q">这段代码会打印什么？</p>
+    <div class="snippet"><script type="text/x-python">
+tokens = 75_000
+if tokens > 60_000:
+    print("超出预算")
+elif tokens > 30_000:
+    print("有点大了")
+else:
+    print("没问题")
+    </script></div>
+    <ol class="options">
+      <li>超出预算</li>
+      <li data-why="75,000 也大于 30,000，但 Python 只运行「第一个」为真的分支，后面的都跳过。">有点大了</li>
+      <li data-why="一串 if/elif/else 里，永远只有一个分支会运行。">先打印「超出预算」，再打印「有点大了」</li>
+      <li data-why="只有上面所有条件都是 False 时，else 才会运行。">没问题</li>
+    </ol>
+    <div class="explain"><p>第一个条件已经成立，后面的分支全部跳过。所以顺序很重要。</p></div>
+  </div>
+  <p class="takeaway">冒号加缩进；一串 if / elif / else 只走一条路。</p>
+</section>
+
+<section>
+  <h2>真值与假值</h2>
+  <p><code>if</code> 后面也可以直接放一个值。<code>""</code>、<code>0</code>、<code>None</code>、空列表都算「假」，其余都算「真」。<code>not</code> 把真假反过来。</p>
+  <div class="cell">
+    <script type="text/x-python">
+api_key = None          # 没设置密钥
+if not api_key:
+    print("请先设置 DEEPSEEK_API_KEY！")
+
+user_input = ""         # 用户只按了回车
+if not user_input:
+    print("空行：跳过，再问一次")
+    </script>
+  </div>
+  <figure class="excerpt" data-file="src/step1_chat.py" data-start="21">
+    <script type="text/x-python">
+    api_key = os.environ.get("DEEPSEEK_API_KEY")
+    if not api_key:
+        raise SystemExit("请先 export DEEPSEEK_API_KEY=... （https://platform.deepseek.com）")
+    </script>
+    <figcaption>找不到密钥，就带着一句清楚的提示马上退出，而不是等到后面莫名其妙地崩溃。</figcaption>
+  </figure>
+  <details class="more">
+    <summary>多了解一点：<code>x is None</code> 和 <code>not x</code> 的区别</summary>
+    <p><code>0</code> 和 <code>""</code> 也是假值，但它们是真实存在的值。只想问「有没有值」时，写 <code>x is None</code>：</p>
+    <div class="snippet"><script type="text/x-python">
+cached = 0
+print(cached is None)   # False：0 是一个真实的值
+print(not cached)       # True：0 也是假值，not 分不清
+    </script></div>
+  </details>
+  <p class="takeaway"><code>if not x:</code> 能抓住空字符串、0 和 <code>None</code>。</p>
+</section>
+
+<section>
+  <h2>and、or、in</h2>
+  <p><code>a and b</code>：两个都真才真。<code>a or b</code>：有一个真就真。<code>x in ("y", "yes")</code>：x 是不是其中之一。</p>
+  <div class="cell">
+    <script type="text/x-python">
+answer = "  YES ".strip().lower()
+if answer in ("", "y", "yes"):
+    print("允许这一次")
+elif answer in ("n", "no"):
+    print("拒绝")
+else:
+    print("打错了？再问一次")
+    </script>
+  </div>
+  <figure class="excerpt" data-file="src/agent.py" data-start="98">
+    <script type="text/x-python">
+            if answer in ("", "y", "yes"):
+                return True
+            if answer in ("n", "no"):
+                return False
+            if answer in ("a", "all", "always"):
+                self.always.add(call.name)
+                return True
+    </script>
+    <figcaption>机器人真正的授权判断。直接按回车得到 <code>""</code>，算作同意；都没匹配上，就再问一次。</figcaption>
+  </figure>
+  <div class="quiz" id="q-03-or" data-answer="b">
+    <p class="q">当 <code>answer = "no"</code> 时，<code>if answer == "n" or "no": print("拒绝")</code> 会打印什么？</p>
+    <ol class="options">
+      <li data-why="单独的 &quot;no&quot; 是非空字符串，是真值，所以条件为 True。">什么都不打印</li>
+      <li>拒绝</li>
+      <li data-why="这是合法的 Python，只是意思和看上去的不一样。">报 SyntaxError</li>
+      <li data-why="print 只会打印它自己的文字「拒绝」。">no</li>
+    </ol>
+    <div class="explain"><p>它打印「拒绝」，但只是碰巧对：<code>or "no"</code> 永远是真值，输入 "yes" 也会打印「拒绝」。正确写法是 <code>answer in ("n", "no")</code>。</p></div>
+  </div>
+  <p class="takeaway">判断「是不是其中之一」，用 <code>in (...)</code>。</p>
+</section>
+
+<section>
+  <h2>先挡坏情况</h2>
+  <p><code>edit_file</code> 会改你的文件，所以动手前先把坏情况一个个挡在门外：</p>
+  <figure class="excerpt" data-file="src/tools.py" data-start="176">
+    <script type="text/x-python">
+    content = _read_text(path)
+    occurrences = content.count(old)
+    if occurrences == 0:
+        raise ToolError("old_str not found in file")
+    if occurrences > 1:
+        # 原文没做这个检查。不做的话模型一次替换会命中多处，改坏文件还沉默通过。
+        raise ToolError(f"old_str matched {occurrences} times; make it unique")
+    </script>
+    <figcaption>要改的文字必须正好出现一次：0 次说明找错了，2 次以上会改错地方。</figcaption>
+  </figure>
+  <div class="cell">
+    <script type="text/x-python">
+content = "x = 1\ny = 2\nx = 3\n"
+old = "x = "            # 试试 "y = 2" 或 "z"
+new = "x = 10"
+
+occurrences = content.count(old)
+if occurrences == 0:
+    print("Error: old_str not found in file")
+elif occurrences > 1:
+    print(f"Error: old_str matched {occurrences} times; make it unique")
+else:
+    print("OK")
+    print(content.replace(old, new))
+    </script>
+  </div>
+  <aside class="callout principle">
+    <p class="callout-label">编程原则</p>
+    <h4>先检查坏情况，有问题就提前离开</h4>
+    <p>这叫<strong>卫语句</strong>。把检查都放在最前面，后面干活的代码就能又短又安全。</p>
+  </aside>
+  <details class="more">
+    <summary>多了解一点：一行做完一个判断</summary>
+    <p><code>值1 if 条件 else 值2</code> 能在两个值里挑一个。机器人处理 skill 命令时就这样写：</p>
+    <div class="snippet"><script type="text/x-python">
+request = parts[1] if len(parts) > 1 else "(no extra input: follow the skill's default workflow)"
+    </script></div>
+  </details>
+  <p class="takeaway">先挡住坏情况，再放心干活。</p>
+</section>
+
+<section>
+  <h2>动手挑战</h2>
+  <section class="challenge" id="ch-03-approve">
+    <div class="challenge-head"><span class="badge">挑战</span><h3>做一个授权检查</h3></div>
+    <p>读入回答并清理，然后只打印一个词：空 / <code>y</code> / <code>yes</code> → <code>允许</code>；<code>n</code> / <code>no</code> → <code>拒绝</code>；<code>a</code> / <code>all</code> / <code>always</code> → <code>总是允许</code>；其他 → <code>再问一次</code>。</p>
+    <div class="cell" data-inputs="Yes">
+      <script type="text/x-python">
+answer = input("允许执行? [Y/n/a] ")
+# 先清理回答，再做决定
+print("允许")
+      </script>
+      <script type="text/x-python" class="check">
+import io, contextlib
+
+def run_with(*answers):
+    feed = iter(answers)
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        exec(__source__, {"__name__": "__main__", "input": lambda prompt="": next(feed)})
+    return buf.getvalue()
+
+cases = {"": "允许", "y": "允许", " YES ": "允许", "n": "拒绝", "No": "拒绝",
+         "a": "总是允许", "ALL": "总是允许", "always": "总是允许", "yse": "再问一次", "maybe": "再问一次"}
+for typed, want in cases.items():
+    lines = run_with(typed).strip().splitlines()
+    got = lines[-1].strip() if lines else ""
+    assert got == want, f"用户输入 {typed!r} 时，应该打印 {want!r}，你打印的是 {got!r}。"
+      </script>
+      <script type="text/x-python" class="solution">
+answer = input("允许执行? [Y/n/a] ")
+answer = answer.strip().lower()
+if answer in ("", "y", "yes"):
+    print("允许")
+elif answer in ("n", "no"):
+    print("拒绝")
+elif answer in ("a", "all", "always"):
+    print("总是允许")
+else:
+    print("再问一次")
+      </script>
+    </div>
+    <details class="hint"><summary>提示</summary><p>先 <code>answer = answer.strip().lower()</code>，再用 if / elif / elif / else 加 <code>in (...)</code>。</p></details>
+  </section>
+
+  <section class="challenge" id="ch-03-slash">
+    <div class="challenge-head"><span class="badge">挑战</span><h3>命令还是消息？</h3></div>
+    <p>第一个词以 <code>/</code> 开头、不只是 <code>/</code>、后面再没有 <code>/</code>，就打印 <code>命令：名字</code>（去掉斜杠、小写）；否则打印 <code>普通消息</code>。小心空输入。</p>
+    <div class="cell" data-inputs="/EXIT">
+      <script type="text/x-python">
+text = input("You: ")
+words = text.split()
+# 判断：这是 /exit 这样的斜杠命令，还是一条普通消息？
+print("普通消息")
+      </script>
+      <script type="text/x-python" class="check">
+import io, contextlib
+
+def run_with(*answers):
+    feed = iter(answers)
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        exec(__source__, {"__name__": "__main__", "input": lambda prompt="": next(feed)})
+    return buf.getvalue()
+
+cases = {
+    "/exit": "命令：exit",
+    "/EXIT": "命令：exit",
+    "/quit now": "命令：quit",
+    "   /exit  ": "命令：exit",
+    "/Users/szou/a.py look at this": "普通消息",
+    "hello /exit": "普通消息",
+    "/": "普通消息",
+    "": "普通消息",
+}
+for typed, want in cases.items():
+    lines = run_with(typed).strip().splitlines()
+    got = lines[-1].strip() if lines else ""
+    assert got == want, f"输入是 {typed!r} 时，应该打印 {want!r}，你打印的是 {got!r}。"
+      </script>
+      <script type="text/x-python" class="solution">
+text = input("You: ")
+words = text.split()
+if words and words[0].startswith("/") and len(words[0]) > 1 and "/" not in words[0][1:]:
+    print("命令：" + words[0][1:].lower())
+else:
+    print("普通消息")
+      </script>
+    </div>
+    <details class="hint"><summary>提示</summary><p>条件以 <code>words and</code> 开头防空输入；用 <code>words[0][1:]</code> 和 <code>"/" not in ...</code>。</p></details>
+  </section>
+</section>
+
+<section class="keywords">
+  <h2>小结</h2>
+  <ul class="recap">
+    <li>比较得到 <code>True</code> / <code>False</code>；<code>=</code> 存值，<code>==</code> 提问。</li>
+    <li>if / elif / else 只运行第一个成立的分支；冒号和缩进不能少。</li>
+    <li><code>""</code>、<code>0</code>、<code>None</code> 是假值；<code>in (...)</code> 判断「是不是其中之一」。</li>
+    <li>卫语句：先挡坏情况，再干活。</li>
+  </ul>
+  <h3>关键词</h3>
+  <dl>
+    <div><dt>布尔值 <span class="en">boolean</span></dt><dd><code>True</code> 或 <code>False</code>。</dd></div>
+    <div><dt>条件 <span class="en">condition</span></dt><dd><code>if</code> 后面的问题。</dd></div>
+    <div><dt>代码块 <span class="en">block</span></dt><dd>属于 <code>if</code> 的缩进代码。</dd></div>
+    <div><dt>缩进 <span class="en">indentation</span></dt><dd>行首空格，决定代码归属。</dd></div>
+    <div><dt>假值 <span class="en">falsy</span></dt><dd>算作「假」的值，如 <code>""</code>。</dd></div>
+    <div><dt>卫语句 <span class="en">guard clause</span></dt><dd>先检查、有问题就离开。</dd></div>
+  </dl>
+</section>
+
+</main>
+</div>
+</body>
+</html>

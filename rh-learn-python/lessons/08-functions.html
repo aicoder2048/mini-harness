@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>函数 · 拆机学 Python 08</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap">
+<link rel="stylesheet" href="../assets/course.css">
+<script src="../assets/course.js"></script>
+</head>
+<body data-lesson="08" data-root="../">
+<div class="page">
+
+<header class="hero">
+  <p class="eyebrow">第 08 课 · 第 3 单元 · 工具</p>
+  <h1>函数</h1>
+  <p class="lede">函数是有名字的小机器：放进值，交回结果。机器人的每个工具都是一个函数。</p>
+  <div class="bench" aria-label="今天放在工作台上的零件">
+    <span class="prompt">$</span> <span>teardown</span> <span class="path">src/tools.py</span> <span>--lines 57-61</span> <span class="cursor" aria-hidden="true"></span>
+  </div>
+  <dl class="hero-meta">
+    <div><dt>工作台上的零件</dt><dd><code>tools.py</code> 的小函数</dd></div>
+    <div><dt>时长</dt><dd>约 35 分钟</dd></div>
+    <div><dt>你会学到</dt><dd><code>def</code> · <code>return</code> · 参数 · 纯函数 · 函数也是值</dd></div>
+  </dl>
+</header>
+
+<main class="lesson">
+
+<section>
+  <h2>写个函数</h2>
+  <p><code>print()</code>、<code>len()</code> 都是函数。用 <code>def</code> 可以自己写一个：定义时不运行，<strong>调用</strong>时才运行；<code>return</code> 把结果交回来。</p>
+  <div class="cell">
+    <script type="text/x-python">
+def greet(name):                  # 定义：现在还不会运行
+    print(f"你好，{name}！")
+
+def tokens_left(budget, used):
+    return budget - used          # 把结果交回给调用者
+
+greet("小林")                      # 调用：这时才运行
+left = tokens_left(60_000, 4_210)
+print("剩下的 token：", left)
+    </script>
+  </div>
+  <div class="quiz" id="q-08-return" data-answer="b">
+    <p class="q">这个程序会打印什么？</p>
+    <div class="snippet"><script type="text/x-python">
+def add(a, b):
+    a + b
+
+result = add(2, 3)
+print(result)
+    </script></div>
+    <ol class="options">
+      <li data-why="函数确实算出了 5，但从来没有把它交回来。">5</li>
+      <li><code>None</code></li>
+      <li data-why="Python 会计算 a + b，不会把代码本身打印出来。">a + b</li>
+      <li data-why="这里没有违反任何规则。程序能正常运行，只是没做到作者想要的事。">报错</li>
+    </ol>
+    <div class="explain"><p>算出来了，但没有 <code>return</code>，结果就丢了。没有 <code>return</code> 的函数交回 <code>None</code>。修好它：<code>return a + b</code>。</p></div>
+  </div>
+  <details class="more">
+    <summary>多了解一点：<code>print</code> 和 <code>return</code> 不一样</summary>
+    <p><code>print</code> 把值显示给人看，然后就扔了；<code>return</code> 把值交回给代码，能存起来接着用。</p>
+    <div class="cell">
+      <script type="text/x-python">
+def double_print(x):
+    print(x * 2)        # 显示出来，然后扔掉
+
+def double_return(x):
+    return x * 2        # 交回给调用者
+
+a = double_print(21)
+b = double_return(21)
+print(f"a 是 {a}，b 是 {b}，b + 1 是 {b + 1}")
+      </script>
+    </div>
+  </details>
+  <p class="takeaway"><code>def</code> 定义，调用才运行；没有 <code>return</code> 就交回 <code>None</code>。</p>
+</section>
+
+<section>
+  <h2>参数和默认值</h2>
+  <p>参数是函数的「空位」。带 <code>=</code> 默认值的参数调用时可以不填；写上参数名（关键字参数），顺序就随意。</p>
+  <figure class="excerpt" data-file="src/tools.py" data-start="57">
+    <script type="text/x-python">
+def _positive_int(args: dict[str, Any], key: str, default: int) -> int:
+    value = args.get(key, default)
+    if not isinstance(value, int) or isinstance(value, bool) or value < 1:
+        raise ToolError(f"{key} must be a positive integer, got {value!r}")
+    return value
+    </script>
+    <figcaption>
+      <p>机器人用它检查 AI 发来的数字：三个参数，<code>default</code> 是查不到时的后备值。不合格就 <code>raise</code>（第 09 课），合格就 <code>return</code>。</p>
+    </figcaption>
+  </figure>
+  <div class="cell">
+    <script type="text/x-python">
+def usage_line(input_tokens, output_tokens, cached=0):
+    return f"· in {input_tokens:,} (cached {cached:,}) · out {output_tokens:,}"
+
+print(usage_line(4210, 120, 3800))
+print(usage_line(4210, 120))                                  # cached 用默认值 0
+print(usage_line(output_tokens=61, input_tokens=2961))        # 写明名字，顺序随意
+    </script>
+  </div>
+  <details class="more">
+    <summary>多了解一点：几个常见错误</summary>
+    <ul>
+      <li><strong>先调用、后定义：</strong>Python 从上往下读，<code>def</code> 要写在第一次调用之前。</li>
+      <li><strong>局部变量：</strong>函数里创建的变量，函数一结束就没了。外面要用，就 <code>return</code> 它。</li>
+      <li><strong>拿列表当默认值：</strong>默认值只创建一次，所有调用共用。用 <code>None</code>，再在函数里新建列表。</li>
+    </ul>
+  </details>
+  <p class="takeaway">带默认值的参数可以不填，不带的必须给。</p>
+</section>
+
+<section>
+  <h2>一个函数一件事</h2>
+  <p><code>read_file</code> 和 <code>edit_file</code> 都要读文件。作者没写两遍，而是写成一个函数，两处共用：</p>
+  <figure class="excerpt" data-file="src/tools.py" data-start="45">
+    <script type="text/x-python">
+def _read_text(path: str) -> str:
+    """read_file 和 edit_file 共用：读 UTF-8 文本，失败一律变成 ToolError。"""
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except OSError as e:
+        raise ToolError(str(e)) from e
+    except UnicodeDecodeError as e:
+        # 不是 OSError，漏接的话一张图片就能让整个 agent 崩掉。
+        raise ToolError(f"{path} is not a UTF-8 text file (binary?): {e.reason} at byte {e.start}") from e
+    </script>
+    <figcaption>
+      <p>后来发现一张图片能让机器人崩掉（看第 53 行注释），只改这一处，两个工具就都修好了。</p>
+    </figcaption>
+  </figure>
+  <aside class="callout principle">
+    <p class="callout-label">编程原则</p>
+    <h4>一个函数只干一件事，别重复自己</h4>
+    <p>一句话说不清函数干什么，就拆开。同样的代码出现两次，就写成函数（DRY：Don't Repeat Yourself）。</p>
+  </aside>
+  <p class="takeaway">共用的代码只写一次，改一处，全修好。</p>
+</section>
+
+<section>
+  <h2>纯函数</h2>
+  <p><strong>纯函数</strong>：同样的输入永远得到同样的输出，而且不碰外面的世界（不打印、不读写文件、不问用户）。它最好测试。</p>
+  <figure class="excerpt" data-file="src/agent.py" data-start="251">
+    <script type="text/x-python">
+def tools_for_step(step: int) -> list[Tool]:
+    """2=read_file, 3=+list_files, 4=+edit_file, 5=+run_bash"""
+    return ALL_TOOLS[: step - 1]
+    </script>
+    <figcaption>
+      <p><code>tools_for_step(3)</code> 永远返回前两个工具。机器人的 <code>build_system_prompt</code> 也故意写成纯函数，读文件的活交给别的函数。</p>
+    </figcaption>
+  </figure>
+  <div class="quiz" id="q-08-pure" data-answer="c">
+    <p class="q">下面哪个函数是纯函数？</p>
+    <ol class="options">
+      <li data-why="input() 会去问用户。调用两次，可能得到两个不同的答案。">返回 <code>input("Allow? ")</code> 的函数</li>
+      <li data-why="写文件改变了函数外面的世界。">把一条笔记存进文件的函数</li>
+      <li>返回 <code>ALL_TOOLS[: step - 1]</code> 的函数</li>
+      <li data-why="答案取决于你什么时候调用它，而不只是参数。">返回今天日期的函数</li>
+    </ol>
+    <div class="explain"><p>它每次都给出同一个列表，也不碰外面。测试只要一行：<code>assert tools_for_step(3) == ["read_file", "list_files"]</code>。</p></div>
+  </div>
+  <p class="takeaway">同样输入、同样输出、不碰外面：纯函数最好测。</p>
+</section>
+
+<section>
+  <h2>函数也是值</h2>
+  <p>函数可以像数字一样存进变量和字典。定义工具时写的是 <code>run=_run_bash</code>（<code>tools.py</code> 第 264 行），没有括号：存下函数本身，要用时再调用。</p>
+  <figure class="excerpt" data-file="src/agent.py" data-start="153">
+    <script type="text/x-python">
+            if tool.needs_approval and not self.approve(call):
+                raise ToolError("the user denied this tool call")
+            return ToolResult(call.id, tool.run(call.input))
+    </script>
+    <figcaption>
+      <p><code>tool.run(call.input)</code>：取出存好的函数，用 AI 给的参数调用它。加新工具也不用改这个循环。</p>
+    </figcaption>
+  </figure>
+  <div class="cell">
+    <script type="text/x-python">
+def shout(args):
+    return args["text"].upper() + "!"
+
+def count_words(args):
+    return f"{len(args['text'].split())} 个词"
+
+TOOLS = {"shout": shout, "count_words": count_words}   # 名字 -> 函数本身
+
+tool = TOOLS["shout"]              # 没有括号：拿到函数，不调用
+print(tool({"text": "hello robot"}))
+print(TOOLS["count_words"]({"text": "three little words"}))
+    </script>
+  </div>
+  <div class="quiz" id="q-08-value" data-answer="b">
+    <p class="q">为什么写 <code>run=_run_bash</code>，而不是 <code>run=_run_bash()</code>？</p>
+    <ol class="options">
+      <li data-why="这是故意的。要真是笔误，机器人的测试早就发现了。">这是个碰巧能用的笔误</li>
+      <li>这样存下的是函数本身，等 AI 要用时机器人再去调用它</li>
+      <li data-why="下划线只是名字的一部分，跟调用没有任何关系。">名字以 <code>_</code> 开头的函数不需要圆括号</li>
+      <li data-why="Python 从来不会替你补上圆括号。">Python 会自动补上圆括号</li>
+    </ol>
+    <div class="explain"><p>加了括号，机器人一启动就会运行它（还没有命令可跑）。不加括号，函数被存起来，到时候由 <code>tool.run(...)</code> 调用。</p></div>
+  </div>
+  <p class="takeaway">不加括号是函数本身，加了括号才是调用。</p>
+</section>
+
+<section>
+  <h2>动手挑战</h2>
+  <section class="challenge" id="ch-08-limit">
+    <div class="challenge-head"><span class="badge">挑战</span><h3>安全的行数上限</h3></div>
+    <p>写 <code>safe_limit(value, maximum=500)</code>：<code>value</code> 不是 <code>int</code> 或小于 1，就返回 <code>maximum</code>；否则返回两者中较小的那个。</p>
+    <p>例：<code>safe_limit(10)</code> → 10，<code>safe_limit(9999)</code> → 500，<code>safe_limit("20")</code> → 500。</p>
+    <div class="cell">
+      <script type="text/x-python">
+def safe_limit(value, maximum=500):
+    """返回一个介于 1 和 maximum 之间、可以直接用的行数上限。"""
+    return value
+
+print(safe_limit(10))
+print(safe_limit(9999))
+print(safe_limit("20"))
+print(safe_limit(30, 20))
+      </script>
+      <script type="text/x-python" class="check">
+assert safe_limit(10) == 10, "safe_limit(10) 应该是 10：这是一个合格的上限。"
+assert safe_limit(9999) is not None, "safe_limit 应该返回一个数字。你是不是用了 print 而不是 return？"
+assert safe_limit(9999) == 500, "safe_limit(9999) 应该被限制在 500。"
+assert safe_limit(0) == 500, "safe_limit(0) 应该退回 500：0 不是正数。"
+assert safe_limit(-3) == 500, "safe_limit(-3) 应该退回 500。"
+assert safe_limit("20") == 500, 'safe_limit("20") 应该退回 500："20" 是文字，不是 int。'
+assert safe_limit(30, 20) == 20, "safe_limit(30, 20) 应该是 20：永远不能超过 maximum。"
+assert safe_limit(5, maximum=20) == 5, "safe_limit(5, maximum=20) 应该是 5。"
+assert safe_limit(1) == 1, "safe_limit(1) 应该是 1：1 是允许的最小上限。"
+      </script>
+      <script type="text/x-python" class="solution">
+def safe_limit(value, maximum=500):
+    """返回一个介于 1 和 maximum 之间、可以直接用的行数上限。"""
+    if type(value) != int or value < 1:
+        return maximum
+    return min(value, maximum)
+
+print(safe_limit(10))
+print(safe_limit(9999))
+print(safe_limit("20"))
+print(safe_limit(30, 20))
+      </script>
+    </div>
+    <details class="hint"><summary>提示</summary><p>先处理不合格的情况，尽早 <code>return maximum</code>；<code>min(a, b)</code> 取较小值。</p></details>
+  </section>
+
+  <section class="challenge" id="ch-08-tail">
+    <div class="challenge-head"><span class="badge">挑战</span><h3>长输出只留结尾</h3></div>
+    <p>写 <code>truncate_tail(text, limit)</code>：不超过 <code>limit</code> 就原样返回；否则返回一行英文说明、换行，再加最后 <code>limit</code> 个字符，像这样：</p>
+    <pre class="code">... (truncated: showing last 18 of 32 chars)
+ERROR: test failed</pre>
+    <div class="cell">
+      <script type="text/x-python">
+def truncate_tail(text, limit):
+    return text
+
+output = "line 1\nline 2\nERROR: test failed"
+print(truncate_tail(output, 18))
+print("---")
+print(truncate_tail("all good", 18))
+      </script>
+      <script type="text/x-python" class="check">
+long_text = "line 1\nline 2\nERROR: test failed"
+got = truncate_tail(long_text, 18)
+assert got is not None, "truncate_tail 应该返回文字。你是不是用了 print 而不是 return？"
+assert truncate_tail("all good", 18) == "all good", "短文字（8 个字符，上限 18）应该原样返回。"
+assert truncate_tail("abcdefghij", 10) == "abcdefghij", "长度正好等于上限的文字也应该原样返回。"
+assert got.endswith("ERROR: test failed"), "要保留文字的结尾：最后 18 个字符是 'ERROR: test failed'。"
+assert "line 1" not in got, "文字的开头应该被截掉。"
+expected = "... (truncated: showing last 18 of 32 chars)\nERROR: test failed"
+assert got == expected, f"差一点！应该正好是 {expected!r}，你得到的是 {got!r}"
+assert truncate_tail("x" * 100, 5) == "... (truncated: showing last 5 of 100 chars)\nxxxxx", "检查说明里的数字：100 个里的最后 5 个。"
+      </script>
+      <script type="text/x-python" class="solution">
+def truncate_tail(text, limit):
+    if len(text) <= limit:
+        return text
+    note = f"... (truncated: showing last {limit} of {len(text)} chars)"
+    return note + "\n" + text[-limit:]
+
+output = "line 1\nline 2\nERROR: test failed"
+print(truncate_tail(output, 18))
+print("---")
+print(truncate_tail("all good", 18))
+      </script>
+    </div>
+    <details class="hint"><summary>提示</summary><p><code>text[-limit:]</code> 是最后 <code>limit</code> 个字符；说明那行用 f-字符串和 <code>len(text)</code> 拼。</p></details>
+  </section>
+</section>
+
+<section class="keywords">
+  <h2>小结</h2>
+  <ul class="recap">
+    <li><code>def</code> 定义函数，调用时才运行；<code>return</code> 交回结果，没有就是 <code>None</code>。</li>
+    <li>默认值让参数可选；关键字参数可以不按顺序。</li>
+    <li>一个函数一件事；纯函数最好测试。</li>
+    <li>函数也是值：<code>run=_run_bash</code> 存起来，<code>tool.run(...)</code> 再调用。</li>
+  </ul>
+  <h3>关键词</h3>
+  <dl>
+    <div><dt>函数 <span class="en">function</span></dt><dd>有名字、可反复调用的代码。</dd></div>
+    <div><dt>参数 <span class="en">parameter</span></dt><dd>函数定义里的空位。</dd></div>
+    <div><dt>返回值 <span class="en">return value</span></dt><dd>函数交回给调用者的值。</dd></div>
+    <div><dt>默认值 <span class="en">default value</span></dt><dd>没传参数时用的值。</dd></div>
+    <div><dt>纯函数 <span class="en">pure function</span></dt><dd>同样输入、同样输出、不碰外面。</dd></div>
+    <div><dt>DRY <span class="en">Don't Repeat Yourself</span></dt><dd>共用的代码只写一次。</dd></div>
+  </dl>
+</section>
+
+</main>
+</div>
+</body>
+</html>

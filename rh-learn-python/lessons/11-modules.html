@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>模块与包 · 拆机学 Python 11</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap">
+<link rel="stylesheet" href="../assets/course.css">
+<script src="../assets/course.js"></script>
+</head>
+<body data-lesson="11" data-root="../">
+<div class="page">
+
+<header class="hero">
+  <p class="eyebrow">第 11 课 · 第 4 单元 · 接线</p>
+  <h1>模块与包</h1>
+  <p class="lede">机器人由 7 个互相借代码的文件组成，还用了别人写的包。把它们连起来的就是 <code>import</code>。</p>
+  <div class="bench" aria-label="今天工作台上的零件">
+    <span class="prompt">$</span> <span>teardown</span> <span class="path">src/agent.py</span> <span>--lines 15-39</span> <span class="cursor" aria-hidden="true"></span>
+  </div>
+  <dl class="hero-meta">
+    <div><dt>工作台上的零件</dt><dd><code>agent.py</code> 开头的 import</dd></div>
+    <div><dt>时长</dt><dd>约 30 分钟</dd></div>
+    <div><dt>你会学到</dt><dd><code>import</code> · 自己的模块 · 包和 uv · <code>__name__</code></dd></div>
+  </dl>
+</header>
+
+<main class="lesson">
+
+<section>
+  <h2>借用代码</h2>
+  <p><strong>模块</strong>就是一个装着代码的 <code>.py</code> 文件。Python 自带几百个模块，合起来叫<strong>标准库</strong>，比如第 10 课的 <code>os</code>。导入有三种写法：</p>
+  <div class="cell">
+    <script type="text/x-python">
+import math                  # 拿来整个模块，用 math.xxx
+from math import ceil        # 只拿一样，直接写 ceil
+import datetime as dt        # 起个短外号
+
+print(math.sqrt(144))
+print(ceil(7 / 2))           # 3.5 向上取整：4
+print(dt.date(2026, 10, 1).isoformat())
+    </script>
+  </div>
+  <aside class="callout analogy">
+    <p class="callout-label">打个比方</p>
+    <p>模块像架子上的工具箱。<code>import math</code> 是把箱子拿下来，<code>math.sqrt</code> 里的点号就是伸手进箱子拿工具。</p>
+  </aside>
+  <div class="quiz" id="q-11-from" data-answer="b">
+    <p class="q"><code>agent.py</code> 里写着 <code>from tools import read_file</code>。之后它怎么用这个工具？</p>
+    <ol class="options">
+      <li data-why="那是 import tools 之后的写法。用 from ... import 时，tools 这个名字根本不会被创建。"><code>tools.read_file</code></li>
+      <li><code>read_file</code></li>
+      <li data-why="import 是关键字，不是能伸手进去的箱子。"><code>import.read_file</code></li>
+      <li data-why="那样会把 tools 当成函数来调用。"><code>tools(read_file)</code></li>
+    </ol>
+    <div class="explain"><p><code>from ... import</code> 把名字直接拿进当前文件，所以直接写 <code>read_file</code>。</p></div>
+  </div>
+  <p class="takeaway"><code>import x</code> 用 <code>x.名字</code>；<code>from x import 名字</code> 直接用名字。</p>
+</section>
+
+<section>
+  <h2>三组 import</h2>
+  <p>打开任何 Python 文件，最先看到的就是 import。它列出了这个文件依赖的一切。这是 <code>agent.py</code> 的开头：</p>
+  <figure class="excerpt" data-file="src/agent.py" data-start="15" data-highlight="17-23,25-26,28-39">
+    <script type="text/x-python">
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import sys
+from collections.abc import Callable
+from datetime import UTC, datetime
+
+from rich.console import Console
+from rich.markdown import Markdown
+
+from cli_input import make_default_reader
+from prompt import (
+    AGENTS_FILE,
+    PromptContext,
+    build_system_prompt,
+    current_git_branch,
+    load_memory_index,
+    load_project_context,
+)
+from providers import DeepSeekProvider, Provider, ToolCall, ToolResult, Usage
+from skills import Skill, discover_skills, skills_index
+from tools import ALL_TOOLS, Tool, ToolError, read_file
+    </script>
+    <figcaption>
+      <p>空行把它们分成三组：标准库（17–23 行）、别人写的包 <code>rich</code>（25–26 行）、机器人自己的文件（28–39 行）。</p>
+    </figcaption>
+  </figure>
+  <p class="takeaway">每个 <code>.py</code> 文件都是模块，可以被别的文件导入。</p>
+</section>
+
+<section>
+  <h2>分工明确</h2>
+  <p>机器人本来可以是一个 1,400 行的大文件，但它拆成了 7 个，每个只干一件事。箭头从 A 指向 B，表示「A 导入了 B」：</p>
+  <figure class="diagram wide">
+    <svg viewBox="0 0 760 250" role="img" aria-labelledby="imports-title" style="min-width:620px">
+      <title id="imports-title">导入关系图：agent.py 导入 cli_input.py、prompt.py、skills.py、providers.py 和 tools.py。providers.py 导入 tools.py。tools.py 不导入机器人的任何文件，也没有文件导入 agent.py。</title>
+      <defs>
+        <marker id="ah11" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="d-head"/></marker>
+      </defs>
+      <rect x="300" y="16" width="160" height="54" rx="8" class="d-box d-ask"/>
+      <text x="380" y="40" text-anchor="middle" class="d-text">agent.py</text>
+      <text x="380" y="58" text-anchor="middle" class="d-label">没有文件导入它</text>
+      <text x="472" y="48" class="d-label">+ rich（第三方）</text>
+
+      <rect x="20" y="150" width="120" height="54" rx="8" class="d-box"/>
+      <text x="80" y="174" text-anchor="middle" class="d-text">cli_input.py</text>
+      <text x="80" y="192" text-anchor="middle" class="d-label">键盘</text>
+      <text x="80" y="226" text-anchor="middle" class="d-label">+ prompt_toolkit</text>
+
+      <rect x="170" y="150" width="120" height="54" rx="8" class="d-box"/>
+      <text x="230" y="174" text-anchor="middle" class="d-text">prompt.py</text>
+      <text x="230" y="192" text-anchor="middle" class="d-label">规则</text>
+
+      <rect x="320" y="150" width="120" height="54" rx="8" class="d-box"/>
+      <text x="380" y="174" text-anchor="middle" class="d-text">skills.py</text>
+      <text x="380" y="192" text-anchor="middle" class="d-label">技能手册</text>
+
+      <rect x="470" y="150" width="120" height="54" rx="8" class="d-box"/>
+      <text x="530" y="174" text-anchor="middle" class="d-text">providers.py</text>
+      <text x="530" y="192" text-anchor="middle" class="d-label">翻译官</text>
+      <text x="530" y="226" text-anchor="middle" class="d-label">+ openai</text>
+
+      <rect x="620" y="150" width="120" height="54" rx="8" class="d-box d-tool"/>
+      <text x="680" y="174" text-anchor="middle" class="d-text">tools.py</text>
+      <text x="680" y="192" text-anchor="middle" class="d-label">手</text>
+      <text x="680" y="226" text-anchor="middle" class="d-label">不导入我们的文件</text>
+
+      <path d="M360,70 L84,148" class="d-arrow" marker-end="url(#ah11)"/>
+      <path d="M370,70 L232,148" class="d-arrow" marker-end="url(#ah11)"/>
+      <path d="M380,70 L380,148" class="d-arrow" marker-end="url(#ah11)"/>
+      <path d="M390,70 L528,148" class="d-arrow" marker-end="url(#ah11)"/>
+      <path d="M400,70 L676,148" class="d-arrow" marker-end="url(#ah11)"/>
+      <path d="M590,177 L618,177" class="d-arrow" marker-end="url(#ah11)"/>
+    </svg>
+    <figcaption>箭头都朝下：<code>agent.py</code> 把零件接在一起，<code>tools.py</code> 在最底层，谁也不需要。</figcaption>
+  </figure>
+  <aside class="callout principle">
+    <p class="callout-label">编程原则</p>
+    <h4>关注点分离</h4>
+    <p>每个文件只干一件事。只有 <code>providers.py</code> 认识 DeepSeek，想换一家 AI 公司，只要换掉这一个文件。</p>
+  </aside>
+  <div class="quiz" id="q-11-map" data-answer="b">
+    <p class="q">你改了 <code>providers.py</code>。另外哪个文件可能因此出问题？</p>
+    <ol class="options">
+      <li data-why="tools.py 不导入 providers.py，看不见你的改动。"><code>tools.py</code></li>
+      <li><code>agent.py</code></li>
+      <li data-why="cli_input.py 不导入 providers.py。"><code>cli_input.py</code></li>
+      <li data-why="skills.py 不导入 providers.py。"><code>skills.py</code></li>
+    </ol>
+    <div class="explain"><p>只有导入它的文件才会受影响，图上只有 <code>agent.py</code>。单向连线让你清楚该去哪儿找问题。</p></div>
+  </div>
+  <details class="more">
+    <summary>多了解一点：两个导入陷阱</summary>
+    <p>别用模块名给自己的文件起名：Python 先在你的文件夹里找，你的 <code>statistics.py</code> 会挡住真正的模块。也别写 <code>from x import *</code>，它会悄悄覆盖同名的东西。</p>
+    <div class="cell" data-expect-error="AttributeError" data-label="试一试 · 被挡住的模块">
+      <script type="text/x-python">
+import importlib
+import os
+
+# 作业文件很不巧叫 statistics.py，和 Python 的 statistics 模块同名
+with open("statistics.py", "w", encoding="utf-8") as f:
+    f.write('print("我是你自己写的 statistics.py")\n')
+importlib.invalidate_caches()
+
+try:
+    import statistics                       # Python 先在你的文件夹里找……
+    print(statistics.mean([3, 5, 10]))      # ……真正的模块被挡住了，没有 mean()
+finally:
+    os.remove("statistics.py")              # 收拾干净，让真正的 statistics 恢复
+      </script>
+    </div>
+  </details>
+  <p class="takeaway">一个文件只干一件事，导入只朝一个方向。</p>
+</section>
+
+<section>
+  <h2>装别人的包</h2>
+  <p><strong>包</strong>是别人发布出来给大家用的模块。机器人用了三个：<code>openai</code>（和 DeepSeek 对话）、<code>rich</code>（漂亮地显示回答）、<code>prompt_toolkit</code>（高级输入行）。它们写在 <code>pyproject.toml</code> 里：</p>
+  <figure class="excerpt" data-file="pyproject.toml" data-start="6">
+    <script type="text/x-python">
+dependencies = [
+    "openai>=1.0",
+    "prompt-toolkit>=3.0.53",
+    "rich>=15.0.0",
+]
+    </script>
+    <figcaption>
+      <p>这就是机器人的<strong>依赖</strong>清单。<code>&gt;=1.0</code> 表示「1.0 或更新的版本」。</p>
+    </figcaption>
+  </figure>
+  <p><strong>uv</strong> 读这个清单，把包装进项目自己的 <code>.venv</code> 文件夹：</p>
+  <pre class="code"><span class="tok-com"># 在终端里，进入项目文件夹之后：</span>
+uv sync              <span class="tok-com"># 安装清单里的所有包</span>
+uv add requests      <span class="tok-com"># 加一个新包，并写进清单</span>
+uv run src/agent.py  <span class="tok-com"># 在装好包的环境里运行</span></pre>
+  <p>这个页面里的 Python 只有标准库，所以 <code>import openai</code> 在这里会报错。</p>
+  <p class="takeaway">包写进 <code>pyproject.toml</code>，用 <code>uv</code> 安装和运行。</p>
+</section>
+
+<section>
+  <h2>运行还是导入</h2>
+  <p>机器人里每个能直接运行的文件，结尾都是这两行：</p>
+  <figure class="excerpt" data-file="src/agent.py" data-start="352">
+    <script type="text/x-python">
+if __name__ == "__main__":
+    main()
+    </script>
+    <figcaption>
+      <p>直接运行文件时，<code>__name__</code> 是 <code>"__main__"</code>；被别的文件导入时，它是模块名。所以测试导入 <code>agent.py</code> 时，真正的机器人不会启动。</p>
+    </figcaption>
+  </figure>
+  <div class="cell">
+    <script type="text/x-python">
+import importlib
+
+code = '''
+def say_hello():
+    return "来自 robot.py 的问候"
+
+print("robot.py 正在加载，它的 __name__ 是：", __name__)
+
+if __name__ == "__main__":
+    print("被直接启动了：运行机器人！")
+'''
+with open("robot.py", "w", encoding="utf-8") as f:
+    f.write(code)
+importlib.invalidate_caches()    # 刚建了新文件：让 Python 重新看一眼文件夹
+
+import robot                     # 被导入：门卫后面那部分被跳过
+print(robot.say_hello())
+    </script>
+  </div>
+  <div class="quiz" id="q-11-name" data-answer="b">
+    <p class="q"><code>robot.py</code> 里有一行 <code>print(__name__)</code>。另一个文件运行了 <code>import robot</code>。会打印什么？</p>
+    <ol class="options">
+      <li data-why="__main__ 只属于你直接启动的那个文件，而 robot.py 是被导入的。"><code>__main__</code></li>
+      <li><code>robot</code></li>
+      <li data-why="__name__ 是模块名，不带 .py 后缀。"><code>robot.py</code></li>
+      <li data-why="导入一个模块时，它最外层的代码都会运行，所以 print 会执行。">什么都不打印</li>
+    </ol>
+    <div class="explain"><p>被导入的模块，<code>__name__</code> 就是它的模块名。</p></div>
+  </div>
+  <details class="more">
+    <summary>多了解一点：JSON，程序之间的通用语</summary>
+    <p>AI 想用工具时，参数是用 <strong>JSON</strong> 格式的文字发来的。标准库的 <code>json</code> 模块负责翻译：<code>json.dumps</code> 把字典变成文字，<code>json.loads</code> 把文字变回字典。</p>
+    <div class="cell">
+      <script type="text/x-python">
+import json
+
+text = json.dumps({"path": "input/math.txt", "offset": 1})   # 字典 -> 文字
+print(text, type(text))
+
+back = json.loads('{"path": "src/agent.py", "limit": 20}')   # 文字 -> 字典
+print(back["path"], type(back))
+      </script>
+    </div>
+  </details>
+  <p class="takeaway"><code>if __name__ == "__main__":</code> 后面的代码，只在直接运行时才执行。</p>
+</section>
+
+<section>
+  <h2>动手挑战</h2>
+  <section class="challenge" id="ch-11-pages">
+    <div class="challenge-head"><span class="badge">挑战</span><h3>AI 要读几页？</h3></div>
+    <p><code>read_file</code> 每次最多读 500 行。用 <code>math</code> 写完 <code>pages_needed</code>：1234 行要 3 次，空文件也要 1 次。</p>
+    <div class="cell">
+      <script type="text/x-python">
+MAX_READ_LINES = 500   # read_file 每次最多显示 500 行
+
+def pages_needed(total_lines):
+    # 一个有 total_lines 行的文件，要调用几次 read_file？
+    return 0
+
+for n in [120, 500, 501, 1234, 0]:
+    print(n, "行 ->", pages_needed(n), "次调用")
+      </script>
+      <script type="text/x-python" class="check">
+assert "math" in __source__, "要用 math 模块：import math（或者 from math import ceil）。"
+cases = {0: 1, 1: 1, 120: 1, 500: 1, 501: 2, 1000: 2, 1234: 3, 1500: 3, 1501: 4}
+for n, want in cases.items():
+    got = pages_needed(n)
+    assert got == want, f"pages_needed({n}) 应该是 {want}，实际得到 {got}。"
+      </script>
+      <script type="text/x-python" class="solution">
+import math
+
+MAX_READ_LINES = 500
+
+def pages_needed(total_lines):
+    return max(1, math.ceil(total_lines / MAX_READ_LINES))
+
+for n in [120, 500, 501, 1234, 0]:
+    print(n, "行 ->", pages_needed(n), "次调用")
+      </script>
+    </div>
+    <details class="hint"><summary>提示</summary><p><code>math.ceil</code> 向上取整；空文件用 <code>max(1, ...)</code> 兜底。</p></details>
+  </section>
+
+  <section class="challenge" id="ch-11-module">
+    <div class="challenge-head"><span class="badge">挑战</span><h3>做一个你自己的模块</h3></div>
+    <p>在模块代码里写 <code>shout(text)</code>：变大写再加 <code>!</code>。然后导入 <code>robot_tools</code>，打印 <code>robot_tools.shout("hello")</code>。</p>
+    <div class="cell">
+      <script type="text/x-python">
+import importlib
+
+module_code = '''
+# robot_tools.py：在这里写 shout 函数
+
+'''
+
+with open("robot_tools.py", "w", encoding="utf-8") as f:
+    f.write(module_code)
+importlib.invalidate_caches()   # 我们刚建了一个文件：让 Python 重新看一眼
+
+# 现在导入你的模块，并打印 robot_tools.shout("hello")
+      </script>
+      <script type="text/x-python" class="check">
+import os, sys
+assert os.path.exists("robot_tools.py"), '找不到 robot_tools.py。保留用 open(..., "w") 写文件的那部分。'
+assert "robot_tools" in sys.modules, "用这句导入你的模块：import robot_tools"
+mod = sys.modules["robot_tools"]
+assert hasattr(mod, "shout"), "robot_tools.py 里需要一个叫 shout 的函数。把它写进 module_code。"
+assert mod.shout("hello") == "HELLO!", f'shout("hello") 应该返回 "HELLO!"，实际得到 {mod.shout("hello")!r}。'
+assert mod.shout("ok") == "OK!", f'shout("ok") 应该返回 "OK!"，实际得到 {mod.shout("ok")!r}。'
+assert "HELLO!" in __output__, '把结果打印出来：print(robot_tools.shout("hello"))'
+      </script>
+      <script type="text/x-python" class="solution">
+import importlib
+
+module_code = '''
+def shout(text):
+    return text.upper() + "!"
+'''
+
+with open("robot_tools.py", "w", encoding="utf-8") as f:
+    f.write(module_code)
+importlib.invalidate_caches()
+
+import robot_tools
+print(robot_tools.shout("hello"))
+      </script>
+    </div>
+    <details class="hint"><summary>提示</summary><p>三引号里写 <code>def shout(text):</code> 和 <code>return text.upper() + "!"</code>，最后 <code>import robot_tools</code>。</p></details>
+  </section>
+</section>
+
+<section class="keywords">
+  <h2>小结</h2>
+  <ul class="recap">
+    <li><code>import x</code>、<code>from x import y</code>、<code>import x as z</code> 三种写法。</li>
+    <li>每个 <code>.py</code> 文件都是模块；机器人的文件只朝一个方向导入。</li>
+    <li>包写进 <code>pyproject.toml</code>，用 <code>uv sync</code> 安装。</li>
+    <li><code>if __name__ == "__main__":</code> 只在直接运行时启动程序。</li>
+  </ul>
+  <h3>关键词</h3>
+  <dl>
+    <div><dt>模块 <span class="en">module</span></dt><dd>可以被导入的 <code>.py</code> 文件。</dd></div>
+    <div><dt>导入 <span class="en">import</span></dt><dd>把别的模块的代码拿来用。</dd></div>
+    <div><dt>标准库 <span class="en">standard library</span></dt><dd>Python 自带的模块。</dd></div>
+    <div><dt>包 <span class="en">package</span></dt><dd>别人发布的模块，用 uv 安装。</dd></div>
+    <div><dt>依赖 <span class="en">dependency</span></dt><dd>项目运行需要的包。</dd></div>
+    <div><dt>关注点分离 <span class="en">separation of concerns</span></dt><dd>每个部分只干一件事。</dd></div>
+  </dl>
+</section>
+
+</main>
+</div>
+</body>
+</html>

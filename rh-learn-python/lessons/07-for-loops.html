@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>for 循环 · 拆机学 Python 07</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap">
+<link rel="stylesheet" href="../assets/course.css">
+<script src="../assets/course.js"></script>
+</head>
+<body data-lesson="07" data-root="../">
+<div class="page">
+
+<header class="hero">
+  <p class="eyebrow">第 07 课 · 第 2 单元 · 记忆</p>
+  <h1>for 循环</h1>
+  <p class="lede"><code>for</code> 循环把一组东西挨个过一遍，过完自己停。机器人靠它列文件、拼清单。</p>
+  <div class="bench" aria-label="今天放在工作台上的零件">
+    <span class="prompt">$</span> <span>teardown</span> <span class="path">src/tools.py</span> <span>--lines 118-125</span> <span class="cursor" aria-hidden="true"></span>
+  </div>
+  <dl class="hero-meta">
+    <div><dt>工作台上的零件</dt><dd><code>tools.py</code> 的 <code>list_files</code></dd></div>
+    <div><dt>时长</dt><dd>约 30 分钟</dd></div>
+    <div><dt>你会学到</dt><dd><code>for</code> · <code>range</code> · 推导式 · 预算循环</dd></div>
+  </dl>
+</header>
+
+<main class="lesson">
+
+<section>
+  <h2>挨个过一遍</h2>
+  <p><code>for</code> 循环读作：对列表里的每个元素，运行一次缩进的代码。每转一圈，Python 把下一个元素放进变量 <code>tool</code>，过完就停。</p>
+  <div class="cell">
+    <script type="text/x-python">
+tools = ["read_file", "list_files", "edit_file", "run_bash"]
+
+for tool in tools:
+    print(f"工具就绪：{tool}")
+
+print(f"{len(tools)} 个工具都检查过了")
+    </script>
+  </div>
+  <figure class="excerpt" data-file="src/agent.py" data-start="232" data-highlight="232">
+    <script type="text/x-python">
+            for text in reply.texts:
+                print(f"\033[93m{self.provider.label}\033[0m:")
+                console.print(Markdown(text))  # Markdown 按块渲染，所以标签单独一行
+            results = [self._execute(call) for call in reply.tool_calls]
+    </script>
+    <figcaption>
+      <p>主循环里：AI 的回复可能有好几段，存在列表 <code>reply.texts</code> 里，<code>for</code> 把每一段都打印出来。</p>
+    </figcaption>
+  </figure>
+  <p class="takeaway">手里有一组东西要挨个处理，就用 <code>for</code>。</p>
+</section>
+
+<section>
+  <h2>数字和编号</h2>
+  <p><code>range(n)</code> 给出 0 到 n-1 的数字；<code>enumerate()</code> 把每个元素和它的编号一起给你。</p>
+  <div class="cell">
+    <script type="text/x-python">
+for i in range(3):
+    print(f"第 {i} 轮")          # 0、1、2：不包括 3
+
+tools = ["read_file", "list_files", "edit_file"]
+for number, tool in enumerate(tools, 1):   # 从 1 开始编号
+    print(f"{number}. {tool}")
+    </script>
+  </div>
+  <div class="quiz" id="q-07-range" data-answer="b">
+    <p class="q">这段代码会打印什么？</p>
+    <div class="snippet"><script type="text/x-python">
+for i in range(2, 5):
+    print(i)
+    </script></div>
+    <ol class="options">
+      <li data-why="结束的数 5 永远不包括在内。">2 3 4 5</li>
+      <li>2 3 4</li>
+      <li data-why="那是 range(5)。这里是从 2 开始的。">0 1 2 3 4</li>
+      <li data-why="起始的数 2 是包括在内的，只有结束的数不算。">3 4 5</li>
+    </ol>
+    <div class="explain"><p><code>range(2, 5)</code> 从 2 开始，在 5 <em>之前</em>停下。少算或多算一次，是最常见的 bug 之一。</p></div>
+  </div>
+  <p class="takeaway"><code>range(a, b)</code> 包括 a，不包括 b。</p>
+</section>
+
+<section>
+  <h2>循环套循环</h2>
+  <p><code>list_files</code> 要走遍每个文件夹，再看遍文件夹里的每个文件：循环里套着循环。</p>
+  <figure class="excerpt" data-file="src/tools.py" data-start="118" data-highlight="118,124">
+    <script type="text/x-python">
+        for dirpath, dirnames, filenames in os.walk(root):
+            # 原地修改 dirnames 是 os.walk 的剪枝约定；写成 dirnames = [...] 无效。
+            dirnames[:] = [d for d in dirnames if d not in _PRUNED_DIRS]
+            rel_dir = os.path.relpath(dirpath, root)
+            if rel_dir != ".":
+                out.append(rel_dir + "/")
+            for name in filenames:
+                out.append(name if rel_dir == "." else os.path.join(rel_dir, name))
+    </script>
+    <figcaption>
+      <p>外层（第 118 行）每个文件夹转一圈，内层（第 124 行）每个文件转一圈。第 120 行先把 <code>.git</code>、<code>.venv</code> 剔掉。</p>
+    </figcaption>
+  </figure>
+  <div class="cell">
+    <script type="text/x-python">
+# 假的 os.walk：(文件夹, 子文件夹, 文件)
+walk = [
+    (".", ["src"], ["README.md"]),
+    ("src", [], ["agent.py", "tools.py"]),
+]
+
+out = []
+for dirpath, dirnames, filenames in walk:     # 外层：每个文件夹
+    if dirpath != ".":
+        out.append(dirpath + "/")
+    for name in filenames:                    # 内层：每个文件
+        out.append(name if dirpath == "." else dirpath + "/" + name)
+
+print(sorted(out))
+    </script>
+  </div>
+  <p class="takeaway">外层每转一圈，内层都要从头跑完一遍。</p>
+</section>
+
+<section>
+  <h2>推导式</h2>
+  <p>用循环拼新列表太常见了，Python 给了一行的简写：<code>[要留下的 for 元素 in 列表 if 条件]</code>。上面第 120 行就是一个。</p>
+  <div class="cell">
+    <script type="text/x-python">
+PRUNED = {".git", ".venv"}
+dirnames = [".git", "src", ".venv", "docs"]
+
+kept = [d for d in dirnames if d not in PRUNED]   # 第 120 行的写法
+print(kept)
+
+tools = ["read_file", "list_files", "run_bash"]
+print([t.upper() for t in tools])
+print({t: len(t) for t in tools})                  # 花括号：字典推导式
+    </script>
+  </div>
+  <div class="quiz" id="q-07-comp" data-answer="b">
+    <p class="q"><code>result</code> 里是什么？</p>
+    <div class="snippet"><script type="text/x-python">
+result = [n * 2 for n in [1, 2, 3] if n != 2]
+    </script></div>
+    <ol class="options">
+      <li data-why="if 那部分把 n = 2 排除掉了，所以只有 1 和 3 被乘以 2。">[2, 4, 6]</li>
+      <li>[2, 6]</li>
+      <li data-why="留下的确实是这两个数，但前面那部分会把每个数乘以 2。">[1, 3]</li>
+      <li data-why="4 来自 n = 2，而它被过滤掉了。">[4]</li>
+    </ol>
+    <div class="explain"><p>从中间读起：对每个 <code>n</code>，如果 <code>n != 2</code>，就留下 <code>n * 2</code>。也就是 1 × 2 和 3 × 2。</p></div>
+  </div>
+  <details class="more">
+    <summary>多了解一点：别一边遍历一边改同一个列表</summary>
+    <p>在 <code>for</code> 里从<em>同一个</em>列表删元素，会跳过下一个：删掉 <code>.git</code> 后，<code>.venv</code> 挪到了已经看过的位置。</p>
+    <div class="snippet"><script type="text/x-python">
+names = [".git", ".venv", "src"]
+for name in names:
+    if name.startswith("."):
+        names.remove(name)   # 坏主意
+print(names)                 # ['.venv', 'src']：.venv 被跳过了
+    </script></div>
+    <p>办法是拼一个新列表，也就是推导式。机器人写 <code>dirnames[:] = [...]</code>，是等推导式拼好之后再整体换掉内容，所以安全。</p>
+  </details>
+  <p class="takeaway">推导式就是写在一行里的「拼新列表」循环。</p>
+</section>
+
+<section>
+  <h2>预算循环</h2>
+  <p>给 AI 看的清单可能很长。机器人设一个预算：放得下就加，第一个放不下就停，最后说明漏了几个。像装背包：</p>
+  <div class="cell">
+    <script type="text/x-python">
+items = [("水", 4), ("零食", 3), ("帐篷", 9), ("地图", 1)]
+LIMIT = 10      # 背包最多 10 公斤
+
+packed = []
+used = 0
+for name, weight in items:
+    if used + weight > LIMIT:
+        break                     # 装不下了，停
+    packed.append(name)
+    used += weight
+
+print(f"装进去的：{packed}（{used} 公斤）")
+print(f"……还有 {len(items) - len(packed)} 样没装")
+    </script>
+  </div>
+  <figure class="excerpt" data-file="src/skills.py" data-start="163" data-highlight="170,171,174,175">
+    <script type="text/x-python">
+    lines: list[str] = []
+    used = 0
+    for s in usable:
+        desc = " ".join(s.description.split())
+        if len(desc) > MAX_DESCRIPTION_CHARS:
+            desc = desc[:MAX_DESCRIPTION_CHARS] + "…"
+        line = f"- {s.name}: {desc} — {s.path}"
+        if used + len(line) + 1 > MAX_INDEX_CHARS:
+            break
+        lines.append(line)
+        used += len(line) + 1
+    if len(lines) < len(usable):
+        lines.append(f"... ({len(usable) - len(lines)} more skills not listed)")
+    </script>
+    <figcaption>
+      <p>同一个套路：第 170 行检查预算（<code>+ 1</code> 是换行符），第 174–175 行老实告诉 AI 还有几个没列出来。</p>
+    </figcaption>
+  </figure>
+  <aside class="callout principle">
+    <p class="callout-label">编程原则</p>
+    <h4>输出要有边界</h4>
+    <p>给 AI 的每份清单都有上限，截掉了就明说。悄悄截断最糟：AI 会以为自己看到了全部。</p>
+  </aside>
+  <p class="takeaway">放得下就加，放不下就停，再说明省略了几个。</p>
+</section>
+
+<section>
+  <h2>动手挑战</h2>
+  <section class="challenge" id="ch-07-prune">
+    <div class="challenge-head"><span class="badge">挑战</span><h3>跳过没用的文件夹</h3></div>
+    <p>用列表推导式得到 <code>kept</code>：<code>entries</code> 里<strong>不在</strong> <code>PRUNED</code> 里的名字，顺序不变。<code>.github</code> 不在 <code>PRUNED</code> 里，要留下。</p>
+    <div class="cell">
+      <script type="text/x-python">
+PRUNED = {".git", "__pycache__", ".venv", "venv"}
+entries = [".git", "src", "__pycache__", "docs", ".venv", "tests", "venv", ".github"]
+
+kept = []   # 把这里换成一个列表推导式
+
+print(kept)
+      </script>
+      <script type="text/x-python" class="check">
+expected = ["src", "docs", "tests", ".github"]
+assert isinstance(kept, list), "kept 应该是一个列表。"
+assert ".github" in kept, ".github 不在 PRUNED 里（只有名字完全相同才算），所以应该留下。"
+assert kept == expected, f"kept 应该是 {expected}，你的是 {kept}。"
+assert " for " in __source__ and "[" in __source__, "用列表推导式来生成 kept：[name for name in entries if ...]。"
+      </script>
+      <script type="text/x-python" class="solution">
+PRUNED = {".git", "__pycache__", ".venv", "venv"}
+entries = [".git", "src", "__pycache__", "docs", ".venv", "tests", "venv", ".github"]
+
+kept = [name for name in entries if name not in PRUNED]
+
+print(kept)
+      </script>
+    </div>
+    <details class="hint"><summary>提示</summary><p>照着第 120 行写：<code>[d for d in dirnames if d not in _PRUNED_DIRS]</code>，换成这里的名字。</p></details>
+  </section>
+
+  <section class="challenge" id="ch-07-budget">
+    <div class="challenge-head"><span class="badge">挑战</span><h3>按预算拼 skill 索引</h3></div>
+    <p>照着 <code>skills_index</code> 写循环：逐个拼出 <code>f"- {name}: {description}"</code>，<code>used + len(line) + 1</code> 超过预算就 <code>break</code>。</p>
+    <p>最后如果有没放下的，补一行 <code>"... (N more skills not listed)"</code>。别改 <code>MAX_INDEX_CHARS = 100</code> 这一行，检查程序要用它。</p>
+    <div class="cell">
+      <script type="text/x-python">
+skills = [
+    ("run-checks", "Run the tests and linters"),
+    ("pdf", "Read and create PDF files"),
+    ("xlsx", "Work with spreadsheets"),
+    ("tdd", "Write the test first"),
+    ("caveman", "Talk in very short sentences"),
+]
+MAX_INDEX_CHARS = 100
+
+lines = []
+used = 0
+# 在这里写你的循环。
+
+# 循环结束后：如果需要，加上 "... (N more skills not listed)" 这一行。
+
+print("\n".join(lines))
+      </script>
+      <script type="text/x-python" class="check">
+import io, contextlib
+def reference(pairs, budget):
+    out, total = [], 0
+    for n, d in pairs:
+        line = f"- {n}: {d}"
+        if total + len(line) + 1 > budget:
+            break
+        out.append(line)
+        total += len(line) + 1
+    if len(out) < len(pairs):
+        out.append(f"... ({len(pairs) - len(out)} more skills not listed)")
+    return out
+pairs = [
+    ("run-checks", "Run the tests and linters"),
+    ("pdf", "Read and create PDF files"),
+    ("xlsx", "Work with spreadsheets"),
+    ("tdd", "Write the test first"),
+    ("caveman", "Talk in very short sentences"),
+]
+expected = reference(pairs, 100)
+assert lines, "lines 还是空的。遍历 skills，把每一行放得下的加进去。"
+assert lines == expected, f"MAX_INDEX_CHARS = 100 时，lines 应该是 {expected}，你的是 {lines}。"
+assert "MAX_INDEX_CHARS = 100" in __source__, "请保留 MAX_INDEX_CHARS = 100 这一行：检查程序要改它来测试更大的预算。"
+big = {"__name__": "__main__"}
+with contextlib.redirect_stdout(io.StringIO()):
+    exec(__source__.replace("MAX_INDEX_CHARS = 100", "MAX_INDEX_CHARS = 1000", 1), big)
+assert big["lines"] == reference(pairs, 1000), "预算是 1000 时 5 个 skill 都放得下，所以应该正好 5 行，不应该有「... more」那行说明。"
+      </script>
+      <script type="text/x-python" class="solution">
+skills = [
+    ("run-checks", "Run the tests and linters"),
+    ("pdf", "Read and create PDF files"),
+    ("xlsx", "Work with spreadsheets"),
+    ("tdd", "Write the test first"),
+    ("caveman", "Talk in very short sentences"),
+]
+MAX_INDEX_CHARS = 100
+
+lines = []
+used = 0
+for name, description in skills:
+    line = f"- {name}: {description}"
+    if used + len(line) + 1 > MAX_INDEX_CHARS:
+        break
+    lines.append(line)
+    used += len(line) + 1
+
+if len(lines) < len(skills):
+    lines.append(f"... ({len(skills) - len(lines)} more skills not listed)")
+
+print("\n".join(lines))
+      </script>
+    </div>
+    <details class="hint"><summary>提示</summary><p>就是背包那格换了名字；没放下的个数是 <code>len(skills) - len(lines)</code>，要在加说明之前算。</p></details>
+  </section>
+</section>
+
+<section class="keywords">
+  <h2>小结</h2>
+  <ul class="recap">
+    <li><code>for item in 列表:</code> 每个元素运行一次，过完自己停。</li>
+    <li><code>range(a, b)</code> 不包括 b；<code>enumerate</code> 给元素编号。</li>
+    <li>推导式一行拼出新列表：<code>[x for x in items if ...]</code>。</li>
+    <li>预算循环：放不下就停，并说明省略了几个。</li>
+  </ul>
+  <h3>关键词</h3>
+  <dl>
+    <div><dt>for 循环 <span class="en">for loop</span></dt><dd>对每个元素各运行一次。</dd></div>
+    <div><dt><code>range()</code> <span class="en">range</span></dt><dd>一串数字，不含结束的数。</dd></div>
+    <div><dt><code>enumerate()</code> <span class="en">enumerate</span></dt><dd>元素连同编号一起给你。</dd></div>
+    <div><dt>嵌套循环 <span class="en">nested loop</span></dt><dd>循环里套着循环。</dd></div>
+    <div><dt>推导式 <span class="en">comprehension</span></dt><dd>一行写完的拼列表循环。</dd></div>
+    <div><dt>预算 <span class="en">budget</span></dt><dd>大小上限，超了就停。</dd></div>
+  </dl>
+</section>
+
+</main>
+</div>
+</body>
+</html>

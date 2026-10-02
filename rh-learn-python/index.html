@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>拆机学 Python</title>
+<meta name="description" content="拆开一台真正的 AI 编程 agent 来学 Python：给中学生的 15 节互动课。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap">
+<link rel="stylesheet" href="assets/course.css">
+<script src="assets/course.js"></script>
+<style>
+  [data-page="home"] .topbar-inner {
+    max-width: 64rem;
+  }
+  .home {
+    max-width: 64rem;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2.4rem;
+  }
+  .home-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: 2rem;
+    align-items: center;
+    padding-block: 3rem 0.5rem;
+  }
+  .home-hero h1 {
+    font-size: clamp(2.8rem, 8vw, 5rem);
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    line-height: 1.05;
+  }
+  .home-hero .brand-en {
+    font: 700 0.95rem/1 var(--mono);
+    color: var(--ink-3);
+    letter-spacing: 0.08em;
+    margin-top: 0.6rem;
+  }
+  .home-hero h1 .mark {
+    background: linear-gradient(transparent 62%, color-mix(in srgb, var(--signal) 70%, transparent) 62%);
+    padding-inline: 0.05em;
+  }
+  .home-hero .lede {
+    font-size: 1.2rem;
+    color: var(--ink-2);
+    margin-top: 1rem;
+    max-width: 34rem;
+  }
+  .hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.7rem;
+    align-items: center;
+    margin-top: 1.4rem;
+  }
+  .btn.big {
+    font-size: 1rem;
+    padding: 0.8rem 1.15rem;
+    text-decoration: none;
+  }
+  .progress-summary {
+    font: 600 0.88rem/1.4 var(--mono);
+    color: var(--ink-3);
+  }
+  .hero-term {
+    background: var(--term-bg);
+    color: var(--term-fg);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    min-width: 0;
+  }
+  .hero-term .term-title {
+    background: #1a2133;
+    color: var(--term-dim);
+    font: 600 0.78rem/1 var(--mono);
+    padding: 0.55rem 0.9rem;
+    display: flex;
+    gap: 0.45rem;
+    align-items: center;
+  }
+  .hero-term .term-title i {
+    width: 0.65rem;
+    height: 0.65rem;
+    border-radius: 50%;
+    background: #3a445a;
+    display: inline-block;
+  }
+  .hero-term pre {
+    margin: 0;
+    padding: 1rem 1.1rem 1.2rem;
+    font: 0.86rem/1.6 var(--mono);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .how {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+  }
+  .how > div {
+    border-top: 4px solid var(--line);
+    padding-top: 0.8rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  .how .k {
+    font: 700 0.72rem/1.3 var(--mono);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+  .how .read { border-color: var(--tool); }
+  .how .read .k { color: var(--tool); }
+  .how .run { border-color: var(--you); }
+  .how .run .k { color: var(--you); }
+  .how .think { border-color: var(--model); }
+  .how .think .k { color: var(--model); }
+  .how p { color: var(--ink-2); }
+  .unit {
+    display: grid;
+    grid-template-columns: 13rem minmax(0, 1fr);
+    gap: 1.2rem 2rem;
+    padding-top: 1.4rem;
+    border-top: 1px solid var(--line);
+  }
+  .unit-head {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  .unit-head .eyebrow { margin: 0; }
+  .unit-head h2 { font-size: 1.6rem; }
+  .unit-head p { color: var(--ink-2); font-size: 0.98rem; }
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(15.5rem, 1fr));
+    gap: 0.9rem;
+  }
+  .card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    padding: 1rem 1.05rem 0.9rem;
+    border-radius: 12px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    text-decoration: none;
+    min-width: 0;
+    transition: border-color 0.15s, transform 0.15s;
+  }
+  .card:hover {
+    border-color: var(--you);
+    transform: translateY(-2px);
+  }
+  .card .num {
+    font: 700 0.8rem/1 var(--mono);
+    color: var(--ink-3);
+    letter-spacing: 0.06em;
+  }
+  .card h3 { font-size: 1.2rem; }
+  .card p { color: var(--ink-2); font-size: 0.95rem; flex: 1; }
+  .card .foot {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.4rem;
+    align-items: center;
+    padding-top: 0.5rem;
+    border-top: 1px dashed var(--line);
+  }
+  .card .part {
+    font: 600 0.75rem/1.3 var(--mono);
+    color: var(--tool);
+    overflow-wrap: anywhere;
+  }
+  .status {
+    font: 700 0.7rem/1 var(--mono);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 0.32rem 0.5rem;
+    border-radius: 999px;
+    background: var(--tint);
+    color: var(--ink-3);
+    white-space: nowrap;
+  }
+  .status[data-s="started"] { background: var(--model-tint); color: var(--model); }
+  .status[data-s="complete"] { background: var(--tool-tint); color: var(--tool); }
+  .card[data-s="complete"] { border-color: color-mix(in srgb, var(--tool) 45%, var(--line)); }
+  .notes {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+  }
+  .notes .callout h3 { font-size: 1.15rem; }
+  .reset-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    align-items: center;
+    font-size: 0.9rem;
+    color: var(--ink-3);
+  }
+  @media (max-width: 780px) {
+    .home-hero { grid-template-columns: 1fr; padding-top: 2rem; }
+    .unit { grid-template-columns: 1fr; }
+    .how, .notes { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body data-root="" data-page="home">
+<div class="page">
+<div class="home">
+
+  <header class="home-hero">
+    <div>
+      <p class="eyebrow">给中学生的 Python 入门课 · 15 节</p>
+      <h1>拆机学 <span class="mark">Python</span></h1>
+      <p class="brand-en">AGENT TEARDOWN</p>
+      <p class="lede">把一台真正的 AI 编程 agent 拆开来学 Python。从第一个变量到第一个类，你学的每个知识点，都能在这台机器人身上找到。</p>
+      <div class="hero-actions">
+        <a class="btn run big" id="continue" href="lessons/00-welcome.html">从第 00 课开始</a>
+        <a class="btn big ghost" href="teacher-guide.html">教师指南</a>
+      </div>
+      <p class="progress-summary" id="summary">15 节课 · 每课约 30 分钟 · 在浏览器里直接运行</p>
+    </div>
+    <figure class="hero-term" aria-label="你要拆开的机器人，正在终端里运行">
+      <div class="term-title"><i></i><i></i><i></i>&nbsp; uv run src/agent.py</div>
+<pre><span class="a-blue">You</span>: input/math.txt 里写了什么？解出来
+<span class="a-green">tool</span>: read_file({"path": "input/math.txt"})
+<span class="a-yellow">DeepSeek</span>:
+文件里是 3x - 8 = 92。
+两边同时加 8：3x = 100，
+所以 x = 100/3 ≈ 33.33。
+<span class="a-blue">You</span>: 跑一下测试
+<span class="a-green">tool</span>: run_bash({"command": "uv run pytest -q"})
+<span class="a-magenta">      允许执行? [Y/n/a]</span> <span class="a-dim">▌</span></pre>
+    </figure>
+  </header>
+
+  <section class="how" aria-label="每节课怎么学">
+    <div class="read"><span class="k">读真代码</span><h3>拆自机器人</h3><p>每节课都打开 <code>src/</code> 里的一个真实文件，讲清楚用到今天知识点的那几行。</p></div>
+    <div class="run"><span class="k">动手跑</span><h3>页面里的 Python</h3><p>直接在浏览器里修改、运行真正的 Python 3.12，什么都不用装。写错了会有中文提示。</p></div>
+    <div class="think"><span class="k">自我检查</span><h3>小测验和挑战</h3><p>随堂小测验，加上自动判分的编程挑战。学习进度保存在这台电脑上。</p></div>
+  </section>
+
+  <section class="unit" aria-labelledby="u1">
+    <div class="unit-head">
+      <p class="eyebrow">第 1 单元 · 第 00–04 课</p>
+      <h2 id="u1">通电</h2>
+      <p>最小的能跑的机器人：一个聊天循环。变量、文字、判断和循环。</p>
+    </div>
+    <div class="cards">
+      <a class="card" data-lesson="00" href="lessons/00-welcome.html"><span class="num">00</span><h3>认识机器人</h3><p>AI agent 是什么，它肚子里的 7 个文件，还有你的第一个程序。</p><span class="foot"><span class="part">整台机器人</span><span class="status">未开始</span></span></a>
+      <a class="card" data-lesson="01" href="lessons/01-variables.html"><span class="num">01</span><h3>变量</h3><p>给值起名字、类型、算术、常量和 <code>None</code>。</p><span class="foot"><span class="part">step1_chat.py · 设置</span><span class="status">未开始</span></span></a>
+      <a class="card" data-lesson="02" href="lessons/02-strings.html"><span class="num">02</span><h3>字符串与颜色</h3><p>文字、f-字符串、终端颜色、切片和 <code>input()</code>。</p><span class="foot"><span class="part">step1_chat.py · tools.py</span><span class="status">未开始</span></span></a>
+      <a class="card" data-lesson="03" href="lessons/03-decisions.html"><span class="num">03</span><h3>做判断</h3><p><code>if</code> / <code>elif</code> / <code>else</code>、True 和 False，以及先把坏情况挡在门外。</p><span class="foot"><span class="part">agent.py · ConsoleApprover</span><span class="status">未开始</span></span></a>
+      <a class="card" data-lesson="04" href="lessons/04-while-loops.html"><span class="num">04</span><h3>while 循环</h3><p>聊天循环、<code>break</code> 和 <code>continue</code>，还有让聊天机器人变成 agent 的那个开关。</p><span class="foot"><span class="part">step1_chat.py · Agent.run</span><span class="status">未开始</span></span></a>
+    </div>
+  </section>
+
+  <section class="unit" aria-labelledby="u2">
+    <div class="unit-head">
+      <p class="eyebrow">第 2 单元 · 第 05–07 课</p>
+      <h2 id="u2">记忆</h2>
+      <p>AI 什么都记不住，机器人用列表和字典替它记。</p>
+    </div>
+    <div class="cards">
+      <a class="card" data-lesson="05" href="lessons/05-lists.html"><span class="num">05</span><h3>列表</h3><p>机器人的记忆就是一个列表。索引、切片和 <code>append</code>。</p><span class="foot"><span class="part">conversation · ALL_TOOLS</span><span class="status">未开始</span></span></a>
+      <a class="card" data-lesson="06" href="lessons/06-dictionaries.html"><span class="num">06</span><h3>字典、元组与集合</h3><p>消息、查找表、固定的一组值，以及「这个见过没有？」</p><span class="foot"><span class="part">providers.py · 消息</span><span class="status">未开始</span></span></a>
+      <a class="card" data-lesson="07" href="lessons/07-for-loops.html"><span class="num">07</span><h3>for 循环</h3><p>逐个走遍文件夹、推导式，以及用到预算就停的循环。</p><span class="foot"><span class="part">list_files · skills_index</span><span class="status">未开始</span></span></a>
+    </div>
+  </section>
+
+  <section class="unit" aria-labelledby="u3">
+    <div class="unit-head">
+      <p class="eyebrow">第 3 单元 · 第 08–10 课</p>
+      <h2 id="u3">工具</h2>
+      <p>机器人的手：读、列、改、跑的小函数，而且永远不会把程序搞崩。</p>
+    </div>
+    <div class="cards">
+      <a class="card" data-lesson="08" href="lessons/08-functions.html"><span class="num">08</span><h3>函数</h3><p><code>def</code>、<code>return</code>、参数、纯函数，以及把函数当成值来用。</p><span class="foot"><span class="part">tools.py 的辅助函数</span><span class="status">未开始</span></span></a>
+      <a class="card" data-lesson="09" href="lessons/09-errors.html"><span class="num">09</span><h3>错误与异常</h3><p><code>try</code> / <code>except</code>、<code>raise</code>，以及为什么工具出错不会让机器人崩溃。</p><span class="foot"><span class="part">Agent._execute</span><span class="status">未开始</span></span></a>
+      <a class="card" data-lesson="10" href="lessons/10-files.html"><span class="num">10</span><h3>文件与外部世界</h3><p>读写文件、文件夹、保管密钥，以及安全地运行命令。</p><span class="foot"><span class="part">read_file · run_bash</span><span class="status">未开始</span></span></a>
+    </div>
+  </section>
+
+  <section class="unit" aria-labelledby="u4">
+    <div class="unit-head">
+      <p class="eyebrow">第 4 单元 · 第 11–12 课</p>
+      <h2 id="u4">接线</h2>
+      <p>7 个文件怎么连在一起，机器人又怎么换一颗「大脑」。</p>
+    </div>
+    <div class="cards">
+      <a class="card" data-lesson="11" href="lessons/11-modules.html"><span class="num">11</span><h3>模块与包</h3><p><code>import</code>、标准库、从网上装的包，以及机器人的接线图。</p><span class="foot"><span class="part">agent.py 的 import · uv</span><span class="status">未开始</span></span></a>
+      <a class="card" data-lesson="12" href="lessons/12-classes.html"><span class="num">12</span><h3>类与对象</h3><p>数据类、方法、继承，以及给机器人插上另一颗大脑。</p><span class="foot"><span class="part">Tool · Provider</span><span class="status">未开始</span></span></a>
+    </div>
+  </section>
+
+  <section class="unit" aria-labelledby="u5">
+    <div class="unit-head">
+      <p class="eyebrow">第 5 单元 · 第 13–14 课</p>
+      <h2 id="u5">总装</h2>
+      <p>把所有零件装回去，自己搭一个 agent，再证明它真的能用。</p>
+    </div>
+    <div class="cards">
+      <a class="card" data-lesson="13" href="lessons/13-the-big-loop.html"><span class="num">13</span><h3>大循环</h3><p>一步一步走完整个 agent 循环，然后在浏览器里搭一个能用的迷你 agent。</p><span class="foot"><span class="part">Agent.run</span><span class="status">未开始</span></span></a>
+      <a class="card" data-lesson="14" href="lessons/14-testing.html"><span class="num">14</span><h3>测试</h3><p><code>assert</code>、pytest 和假大脑：专业程序员怎么确认代码真的能用。</p><span class="foot"><span class="part">tests/</span><span class="status">未开始</span></span></a>
+    </div>
+  </section>
+
+  <section class="notes">
+    <aside class="callout analogy">
+      <p class="callout-label">开始之前</p>
+      <h3>你需要准备什么</h3>
+      <p>一个较新的 Chrome、Edge、Firefox 或 Safari。第一次在课里运行 Python 时，页面会从 <code>cdn.jsdelivr.net</code> 下载它（约 15 MB），所以第一次需要联网；之后浏览器会留一份缓存。其他内容都能离线使用。</p>
+    </aside>
+    <aside class="callout principle">
+      <p class="callout-label">给老师和家长</p>
+      <h3>怎么用这套课来教</h3>
+      <p><a href="teacher-guide.html">教师指南</a>里有每节课的目标、时长、讨论题和真机演示。机器人的真实源代码就在这套课旁边的 <code>src/</code> 文件夹里。</p>
+    </aside>
+  </section>
+
+  <div class="reset-row">
+    <span id="saved-note">学习进度只保存在这个浏览器里。</span>
+    <button class="btn ghost" type="button" id="reset">清空我的进度</button>
+  </div>
+
+</div>
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const T = window.AgentTeardown;
+    const progress = T.loadProgress();
+    let complete = 0;
+    let next = null;
+    for (const lesson of T.LESSONS) {
+      const card = document.querySelector(`.card[data-lesson="${lesson.id}"]`);
+      const r = progress[lesson.id];
+      const status = card && card.querySelector(".status");
+      const doneCount = r && r.done ? Object.keys(r.done).length : 0;
+      let state = "new";
+      if (r && r.complete) state = "complete";
+      else if (doneCount > 0) state = "started";
+      if (state === "complete") complete++;
+      else if (!next) next = lesson;
+      if (!status) continue;
+      status.dataset.s = state;
+      card.dataset.s = state;
+      if (state === "complete") status.textContent = "✓ 已学完";
+      else if (state === "started") status.textContent = r.total ? `已完成 ${doneCount} / ${r.total}` : `已完成 ${doneCount}`;
+    }
+    const summary = document.getElementById("summary");
+    const cont = document.getElementById("continue");
+    if (complete > 0 || Object.keys(progress).length > 0) {
+      summary.textContent = `已学完 ${complete} / ${T.LESSONS.length} 课`;
+      if (next) {
+        cont.href = "lessons/" + next.file;
+        cont.textContent = `继续：第 ${next.id} 课`;
+      } else {
+        cont.textContent = "全部学完！回顾第 13 课";
+        cont.href = "lessons/13-the-big-loop.html";
+      }
+    }
+    const reset = document.getElementById("reset");
+    let armed = false;
+    reset.addEventListener("click", () => {
+      if (!armed) {
+        armed = true;
+        reset.textContent = "再点一次，清空全部进度";
+        setTimeout(() => {
+          armed = false;
+          reset.textContent = "清空我的进度";
+        }, 4000);
+        return;
+      }
+      T.saveProgress({});
+      location.reload();
+    });
+  });
+</script>
+</body>
+</html>

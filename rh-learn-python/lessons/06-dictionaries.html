@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>字典、元组与集合 · 拆机学 Python 06</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap">
+<link rel="stylesheet" href="../assets/course.css">
+<script src="../assets/course.js"></script>
+</head>
+<body data-lesson="06" data-root="../">
+<div class="page">
+
+<header class="hero">
+  <p class="eyebrow">第 06 课 · 第 2 单元 · 记忆</p>
+  <h1>字典、元组与集合</h1>
+  <p class="lede">列表按顺序排东西，字典按名字找东西。再加两个小帮手：元组和集合。</p>
+  <div class="bench" aria-label="今天放在工作台上的零件">
+    <span class="prompt">$</span> <span>teardown</span> <span class="path">src/providers.py</span> <span>--lines 171-180</span> <span class="cursor" aria-hidden="true"></span>
+  </div>
+  <dl class="hero-meta">
+    <div><dt>工作台上的零件</dt><dd>每一条消息 · 工具回复</dd></div>
+    <div><dt>时长</dt><dd>约 35 分钟</dd></div>
+    <div><dt>你会学到</dt><dd>字典 · <code>.get()</code> · 元组与解包 · 集合</dd></div>
+  </dl>
+</header>
+
+<main class="lesson">
+
+<section>
+  <h2>消息是字典</h2>
+  <p>机器人记忆里的每条消息都是一个<strong>字典</strong>：一对对「<strong>键</strong> → <strong>值</strong>」。就像通讯录：按名字（键）查到号码（值）。</p>
+  <div class="cell">
+    <script type="text/x-python">
+message = {"role": "user", "content": "input/math.txt 里写了什么？"}
+
+print(message["role"])       # 方括号里写键，取出值
+print(message["content"])
+print(len(message), "个键")
+    </script>
+  </div>
+  <p>列表用位置 <code>[0]</code> 取值，字典用键的名字 <code>["role"]</code> 取值。</p>
+  <p class="takeaway">字典按键查值：<code>d["键"]</code>。</p>
+</section>
+
+<section>
+  <h2>安全地查找</h2>
+  <p>用方括号查一个不存在的键，会报 <code>KeyError</code>。键可能不存在时，改用 <code>.get(键, 默认值)</code>：找不到就给默认值，永远不出错。</p>
+  <figure class="excerpt" data-file="src/step1_chat.py" data-start="17">
+    <script type="text/x-python">
+MODEL = os.environ.get("DEEPSEEK_MODEL", "deepseek-v4-flash")
+    </script>
+    <figcaption>
+      <p>有人设置了 <code>DEEPSEEK_MODEL</code> 就用它，否则用默认的 <code>deepseek-v4-flash</code>。</p>
+    </figcaption>
+  </figure>
+  <div class="cell">
+    <script type="text/x-python">
+settings = {"DEEPSEEK_API_KEY": "sk-not-a-real-key"}
+
+print(settings.get("DEEPSEEK_MODEL", "deepseek-v4-flash"))   # 键不存在：用默认值
+print(settings.get("DEEPSEEK_BASE_URL"))                     # 没给默认值：None
+print("DEEPSEEK_API_KEY" in settings)                        # in 查的是键
+    </script>
+  </div>
+  <div class="quiz" id="q-06-get" data-answer="c">
+    <p class="q">最后一行会打印什么？</p>
+    <div class="snippet"><script type="text/x-python">
+settings = {"DEEPSEEK_API_KEY": "sk-123"}
+print(settings.get("DEEPSEEK_MODEL", "deepseek-v4-flash"))
+    </script></div>
+    <ol class="options">
+      <li data-why="用方括号才会报 KeyError，.get() 从来不会。">报错：<code>KeyError</code></li>
+      <li data-why="不给默认值才会得到 None，这里给了。">None</li>
+      <li>deepseek-v4-flash</li>
+      <li data-why="这是另一个键 DEEPSEEK_API_KEY 的值。">sk-123</li>
+    </ol>
+    <div class="explain"><p>没有这个键，<code>.get()</code> 就交回你给的默认值。机器人就是这样挑模型的。</p></div>
+  </div>
+  <p class="takeaway">键可能不存在，就用 <code>.get()</code>。</p>
+</section>
+
+<section>
+  <h2>工具的回复</h2>
+  <p>AI 要用工具时，会给每个请求编一个 id。机器人跑完工具，用一个字典回复，里面带着同一个 id：</p>
+  <figure class="excerpt" data-file="src/providers.py" data-start="171" data-highlight="175,176,177">
+    <script type="text/x-python">
+    def tool_results(self, results: list[ToolResult]) -> list[dict]:
+        # OpenAI 协议没有 is_error 字段，用前缀让模型知道这是失败。
+        return [
+            {
+                "role": "tool",
+                "tool_call_id": r.call_id,
+                "content": f"Error: {r.content}" if r.is_error else r.content,
+            }
+            for r in results
+        ]
+    </script>
+    <figcaption>
+      <p>每个结果变成一个三键字典。工具失败时，内容前面加 <code>"Error: "</code>，让 AI 知道出错了。</p>
+    </figcaption>
+  </figure>
+  <aside class="callout watch">
+    <p class="callout-label">易错点</p>
+    <p>每个工具调用 id 都必须有<strong>恰好一条</strong> <code>role: "tool"</code> 回复，失败了也要回。漏一条，DeepSeek 就拒绝下一次请求。</p>
+  </aside>
+  <div class="quiz" id="q-06-ids" data-answer="c">
+    <p class="q">AI 一次要调两个工具（<code>"c1"</code> 和 <code>"c2"</code>），第一个失败了。要加几条 <code>role: "tool"</code> 消息？</p>
+    <ol class="options">
+      <li data-why="那样两个 id 都没回复，下一次请求会被拒绝。">0 条</li>
+      <li data-why="失败的也要回复，只是内容以 Error: 开头。">1 条，只回成功的</li>
+      <li>2 条，每个 id 一条</li>
+      <li data-why="规则很严：每个 id 恰好一条。">随便几条</li>
+    </ol>
+    <div class="explain"><p>每个 id 一条回复。失败的那条以 <code>"Error: "</code> 开头，AI 读到后会换个办法再试。</p></div>
+  </div>
+  <details class="more">
+    <summary>多了解一点：一段完整的对话记录</summary>
+    <p>记忆是装满字典的列表，有的字典里还套着列表和字典。取里面的东西，就把方括号一层层接起来：</p>
+    <div class="cell" data-label="试一试 · 真实格式的对话记录">
+      <script type="text/x-python">
+conversation = [
+    {"role": "user", "content": "input/math.txt 里写了什么？"},
+    {
+        "role": "assistant",
+        "content": None,
+        "tool_calls": [
+            {
+                "id": "call_1",
+                "type": "function",
+                "function": {"name": "read_file", "arguments": '{"path": "input/math.txt"}'},
+            }
+        ],
+    },
+    {"role": "tool", "tool_call_id": "call_1", "content": "3x - 8 = 92, 求 x ?"},
+    {"role": "assistant", "content": "3x = 100，所以 x = 100/3，约等于 33.33。"},
+]
+
+asked = conversation[1]["tool_calls"][0]
+print(f"AI 要调用的工具：{asked['function']['name']}")
+print(f"回复的 id 对得上吗：{conversation[2]['tool_call_id'] == asked['id']}")
+      </script>
+    </div>
+  </details>
+  <p class="takeaway">每个工具调用 id，都要恰好一条回复。</p>
+</section>
+
+<section>
+  <h2>元组与解包</h2>
+  <p><strong>元组</strong>像列表，但写在 <code>( )</code> 里，<strong>创建后不能改</strong>，适合装一小组固定的东西，比如 <code>("", "y", "yes")</code>。还可以一行把它拆进几个变量，叫<strong>解包</strong>：</p>
+  <figure class="excerpt" data-file="src/tools.py" data-start="160" data-highlight="161">
+    <script type="text/x-python">
+def _edit_file(args: dict[str, Any]) -> str:
+    path, old, new = args["path"], args["old_str"], args["new_str"]
+    </script>
+    <figcaption>
+      <p>右边取出三个值组成元组，左边拆成三个短名字，一行顶三行。</p>
+    </figcaption>
+  </figure>
+  <div class="cell">
+    <script type="text/x-python">
+args = {"path": "notes.txt", "old_str": "cat", "new_str": "dog"}
+path, old, new = args["path"], args["old_str"], args["new_str"]
+print(path, old, new)
+
+a, b = "左", "右"
+a, b = b, a          # 有名的「交换」技巧
+print(a, b)
+    </script>
+  </div>
+  <p class="takeaway">元组是固定的组合，<code>a, b = 一对值</code> 一行拆开。</p>
+</section>
+
+<section>
+  <h2>集合</h2>
+  <p><strong>集合</strong>是装<strong>不重复</strong>元素的袋子，没有顺序，最擅长回答「在不在里面？」。<code>list_files</code> 用它记住要跳过的文件夹：</p>
+  <figure class="excerpt" data-file="src/tools.py" data-start="110">
+    <script type="text/x-python">
+_PRUNED_DIRS = {".git", "__pycache__", ".venv", "venv"}
+    </script>
+    <figcaption>
+      <p>对这几个名字，机器人只问一件事：这个文件夹名在不在里面。</p>
+    </figcaption>
+  </figure>
+  <div class="cell">
+    <script type="text/x-python">
+PRUNED_DIRS = {".git", "__pycache__", ".venv", "venv"}
+print(".git" in PRUNED_DIRS)
+
+always = set()            # 空集合要写 set()，{} 是空字典
+always.add("run_bash")
+always.add("run_bash")    # 再加一次也不会重复
+print(always, len(always))
+    </script>
+  </div>
+  <aside class="callout principle">
+    <p class="callout-label">编程原则</p>
+    <h4>按问题选容器</h4>
+    <p>要顺序用列表，按名字查用字典，固定一小组用元组，问「在不在」用集合。</p>
+  </aside>
+  <div class="quiz" id="q-06-container" data-answer="c">
+    <p class="q">要反复检查「这个文件夹名该不该跳过」，用哪种容器最合适？</p>
+    <ol class="options">
+      <li data-why="能用，但它保留了用不着的顺序，还允许重复。">列表</li>
+      <li data-why="这里不需要查出什么值，只要回答是或否。">字典</li>
+      <li>集合</li>
+      <li data-why="也行，但集合更准确地表达了「在不在里面」。">元组</li>
+    </ol>
+    <div class="explain"><p>唯一的问题是「在不在这一组里」，这正是集合的本事，机器人用的就是集合。</p></div>
+  </div>
+  <p class="takeaway">集合没有重复，最擅长回答「在不在里面」。</p>
+</section>
+
+<section>
+  <h2>动手挑战</h2>
+  <section class="challenge" id="ch-06-result">
+    <div class="challenge-head"><span class="badge">挑战</span><h3>拼一条工具回复</h3></div>
+    <p>拼出字典 <code>message</code>：<code>"role"</code> 是 <code>"tool"</code>，<code>"tool_call_id"</code> 是 <code>call_id</code>，<code>"content"</code> 是 <code>content</code>，<code>is_error</code> 为 True 时前面加 <code>"Error: "</code>。别删 <code>is_error = True</code> 那行。</p>
+    <div class="cell">
+      <script type="text/x-python">
+call_id = "call_7"
+content = "No such file: notes.txt"
+is_error = True
+
+# 在这里拼出 message 字典。
+message = {}
+
+print(message)
+      </script>
+      <script type="text/x-python" class="check">
+import io, contextlib
+assert isinstance(message, dict), "message 应该是一个字典：{ ... }"
+assert message.get("role") == "tool", '"role" 这个键的值应该是 "tool"。'
+assert message.get("tool_call_id") == "call_7", '"tool_call_id" 这个键的值应该是 call_id 的值（"call_7"）。'
+assert message.get("content") == "Error: No such file: notes.txt", f'is_error 为 True 时，"content" 应该是 "Error: No such file: notes.txt"。你的是 {message.get("content")!r}。'
+assert len(message) == 3, f"message 应该恰好有 3 个键（role、tool_call_id、content），现在有 {len(message)} 个。"
+assert "is_error = True" in __source__, "请保留开头的 is_error = True 这一行：检查程序要把它换成 False 来测试另一种情况。"
+other = {"__name__": "__main__"}
+with contextlib.redirect_stdout(io.StringIO()):
+    exec(__source__.replace("is_error = True", "is_error = False", 1), other)
+assert other["message"].get("content") == "No such file: notes.txt", 'is_error 为 False 时，"content" 应该就是原来的内容，前面不加 "Error: "。'
+      </script>
+      <script type="text/x-python" class="solution">
+call_id = "call_7"
+content = "No such file: notes.txt"
+is_error = True
+
+if is_error:
+    content = "Error: " + content
+message = {"role": "tool", "tool_call_id": call_id, "content": content}
+
+print(message)
+      </script>
+    </div>
+    <details class="hint"><summary>提示</summary><p>先用 <code>if</code> 改好 <code>content</code>，再写 <code>message = {"role": "tool", ...}</code>。</p></details>
+  </section>
+
+  <section class="challenge" id="ch-06-always">
+    <div class="challenge-head"><span class="badge">挑战</span><h3>记住「一直允许」</h3></div>
+    <p>补全两处：工具已在 <code>always</code> 里，就打印 <code>工具名: 自动允许</code> 并 <code>continue</code>；回答 <code>a</code> 或 <code>always</code> 时，把工具加进 <code>always</code>。</p>
+    <div class="cell" data-inputs="run_bash|a|run_bash|edit_file|n|run_bash|done">
+      <script type="text/x-python">
+always = set()   # 用户说过「一直允许」的工具名
+
+while True:
+    tool = input("工具：")
+    if tool == "done":
+        break
+
+    # 1) 已经一直允许了？打印 "<工具名>: 自动允许"，然后 continue。
+
+    answer = input(f"允许 {tool} 吗？[y/n/a] ").strip().lower()
+    if answer in ("", "y", "yes"):
+        print(f"{tool}: 允许这一次")
+    elif answer in ("a", "always"):
+        # 2) 把这个工具记进 always 集合。
+        print(f"{tool}: 本会话都允许")
+    else:
+        print(f"{tool}: 拒绝")
+
+print(f"一直允许的工具：{sorted(always)}")
+      </script>
+      <script type="text/x-python" class="check">
+import io, contextlib
+def run_with(lines):
+    queue = list(lines)
+    def fake_input(prompt=""):
+        if queue:
+            return queue.pop(0)
+        return "done"
+    buf = io.StringIO()
+    ns = {"__name__": "__main__", "input": fake_input}
+    with contextlib.redirect_stdout(buf):
+        exec(__source__, ns)
+    return buf.getvalue(), ns
+out, ns = run_with(["run_bash", "a", "run_bash", "edit_file", "n", "run_bash", "done"])
+assert ns.get("always") == {"run_bash"}, f"对 run_bash 回答 a 之后，always 应该是 {{'run_bash'}}，现在是 {ns.get('always')!r}。你用 always.add(tool) 了吗？"
+assert out.count("run_bash: 自动允许") == 2, "run_bash 进了 always 集合之后，后面两次都应该直接打印「run_bash: 自动允许」，不再提问。"
+assert "edit_file: 拒绝" in out, "edit_file 得到的回答是 n，所以应该打印「edit_file: 拒绝」。"
+out2, ns2 = run_with(["edit_file", "y", "edit_file", "y", "done"])
+assert ns2.get("always") == set(), "回答 y 只允许这一次：不应该把工具加进 always 集合。"
+      </script>
+      <script type="text/x-python" class="solution">
+always = set()   # 用户说过「一直允许」的工具名
+
+while True:
+    tool = input("工具：")
+    if tool == "done":
+        break
+
+    if tool in always:
+        print(f"{tool}: 自动允许")
+        continue
+
+    answer = input(f"允许 {tool} 吗？[y/n/a] ").strip().lower()
+    if answer in ("", "y", "yes"):
+        print(f"{tool}: 允许这一次")
+    elif answer in ("a", "always"):
+        always.add(tool)
+        print(f"{tool}: 本会话都允许")
+    else:
+        print(f"{tool}: 拒绝")
+
+print(f"一直允许的工具：{sorted(always)}")
+      </script>
+    </div>
+    <details class="hint"><summary>提示</summary><p>第 1 处：<code>if tool in always:</code> 里 <code>print</code> 再 <code>continue</code>；第 2 处：<code>always.add(tool)</code>。</p></details>
+  </section>
+</section>
+
+<section class="keywords">
+  <h2>小结</h2>
+  <ul class="recap">
+    <li>每条消息都是带 <code>"role"</code> 和 <code>"content"</code> 的字典。</li>
+    <li><code>d["键"]</code> 找不到会报错，<code>d.get("键", 默认值)</code> 不会。</li>
+    <li>元组是固定组合，能一行解包成几个变量。</li>
+    <li>集合没有重复，用来回答「在不在里面」。</li>
+  </ul>
+  <h3>关键词</h3>
+  <dl>
+    <div><dt>字典 <span class="en">dict</span></dt><dd>一对对「键 → 值」。</dd></div>
+    <div><dt>键 / 值 <span class="en">key / value</span></dt><dd>查找用的标签 / 查到的内容。</dd></div>
+    <div><dt>安全查找 <span class="en">.get()</span></dt><dd>找不到就给默认值。</dd></div>
+    <div><dt>元组 <span class="en">tuple</span></dt><dd>不能修改的固定组合。</dd></div>
+    <div><dt>解包 <span class="en">unpacking</span></dt><dd><code>a, b = 一对值</code>。</dd></div>
+    <div><dt>集合 <span class="en">set</span></dt><dd>不重复、没顺序的袋子。</dd></div>
+  </dl>
+</section>
+
+</main>
+</div>
+</body>
+</html>

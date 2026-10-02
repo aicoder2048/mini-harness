@@ -1,0 +1,544 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>测试 · 拆机学 Python 14</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap">
+<link rel="stylesheet" href="../assets/course.css">
+<script src="../assets/course.js"></script>
+</head>
+<body data-lesson="14" data-root="../">
+<div class="page">
+
+<header class="hero">
+  <p class="eyebrow">第 14 课 · 第 5 单元 · 总装</p>
+  <h1>测试</h1>
+  <p class="lede">机器人自带 206 个测试，两秒跑完、一分钱不花。最后一课，学会自己写测试。</p>
+  <div class="bench" aria-label="今天工作台上的零件">
+    <span class="prompt">$</span> <span>teardown</span> <span class="path">tests/test_tools.py</span> <span>--lines 19-21</span> <span class="cursor" aria-hidden="true"></span>
+  </div>
+  <dl class="hero-meta">
+    <div><dt>工作台上的零件</dt><dd><code>tests/</code> 文件夹</dd></div>
+    <div><dt>时长</dt><dd>约 40 分钟</dd></div>
+    <div><dt>你会学到</dt><dd><code>assert</code> · 测试函数 · 假对象 · 先写测试</dd></div>
+  </dl>
+</header>
+
+<main class="lesson">
+
+<section>
+  <h2>为什么要测试</h2>
+  <p>改了一行代码，怎么知道没弄坏？手动问 DeepSeek 又慢又花钱，回答还每次不一样。程序员的办法是写<strong>测试</strong>：自动运行代码、检查结果的小程序。</p>
+  <pre class="code"><span class="tok-com"># 在终端里，进入项目文件夹</span>
+$ uv run pytest -q
+........................................................................ [ 34%]
+........................................................................ [ 69%]
+..............................................................           [100%]
+206 passed, 10 deselected in 2.17s</pre>
+  <p>每个点是一个通过的测试：206 项检查，两秒，一分钱不花。每次有人推送代码，GitHub 还会在一台新电脑上自动再跑一遍（这叫 CI）。</p>
+  <p class="takeaway">测试让电脑替你检查代码，又快又免费。</p>
+</section>
+
+<section>
+  <h2>assert 断言</h2>
+  <p><code>assert</code> 的意思是「这件事必须成立」。成立就安静地往下走；不成立就抛出 <code>AssertionError</code>，逗号后面的说明会告诉你哪里错了。</p>
+  <div class="cell">
+    <script type="text/x-python">
+x = 100 // 3
+assert x == 33
+print("检查 1 通过")
+
+answer = "x = 100/3"
+assert "100/3" in answer, "答案里应该提到 100/3"
+print("检查 2 通过")
+    </script>
+  </div>
+  <p>下面的测试抓到了一个真 bug。运行它，再修好 <code>word_count</code>（提示：<code>split()</code> 括号里什么都不写）。</p>
+  <div class="cell" data-expect-error="AssertionError" data-label="试一试 · 测试发现了 bug">
+    <script type="text/x-python">
+def word_count(text):
+    return len(text.split(" "))
+
+assert word_count("read the file") == 3
+print("测试 1 通过")
+
+assert word_count("read  the file") == 3, f"连着两个空格也应该算 3 个词，实际得到 {word_count('read  the file')}"
+print("测试 2 通过")
+    </script>
+  </div>
+  <div class="quiz" id="q-14-assert" data-answer="b">
+    <p class="q">运行 <code>assert 2 + 2 == 4</code> 会发生什么？</p>
+    <ol class="options">
+      <li data-why="条件成立时，assert 什么也不打印。">打印出 <code>True</code></li>
+      <li>什么都不会发生，程序接着往下走</li>
+      <li data-why="只有条件不成立时，它才会让程序停下。">程序停下，抛出 <code>AssertionError</code></li>
+      <li data-why="assert 成功时是安静的。打印 passed 的是 pytest 这样的工具。">打印出「passed」</li>
+    </ol>
+    <div class="explain"><p>通过的断言是安静的。所以才需要 pytest 替你统计：通过的给一个绿点，失败的给一份醒目的报告。</p></div>
+  </div>
+  <p class="takeaway"><code>assert</code> 写下「必须成立」的事，不成立就报错。</p>
+</section>
+
+<section>
+  <h2>测试函数</h2>
+  <p>真正的项目把测试写成名字以 <code>test_</code> 开头的函数。这是机器人给 <code>read_file</code> 写的一个：</p>
+  <figure class="excerpt" data-file="tests/test_tools.py" data-start="19">
+    <script type="text/x-python">
+def test_read_file_returns_file_content(tmp_path):
+    (tmp_path / "a.txt").write_text("hello 老周", encoding="utf-8")
+    assert read_file.run({"path": str(tmp_path / "a.txt")}) == "hello 老周"
+    </script>
+    <figcaption>
+      <p>套路永远一样：<strong>准备</strong>（写个文件）、<strong>执行</strong>（运行工具）、<strong>检查</strong>（断言）。<code>tmp_path</code> 是 pytest 给的全新空文件夹。</p>
+    </figcaption>
+  </figure>
+  <p><strong>pytest</strong> 会找出所有 <code>test_</code> 函数，逐个运行并汇报。原理很简单，下面是一个 11 行的迷你版。第三个测试是故意写错的：</p>
+  <div class="cell" data-label="试一试 · 迷你 pytest">
+    <script type="text/x-python">
+def truncate_tail(text, limit):
+    """只保留最后 limit 个字符，就像 run_bash 处理很长的输出那样。"""
+    if len(text) <= limit:
+        return text
+    return "..." + text[-limit:]
+
+
+def test_short_text_is_unchanged():
+    assert truncate_tail("ok", 10) == "ok"
+
+def test_long_text_keeps_the_end():
+    assert truncate_tail("abcdefghij", 3) == "...hij"
+
+def test_long_text_keeps_the_start():
+    result = truncate_tail("abcdefghij", 3)
+    assert result == "abc", f"应该是 'abc'，实际是 {result!r}"
+
+
+# --- 迷你 pytest：运行每个名字以 test_ 开头的函数 ---
+def run_tests():
+    names = [name for name in globals() if name.startswith("test_")]
+    failed = 0
+    for name in names:
+        try:
+            globals()[name]()
+            print(f"\033[92mPASSED\033[0m {name}")
+        except AssertionError as e:
+            failed += 1
+            print(f"\033[91mFAILED\033[0m {name}: {e}")
+    print(f"{len(names) - failed} passed, {failed} failed")
+
+run_tests()
+    </script>
+  </div>
+  <aside class="callout principle">
+    <p class="callout-label">编程原则</p>
+    <h4>测试是一个一直有效的承诺</h4>
+    <p>每个测试写下代码的一个承诺，以后每次修改都会免费再查一遍。只测从外面看得到的行为，内部重写也不会坏。</p>
+  </aside>
+  <p class="takeaway">测试失败时先问：是代码错了，还是我的预期错了？</p>
+</section>
+
+<section>
+  <h2>假对象</h2>
+  <p>主循环要和 DeepSeek 对话，还要等你打字，怎么测？把这两样都换成假的：<code>FakeProvider</code> 交出写好的回复，<code>scripted()</code> 假装打字。</p>
+  <figure class="excerpt" data-file="tests/test_agent.py" data-start="50" data-highlight="60,62">
+    <script type="text/x-python">
+def test_tool_call_loops_back_to_model_without_asking_user(tmp_path, capsys):
+    secret = tmp_path / "secret.txt"
+    secret.write_text("neigh")
+    provider = FakeProvider(
+        [
+            Reply(tool_calls=[ToolCall("c1", "read_file", {"path": str(secret)})]),
+            Reply(texts=["a horse"]),
+        ]
+    )
+
+    Agent(provider, [read_file], scripted("solve it")).run()
+
+    assert len(provider.chats) == 2  # 只有一次用户输入，却问了模型两次
+    assert provider.results == [[ToolResult("c1", "neigh")]]
+    assert provider.chats[1][-1] == {"role": "tool", "content": "neigh"}
+    assert "a horse" in capsys.readouterr().out
+    </script>
+    <figcaption>
+      <p>运行<strong>真正的</strong>循环，再检查：用户只说了一次话，模型却被问了两次（第 62 行），这正是 agent 的标志。</p>
+    </figcaption>
+  </figure>
+  <aside class="callout analogy">
+    <p class="callout-label">打个比方</p>
+    <p><code>FakeProvider</code> 就像汽车碰撞测试里的假人：形状和真人一样，但便宜、随时都有、永远不会受伤。</p>
+  </aside>
+  <div class="quiz" id="q-14-fake" data-answer="c">
+    <p class="q">测试为什么用 <code>FakeProvider</code>，不用真 DeepSeek？</p>
+    <ol class="options">
+      <li data-why="DeepSeek 好好的。那 10 个 live 测试仍然用真 API，只是要专门要求才跑。">DeepSeek 在测试里用不了</li>
+      <li data-why="恰恰相反：用假对象很容易让测试失败。">为了让测试永远通过</li>
+      <li>假对象免费、快、不用联网，每次回复都一样</li>
+      <li data-why="pytest 并不禁止联网，这是项目自己的选择。">pytest 不允许联网</li>
+    </ol>
+    <div class="explain"><p>真 AI 要钱、要网、要等，说法还每次不同，没法写准确的 <code>assert</code>。假对象把这些问题全解决了。</p></div>
+  </div>
+  <details class="more">
+    <summary>多了解一点：三行代码的假键盘</summary>
+    <figure class="excerpt" data-file="tests/test_agent.py" data-start="45">
+    <script type="text/x-python">
+def scripted(*inputs):
+    it = iter(inputs)
+    return lambda: next(it, None)  # 输入用完 → None（相当于 Ctrl-D）
+    </script>
+      <figcaption><p><code>*inputs</code> 收集参数，<code>next(it, None)</code> 逐个取出，用完返回 <code>None</code>，相当于按了 Ctrl-D。</p></figcaption>
+    </figure>
+  </details>
+  <p class="takeaway">用假对象换掉慢的、贵的、会变的东西，测试才稳定。</p>
+</section>
+
+<section>
+  <h2>先写测试</h2>
+  <p>这个项目的规矩是先写测试、再写代码，叫<strong>红、绿、重构</strong>：先看测试失败（红），写最简单的代码让它通过（绿），再整理代码。</p>
+  <div class="cell" data-expect-error="AssertionError" data-label="试一试 · 红">
+    <script type="text/x-python">
+def slash_command(text):
+    return None   # 还没写
+
+
+assert slash_command("/exit") == "exit", "一个简单的命令"
+assert slash_command("/QUIT now") == "quit", "只看第一个词，并且转成小写"
+assert slash_command("/Users/sam/a.py look at this") is None, "路径不是命令"
+assert slash_command("hello") is None, "一条普通消息"
+assert slash_command("") is None, "一个空行"
+print("全部通过！")
+    </script>
+  </div>
+  <p>亲眼看到它失败很重要：这证明测试真的在检查东西。现在让它变绿：</p>
+  <div class="cell" data-label="试一试 · 绿">
+    <script type="text/x-python">
+def slash_command(text):
+    words = text.split()
+    if not words:
+        return None
+    first = words[0]
+    if not first.startswith("/") or len(first) < 2:
+        return None
+    name = first[1:]
+    if not name[0].isalpha() or "/" in name:
+        return None
+    return name.lower()
+
+
+assert slash_command("/exit") == "exit", "一个简单的命令"
+assert slash_command("/QUIT now") == "quit", "只看第一个词，并且转成小写"
+assert slash_command("/Users/sam/a.py look at this") is None, "路径不是命令"
+assert slash_command("hello") is None, "一条普通消息"
+assert slash_command("") is None, "一个空行"
+print("全部通过！")
+    </script>
+  </div>
+  <aside class="callout watch">
+    <p class="callout-label">易错点</p>
+    <p><code>assert result</code> 只检查结果不是空的，不检查对不对。永远和准确的预期值比较。</p>
+  </aside>
+  <div class="quiz" id="q-14-red" data-answer="a">
+    <p class="q">还没写代码，新测试就<em>通过</em>了。你该怀疑什么？</p>
+    <ol class="options">
+      <li>这个测试可能什么都没检查</li>
+      <li data-why="代码不会自己写出来。没东西可测却通过，很可疑。">代码已经完美了</li>
+      <li data-why="没亲眼见过它失败的测试，通过证明不了什么。">没什么好怀疑的</li>
+      <li data-why="pytest 很可靠，问题几乎总在你刚写的测试上。">pytest 坏了</li>
+    </ol>
+    <div class="explain"><p>从没失败过的测试，可能根本不会失败。「红」这一步就是先证明测试能抓住问题。</p></div>
+  </div>
+  <p class="takeaway">先红后绿：先看测试失败，再写代码让它通过。</p>
+</section>
+
+<section>
+  <h2>动手挑战</h2>
+
+  <section class="challenge" id="ch-14-write-tests">
+    <div class="challenge-head"><span class="badge">挑战</span><h3>写出能抓 bug 的测试</h3></div>
+    <p>给 <code>truncate_tail</code> 写至少 3 个 <code>test_</code> 函数。正确版本必须全部通过，两个偷偷改坏的版本至少要有一个测试失败。</p>
+    <div class="cell">
+      <script type="text/x-python">
+# --- 被测试的函数（不要改它）---
+def truncate_tail(text, limit):
+    """只保留最后 limit 个字符，就像 run_bash 处理很长的输出那样。"""
+    if len(text) <= limit:
+        return text
+    return "..." + text[-limit:]
+
+
+# --- 你的测试 ---
+def test_short_text_is_unchanged():
+    assert truncate_tail("ok", 10) == "ok"
+
+# 在这里至少再写两个 test_ 函数
+
+
+# --- 迷你 pytest ---
+def run_tests():
+    names = [name for name in globals() if name.startswith("test_")]
+    failed = 0
+    for name in names:
+        try:
+            globals()[name]()
+            print(f"\033[92mPASSED\033[0m {name}")
+        except AssertionError as e:
+            failed += 1
+            print(f"\033[91mFAILED\033[0m {name}: {e}")
+    print(f"{len(names) - failed} passed, {failed} failed")
+
+run_tests()
+      </script>
+      <script type="text/x-python" class="check">
+_tests = [(n, f) for n, f in list(globals().items()) if n.startswith("test_") and callable(f)]
+assert len(_tests) >= 3, f"至少写 3 个名字以 test_ 开头的测试函数。我找到了 {len(_tests)} 个。"
+_good = truncate_tail
+for _n, _t in _tests:
+    try:
+        _t()
+    except AssertionError as e:
+        assert False, f"{_n} 在【正确的】truncate_tail 上失败了，说明它的预期写错了。{e}"
+
+
+def _bug_keeps_start(text, limit):
+    if len(text) <= limit:
+        return text
+    return "..." + text[:limit]
+
+
+def _bug_no_dots(text, limit):
+    if len(text) <= limit:
+        return text
+    return text[-limit:]
+
+
+def _catches(bug):
+    globals()["truncate_tail"] = bug
+    try:
+        for _n, _t in _tests:
+            try:
+                _t()
+            except Exception:
+                return True
+        return False
+    finally:
+        globals()["truncate_tail"] = _good
+
+
+assert _catches(_bug_keeps_start), "有个改坏的版本保留的是长文字的【开头】，它通过了你所有的测试。加一个用长文字的测试，准确检查返回的到底是什么。"
+assert _catches(_bug_no_dots), '有个改坏的版本忘了在前面加 "..."，它通过了你所有的测试。检查完整的结果，连省略号一起比。'
+      </script>
+      <script type="text/x-python" class="solution">
+# --- 被测试的函数（不要改它）---
+def truncate_tail(text, limit):
+    """只保留最后 limit 个字符，就像 run_bash 处理很长的输出那样。"""
+    if len(text) <= limit:
+        return text
+    return "..." + text[-limit:]
+
+
+# --- 你的测试 ---
+def test_short_text_is_unchanged():
+    assert truncate_tail("ok", 10) == "ok"
+
+def test_long_text_keeps_the_end():
+    assert truncate_tail("abcdefghij", 3) == "...hij"
+
+def test_text_exactly_at_the_limit_is_unchanged():
+    assert truncate_tail("abc", 3) == "abc"
+
+def test_error_at_the_end_survives():
+    output = "line 1\nline 2\nline 3\nValueError: boom"
+    assert truncate_tail(output, 16).endswith("ValueError: boom")
+
+
+# --- 迷你 pytest ---
+def run_tests():
+    names = [name for name in globals() if name.startswith("test_")]
+    failed = 0
+    for name in names:
+        try:
+            globals()[name]()
+            print(f"\033[92mPASSED\033[0m {name}")
+        except AssertionError as e:
+            failed += 1
+            print(f"\033[91mFAILED\033[0m {name}: {e}")
+    print(f"{len(names) - failed} passed, {failed} failed")
+
+run_tests()
+      </script>
+    </div>
+    <details class="hint"><summary>提示</summary><p>用长文字写一个准确的预期，比如 <code>assert truncate_tail("abcdefghij", 3) == "...hij"</code>。</p></details>
+  </section>
+
+  <section class="challenge" id="ch-14-fake-brain">
+    <div class="challenge-head"><span class="badge">挑战</span><h3>造一个碰撞测试假人</h3></div>
+    <p>写完 <code>FakeBrain.chat</code>（<code>calls</code> 加 1，返回 <code>replies.pop(0)</code>），再给测试加断言：答案是 <code>"x = 100/3"</code>，大脑被问了 2 次。</p>
+    <div class="cell">
+      <script type="text/x-python">
+# --- 被测试的循环（不要改它）---
+def run_turn(brain, user_text):
+    """用户说一次话：一直问大脑，直到它不再要求调用工具。"""
+    messages = [user_text]
+    while True:
+        reply = brain.chat(messages)
+        if reply.startswith("TOOL:"):
+            messages.append("result of " + reply[5:])   # 假装我们运行了工具
+            continue
+        return reply
+
+
+# --- 你的假大脑 ---
+class FakeBrain:
+    def __init__(self, replies):
+        self.replies = list(replies)
+        self.calls = 0
+
+    def chat(self, messages):
+        return ""   # 记下这次调用，再返回下一条写好的回复
+
+
+# --- 你的测试 ---
+def test_tool_request_makes_the_loop_ask_again():
+    brain = FakeBrain(["TOOL:read_file", "x = 100/3"])
+    answer = run_turn(brain, "solve input/math.txt")
+    # 对 answer 和 brain.calls 各写一个断言
+
+
+test_tool_request_makes_the_loop_ask_again()
+print("测试跑完了，没有失败")
+      </script>
+      <script type="text/x-python" class="check">
+_b = FakeBrain(["hello", "bye"])
+_r1 = _b.chat(["hi"])
+assert _r1 == "hello", f'FakeBrain(["hello", "bye"]).chat(...) 第一次应该返回 "hello"，实际是 {_r1!r}。'
+_r2 = _b.chat(["hi"])
+assert _r2 == "bye", f'第二次调用应该返回 "bye"，实际是 {_r2!r}。用 self.replies.pop(0)。'
+assert _b.calls == 2, f"调用两次 chat 之后，self.calls 应该是 2，实际是 {_b.calls}。"
+assert "test_tool_request_makes_the_loop_ask_again" in globals(), "保留那个名叫 test_tool_request_makes_the_loop_ask_again 的测试函数。"
+try:
+    test_tool_request_makes_the_loop_ask_again()
+except AssertionError as e:
+    assert False, f"你的测试在正确的循环上失败了，说明它的预期写错了。{e}"
+
+_real_run_turn = run_turn
+
+
+def _lazy_run_turn(brain, user_text):
+    return brain.chat([user_text])   # 坏掉的循环：从来不问大脑第二次
+
+
+globals()["run_turn"] = _lazy_run_turn
+try:
+    try:
+        test_tool_request_makes_the_loop_ask_again()
+        _caught = False
+    except Exception:
+        _caught = True
+finally:
+    globals()["run_turn"] = _real_run_turn
+assert _caught, '换成一个从来不问第二次的坏循环，你的测试居然还是通过了。要断言 answer == "x = 100/3" 并且 brain.calls == 2。'
+      </script>
+      <script type="text/x-python" class="solution">
+# --- 被测试的循环（不要改它）---
+def run_turn(brain, user_text):
+    """用户说一次话：一直问大脑，直到它不再要求调用工具。"""
+    messages = [user_text]
+    while True:
+        reply = brain.chat(messages)
+        if reply.startswith("TOOL:"):
+            messages.append("result of " + reply[5:])   # 假装我们运行了工具
+            continue
+        return reply
+
+
+# --- 你的假大脑 ---
+class FakeBrain:
+    def __init__(self, replies):
+        self.replies = list(replies)
+        self.calls = 0
+
+    def chat(self, messages):
+        self.calls += 1
+        return self.replies.pop(0)
+
+
+# --- 你的测试 ---
+def test_tool_request_makes_the_loop_ask_again():
+    brain = FakeBrain(["TOOL:read_file", "x = 100/3"])
+    answer = run_turn(brain, "solve input/math.txt")
+    assert answer == "x = 100/3", f"最终答案不对：{answer!r}"
+    assert brain.calls == 2, f"应该问大脑两次，实际问了 {brain.calls} 次"
+
+
+test_tool_request_makes_the_loop_ask_again()
+print("测试跑完了，没有失败")
+      </script>
+    </div>
+    <details class="hint"><summary>提示</summary><p>测试里写 <code>assert answer == "x = 100/3"</code> 和 <code>assert brain.calls == 2</code>。</p></details>
+  </section>
+</section>
+
+<section class="keywords">
+  <h2>小结</h2>
+  <ul class="recap">
+    <li><code>assert</code> 写下必须成立的事；pytest 运行所有 <code>test_</code> 函数。</li>
+    <li>每个测试都是：准备、执行、检查。</li>
+    <li>假对象让测试免费、快速、每次结果一样。</li>
+    <li>先看测试失败，再让它通过；和准确的值比较。</li>
+  </ul>
+  <h3>关键词</h3>
+  <dl>
+    <div><dt>测试 <span class="en">test</span></dt><dd>自动检查代码的代码。</dd></div>
+    <div><dt>断言 <span class="en">assert</span></dt><dd>「必须成立」，否则报错。</dd></div>
+    <div><dt>pytest</dt><dd>运行所有 <code>test_</code> 函数的工具。</dd></div>
+    <div><dt>假对象 <span class="en">fake</span></dt><dd>方法一样、行为可预测的替身。</dd></div>
+    <div><dt>红、绿、重构 <span class="en">red, green, refactor</span></dt><dd>先失败，再通过，再整理。</dd></div>
+    <div><dt>持续集成 <span class="en">CI</span></dt><dd>每次推送都自动跑测试。</dd></div>
+  </dl>
+
+  <h3>拆完了，接下来做什么</h3>
+  <ol>
+    <li>在项目文件夹运行 <code>uv run pytest</code>，读读 <code>tests/test_tools.py</code> 里的测试名。</li>
+    <li>运行 <code>git log</code>：每次改动只加一样东西，还写了为什么。</li>
+    <li>先写测试，给机器人加一个新工具，比如 <code>count_lines</code>。</li>
+    <li>请老师陪你运行真机器人 <code>uv run src/agent.py</code>，现在每行输出你都懂了。</li>
+  </ol>
+  <pre class="code"><span class="tok-com"># 在终端里，进入项目文件夹</span>
+uv run pytest                            <span class="tok-com"># 所有快速测试：免费，大约 2 秒</span>
+git log --oneline                        <span class="tok-com"># 机器人的历史，每次改动一行</span>
+git checkout 7b7ffd1                     <span class="tok-com"># 回到最简单的那个版本……</span>
+git checkout main                        <span class="tok-com"># ……再回来</span></pre>
+
+  <details class="more">
+    <summary>多了解一点：每课的概念在机器人哪里</summary>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>课</th><th>机器人在哪里用到它</th></tr></thead>
+        <tbody>
+          <tr><td>00 认识机器人</td><td>每个文件开头的那段说明</td></tr>
+          <tr><td>01 变量</td><td><code>MAX_TOOL_ROUNDS = 20</code> 这样起了名字的上限</td></tr>
+          <tr><td>02 字符串与颜色</td><td>终端颜色，<code>.strip().lower()</code> 清理回答</td></tr>
+          <tr><td>03 做判断</td><td><kbd>Y</kbd>/<kbd>n</kbd>/<kbd>a</kbd> 三种回答，<code>edit_file</code> 的安全检查</td></tr>
+          <tr><td>04 while 循环</td><td>聊天循环和 <code>need_user_input</code> 开关</td></tr>
+          <tr><td>05 列表</td><td>对话记录、<code>ALL_TOOLS</code></td></tr>
+          <tr><td>06 字典、元组与集合</td><td><code>{"role": "user", ...}</code> 消息，按名字找工具</td></tr>
+          <tr><td>07 for 循环</td><td><code>list_files</code> 走遍文件夹</td></tr>
+          <tr><td>08 函数</td><td>每个工具的 <code>run</code>、<code>slash_command</code></td></tr>
+          <tr><td>09 错误与异常</td><td><code>ToolError</code>：失败交回给 AI</td></tr>
+          <tr><td>10 文件与外部世界</td><td><code>read_file</code>、<code>run_bash</code>、记忆笔记</td></tr>
+          <tr><td>11 模块与包</td><td>七个互相导入的文件，<code>openai</code> 和 <code>rich</code></td></tr>
+          <tr><td>12 类与对象</td><td><code>Tool</code>、<code>ConsoleApprover</code>、可替换的 <code>Provider</code></td></tr>
+          <tr><td>13 大循环</td><td><code>Agent.run</code></td></tr>
+          <tr><td>14 测试</td><td>206 个测试、<code>FakeProvider</code>、CI</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </details>
+</section>
+
+</main>
+</div>
+</body>
+</html>

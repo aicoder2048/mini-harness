@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>列表 · 拆机学 Python 05</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap">
+<link rel="stylesheet" href="../assets/course.css">
+<script src="../assets/course.js"></script>
+</head>
+<body data-lesson="05" data-root="../">
+<div class="page">
+
+<header class="hero">
+  <p class="eyebrow">第 05 课 · 第 2 单元 · 记忆</p>
+  <h1>列表</h1>
+  <p class="lede">AI 一答完就全忘了。机器人替它记着，记在一个叫 <code>conversation</code> 的列表里。</p>
+  <div class="bench" aria-label="今天放在工作台上的零件">
+    <span class="prompt">$</span> <span>teardown</span> <span class="path">src/agent.py</span> <span>--lines 251-253</span> <span class="cursor" aria-hidden="true"></span>
+  </div>
+  <dl class="hero-meta">
+    <div><dt>工作台上的零件</dt><dd><code>conversation</code> · <code>tools_for_step</code></dd></div>
+    <div><dt>时长</dt><dd>约 30 分钟</dd></div>
+    <div><dt>你会学到</dt><dd>列表 · 索引 · 切片 · <code>append</code></dd></div>
+  </dl>
+</header>
+
+<main class="lesson">
+
+<section>
+  <h2>一排储物柜</h2>
+  <p><strong>列表</strong>在一个名字下按顺序放很多值，写在方括号里。每个位置有编号，叫<strong>索引</strong>，从 <strong>0</strong> 开始；<code>-1</code> 是最后一个。</p>
+  <div class="cell">
+    <script type="text/x-python">
+tools = ["read_file", "list_files", "edit_file", "run_bash"]
+print(len(tools))    # 有几个元素：4
+print(tools[0])      # 第一个
+print(tools[-1])     # 最后一个
+    </script>
+  </div>
+  <div class="quiz" id="q-05-index" data-answer="b">
+    <p class="q">还是这个 <code>tools</code>，<code>tools[2]</code> 是什么？</p>
+    <ol class="options">
+      <li data-why="那是 tools[1]。从 0 数起：0 是 read_file，1 是 list_files。">"list_files"</li>
+      <li>"edit_file"</li>
+      <li data-why="那是 tools[3]，第四个。">"run_bash"</li>
+      <li data-why="索引 0 到 3 都存在。">IndexError</li>
+    </ol>
+    <div class="explain"><p>索引表示「离开头几步」，第一个离开头 0 步。4 个元素的列表，索引是 0 到 3。</p></div>
+  </div>
+  <p class="takeaway">索引从 0 开始，<code>[-1]</code> 是最后一个。</p>
+</section>
+
+<section>
+  <h2>记忆就是列表</h2>
+  <p>聊天循环每转一圈，就往 <code>conversation</code> 里 <code>append</code> 两条消息：</p>
+  <figure class="excerpt" data-file="src/step1_chat.py" data-start="36" data-highlight="36,38,41">
+<script type="text/x-python">
+        conversation.append({"role": "user", "content": user_input})
+        response = client.chat.completions.create(
+            model=MODEL, max_tokens=1024, messages=conversation, reasoning_effort="low"
+        )
+        message = response.choices[0].message
+        conversation.append({"role": "assistant", "content": message.content})
+    </script>
+    <figcaption>
+      <p>注意第 38 行：发给 DeepSeek 的是<strong>整个列表</strong>，不只是你最新的一句。</p>
+    </figcaption>
+  </figure>
+  <p>AI 是<strong>无状态</strong>的：两次请求之间什么都不记得。所以机器人每次都把全部历史再发一遍，请求越来越大：</p>
+  <div class="cell">
+    <script type="text/x-python">
+conversation = []
+total_sent = 0
+turn = 1
+while turn <= 5:
+    conversation.append(f"user: 第 {turn} 个问题")
+    total_sent += len(conversation)          # 每次都发「整个」列表
+    conversation.append(f"assistant: 第 {turn} 个回答")
+    turn += 1
+
+print("记忆里的消息数：", len(conversation))
+print("5 轮一共发出的消息数：", total_sent)
+    </script>
+  </div>
+  <div class="quiz" id="q-05-stateless" data-answer="b">
+    <p class="q">为什么每次发给 AI 的请求都会变大？</p>
+    <ol class="options">
+      <li data-why="回答可长可短。变大是因为旧消息被重新发送。">AI 的回答越来越长</li>
+      <li>每次都发整个 <code>conversation</code>，而它一直在变长</li>
+      <li data-why="每个 token 价格一样，只是 token 更多了。">后面的消息更贵</li>
+      <li data-why="说的是通过网络发出去的内容，和 Python 无关。">Python 列表会越用越重</li>
+    </ol>
+    <div class="explain"><p>记忆里只有 10 条，却一共发了 25 条。每多一轮，每次请求就更大一点。</p></div>
+  </div>
+  <p class="takeaway">AI 不记事，机器人的记忆就是一个越来越长的列表。</p>
+</section>
+
+<section>
+  <h2>切片取一段</h2>
+  <p><strong>切片</strong> <code>x[start:stop]</code> 取出一段：从 <code>start</code> 开始，到 <code>stop</code> <em>之前</em>停下。省略 <code>start</code> 就从头开始。</p>
+  <div class="cell">
+    <script type="text/x-python">
+tools = ["read_file", "list_files", "edit_file", "run_bash"]
+print(tools[:2])     # 前 2 个
+print(tools[2:])     # 从索引 2 到末尾
+print(tools[-2:])    # 最后 2 个
+    </script>
+  </div>
+  <figure class="excerpt" data-file="src/agent.py" data-start="251" data-highlight="253">
+<script type="text/x-python">
+def tools_for_step(step: int) -> list[Tool]:
+    """2=read_file, 3=+list_files, 4=+edit_file, 5=+run_bash"""
+    return ALL_TOOLS[: step - 1]
+    </script>
+    <figcaption><p>机器人用一个切片决定第几步给几个工具：第 2 步 1 个，第 3 步 2 个……（<code>def</code> 是第 08 课的内容。）</p></figcaption>
+  </figure>
+  <div class="quiz" id="q-05-step" data-answer="c">
+    <p class="q">用 <code>--step 3</code> 启动机器人，让它改文件里的错别字，会怎样？</p>
+    <ol class="options">
+      <li data-why="第 3 步是 ALL_TOOLS[:2]，edit_file 的索引是 2，不在里面。">它把文件改好了</li>
+      <li data-why="list_files 的索引是 1，第 3 步包含它。">它连文件夹都看不了</li>
+      <li>能读、能列文件，但没有改文件的工具</li>
+      <li data-why="run_bash 到第 5 步才加入。">它用 shell 命令去改</li>
+    </ol>
+    <div class="explain"><p><code>ALL_TOOLS[:2]</code> 只有前两个工具。同一个 AI，手不一样，能做的事就不一样。</p></div>
+  </div>
+  <p class="takeaway"><code>x[:n]</code> 是前 n 个，<code>x[-n:]</code> 是最后 n 个。</p>
+</section>
+
+<section>
+  <h2>修改列表</h2>
+  <p>列表创建后还能改：<code>append</code> 加一个，<code>extend</code> 把另一个列表的元素逐个加进来。AI 一次要两个工具时，机器人用 <code>extend</code> 把两个结果都加进记忆：</p>
+  <figure class="excerpt" data-file="src/agent.py" data-start="241">
+<script type="text/x-python">
+            conversation.extend(self.provider.tool_results(results))
+            tool_rounds += 1
+    </script>
+    <figcaption><p>要是用 <code>append</code>，整个结果列表会变成<strong>一个</strong>元素，列表套列表，DeepSeek 会直接拒绝。</p></figcaption>
+  </figure>
+  <div class="cell">
+    <script type="text/x-python">
+results = ["tool: a.txt 里写着 hi", "tool: b.txt 里写着 bye"]
+
+good = ["user: 读一下两个文件"]
+good.extend(results)          # 加进 2 个元素
+print(len(good), good)
+
+bad = ["user: 读一下两个文件"]
+bad.append(results)           # 只加进 1 个元素：整个列表
+print(len(bad), bad)
+    </script>
+  </div>
+  <aside class="callout principle">
+    <p class="callout-label">编程原则</p>
+    <h4>保留历史，不改写历史</h4>
+    <p>机器人从不删 <code>conversation</code> 里的消息。旧结果太大时，只把内容换成一句简短说明。</p>
+  </aside>
+  <details class="more">
+    <summary>多了解一点：两个名字，一个列表</summary>
+    <p><code>b = a</code> 不会复制列表，只是多贴一个名字。想要独立的副本，用 <code>list(a)</code>。机器人的测试里保存对话快照时，用的就是 <code>list(conversation)</code>。</p>
+    <div class="cell">
+      <script type="text/x-python">
+conversation = ["user: 你好"]
+snapshot = conversation            # 不是副本：同一个列表
+real_copy = list(conversation)     # 真正的副本
+conversation.append("assistant: 你好！")
+print("snapshot：", snapshot)       # 也变了！
+print("real_copy：", real_copy)     # 没变
+      </script>
+    </div>
+  </details>
+  <p class="takeaway"><code>append</code> 加一个，<code>extend</code> 加一批。</p>
+</section>
+
+<section>
+  <h2>动手挑战</h2>
+  <section class="challenge" id="ch-05-memory">
+    <div class="challenge-head"><span class="badge">挑战</span><h3>给机器人装满记忆</h3></div>
+    <p>用 <code>append</code> 组出 4 条消息：第 1、3 条以 <code>user:</code> 开头，第 2、4 条以 <code>assistant:</code> 开头。再打印条数和最后一条。</p>
+    <div class="cell">
+      <script type="text/x-python">
+conversation = []
+# 1. 依次 append 4 条消息：user、assistant、user、assistant
+#    （每条都是像 "user: 你好" 这样的字符串）
+
+# 2. 打印消息的条数
+
+# 3. 打印最后一条消息
+      </script>
+      <script type="text/x-python" class="check">
+g = globals()
+conv = g.get("conversation")
+assert isinstance(conv, list), "要保留一个叫 conversation 的列表。"
+assert len(conv) == 4, f"对话里应该有 4 条消息，现在有 {len(conv)} 条。"
+assert all(isinstance(m, str) for m in conv), "每条消息都应该是字符串，比如 \"user: 你好\"。"
+assert conv[0].startswith("user:") and conv[2].startswith("user:"), "第 1 条和第 3 条消息应该以「user:」开头。"
+assert conv[1].startswith("assistant:") and conv[3].startswith("assistant:"), "第 2 条和第 4 条消息应该以「assistant:」开头。"
+assert __source__.count(".append(") >= 4, "每条消息都用 conversation.append(...) 加进去。"
+assert "4" in __output__, "用 len(conversation) 打印消息的条数。"
+assert conv[-1] in __output__, "用 conversation[-1] 打印最后一条消息。"
+      </script>
+      <script type="text/x-python" class="solution">
+conversation = []
+conversation.append("user: math.txt 里写了什么？")
+conversation.append("assistant: 里面写着 3x - 8 = 92")
+conversation.append("user: 把它解出来")
+conversation.append("assistant: x = 100/3，约等于 33.33")
+
+print("消息条数：", len(conversation))
+print("最后一条：", conversation[-1])
+      </script>
+    </div>
+    <details class="hint"><summary>提示</summary><p>条数用 <code>len(conversation)</code>，最后一条用 <code>conversation[-1]</code>。</p></details>
+  </section>
+
+  <section class="challenge" id="ch-05-steps">
+    <div class="challenge-head"><span class="badge">挑战</span><h3>重做 <code>tools_for_step</code></h3></div>
+    <p>只改 <code>tools = ...</code> 这一行，用一个切片：第 2 步只有 <code>read_file</code>，第 3 步有前两个……第 5 步是全部四个。</p>
+    <div class="cell" data-inputs="3">
+      <script type="text/x-python">
+ALL_TOOLS = ["read_file", "list_files", "edit_file", "run_bash"]
+step = int(input("组装到第几步（2-5）？"))
+
+tools = ALL_TOOLS     # 改这一行
+
+print(f"第 {step} 步的工具：", tools)
+      </script>
+      <script type="text/x-python" class="check">
+import io, contextlib
+
+def run_with(answer):
+    g = {"__name__": "__main__", "input": lambda prompt="": answer}
+    with contextlib.redirect_stdout(io.StringIO()):
+        exec(__source__, g)
+    return g
+
+expected = {
+    "2": ["read_file"],
+    "3": ["read_file", "list_files"],
+    "4": ["read_file", "list_files", "edit_file"],
+    "5": ["read_file", "list_files", "edit_file", "run_bash"],
+}
+for step, want in expected.items():
+    got = run_with(step).get("tools")
+    assert got == want, f"第 {step} 步时，tools 应该是 {want}，可现在是 {got}。"
+      </script>
+      <script type="text/x-python" class="solution">
+ALL_TOOLS = ["read_file", "list_files", "edit_file", "run_bash"]
+step = int(input("组装到第几步（2-5）？"))
+
+tools = ALL_TOOLS[: step - 1]
+
+print(f"第 {step} 步的工具：", tools)
+      </script>
+    </div>
+    <details class="hint"><summary>提示</summary><p>第 n 步要 <code>step - 1</code> 个工具，「前 k 个」就是 <code>ALL_TOOLS[:k]</code>。</p></details>
+  </section>
+</section>
+
+<section class="keywords">
+  <h2>小结</h2>
+  <ul class="recap">
+    <li>列表按顺序存很多值，<code>len()</code> 数个数。</li>
+    <li>索引从 0 开始；切片 <code>[start:stop]</code> 在 stop 之前停。</li>
+    <li><code>append</code> 加一个，<code>extend</code> 加一批。</li>
+    <li>AI 不记事，机器人每次都发送整个 <code>conversation</code>。</li>
+  </ul>
+  <h3>关键词</h3>
+  <dl>
+    <div><dt>列表 <span class="en">list</span></dt><dd>方括号里有顺序的一组值。</dd></div>
+    <div><dt>索引 <span class="en">index</span></dt><dd>元素的位置，从 0 开始。</dd></div>
+    <div><dt>切片 <span class="en">slice</span></dt><dd>取出一段：<code>x[start:stop]</code>。</dd></div>
+    <div><dt>追加 <span class="en">append</span></dt><dd>在末尾加一个元素。</dd></div>
+    <div><dt>无状态 <span class="en">stateless</span></dt><dd>两次请求之间什么都不记。</dd></div>
+    <div><dt>副本 <span class="en">copy</span></dt><dd>独立的新列表：<code>list(a)</code>。</dd></div>
+  </dl>
+</section>
+
+</main>
+</div>
+</body>
+</html>

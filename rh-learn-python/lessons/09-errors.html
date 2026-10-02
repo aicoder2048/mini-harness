@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>错误与异常 · 拆机学 Python 09</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap">
+<link rel="stylesheet" href="../assets/course.css">
+<script src="../assets/course.js"></script>
+</head>
+<body data-lesson="09" data-root="../">
+<div class="page">
+
+<header class="hero">
+  <p class="eyebrow">第 09 课 · 第 3 单元 · 工具</p>
+  <h1>错误与异常</h1>
+  <p class="lede">AI 会要不存在的文件、会漏传参数。好机器人不崩溃，而是把失败变成一条消息。</p>
+  <div class="bench" aria-label="今天工作台上的零件">
+    <span class="prompt">$</span> <span>teardown</span> <span class="path">src/agent.py</span> <span>--lines 144-161</span> <span class="cursor" aria-hidden="true"></span>
+  </div>
+  <dl class="hero-meta">
+    <div><dt>工作台上的零件</dt><dd><code>agent.py</code> 的 <code>_execute</code></dd></div>
+    <div><dt>时长</dt><dd>约 35 分钟</dd></div>
+    <div><dt>你会学到</dt><dd>读报错 · <code>try</code> / <code>except</code> · <code>raise</code> · <code>ToolError</code></dd></div>
+  </dl>
+</header>
+
+<main class="lesson">
+
+<section>
+  <h2>读懂报错</h2>
+  <p>报错不是灾难，是 Python 在准确地告诉你哪里出了问题。运行这段带拼写错误的代码：</p>
+  <div class="cell" data-expect-error="NameError">
+    <script type="text/x-python">
+robot_name = "小闪"
+print("正在启动……")
+print("你好，我是", robot_nme)
+print("这一行永远不会运行")
+    </script>
+  </div>
+  <p>红框标题告诉你三件事：<strong>第几行</strong>（第 3 行）、<strong>错误类型</strong>（<code>NameError</code>）、<strong>具体消息</strong>（这个名字没定义）。程序到第 3 行就停了，第 4 行没运行。</p>
+  <p>点开「查看完整的 traceback」：它是一串调用记录，<strong>从最下面读起</strong>，最后一条就是出错的地方。</p>
+  <div class="quiz" id="q-09-traceback" data-answer="c">
+    <p class="q">一个 traceback 里有四条 <code>File ... line ...</code>。真正抛出错误的是哪一行？</p>
+    <ol class="options">
+      <li data-why="第一条是调用链开始的地方，通常是主程序。">最上面的第一条</li>
+      <li data-why="每一条都是调用链里真实的一步，所以出错的地方总是能找到。">traceback 不会告诉你</li>
+      <li>最后一条，就在错误消息的正上方</li>
+      <li data-why="这些条目是按调用顺序排的，不是按行号大小排的。">行号最大的那一条</li>
+    </ol>
+    <div class="explain"><p>Python 打印时「最近的调用排在最后」（most recent call last）。最下面那条就是出错的地方，紧接着是错误类型和消息。</p></div>
+  </div>
+  <details class="more">
+    <summary>多了解一点：常见的错误类型</summary>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>错误类型</th><th>例子</th><th>意思</th></tr></thead>
+        <tbody>
+          <tr><td><code>NameError</code></td><td><code>robot_nme</code></td><td>没有这个名字</td></tr>
+          <tr><td><code>TypeError</code></td><td><code>"零件数：" + 7</code></td><td>类型不对</td></tr>
+          <tr><td><code>ValueError</code></td><td><code>int("twenty")</code></td><td>类型对，值不对</td></tr>
+          <tr><td><code>KeyError</code></td><td><code>message["content"]</code></td><td>字典里没有这个键</td></tr>
+          <tr><td><code>IndexError</code></td><td>2 个元素的列表取 <code>[2]</code></td><td>没有这个位置</td></tr>
+          <tr><td><code>ZeroDivisionError</code></td><td><code>20 / 0</code></td><td>除以 0</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </details>
+  <p class="takeaway">报错 = 行号 + 错误类型 + 消息；traceback 从下往上读。</p>
+</section>
+
+<section>
+  <h2>捕获错误</h2>
+  <p>预料得到的错误可以<strong>捕获</strong>：把可能出错的代码放进 <code>try</code>，出了指定的错就跳到 <code>except</code>，程序接着往下走。运行后把输入改成 <code>12</code> 再试一次。</p>
+  <div class="cell" data-inputs="十二">
+    <script type="text/x-python">
+text = input("要几轮工具调用？")
+try:
+    rounds = int(text)
+    print("收到：", rounds)
+except ValueError:
+    print(f"「{text}」不是整数。")
+print("程序继续往下运行。")
+    </script>
+  </div>
+  <figure class="excerpt" data-file="src/step1_chat.py" data-start="29">
+    <script type="text/x-python">
+        try:
+            user_input = input("\033[94mYou\033[0m: ")
+        except EOFError:
+            break
+    </script>
+    <figcaption>
+      <p>聊天循环就是这样处理 <kbd>Ctrl</kbd>+<kbd>D</kbd> 的：没有输入可读时 <code>input()</code> 抛出 <code>EOFError</code>，捕获后 <code>break</code> 退出。</p>
+    </figcaption>
+  </figure>
+  <p class="takeaway"><code>try</code> 包住可能出错的那几行，<code>except</code> 写明要接住的类型。</p>
+</section>
+
+<section>
+  <h2>自己抛错</h2>
+  <p>用 <code>raise</code> 可以自己抛出异常，还能造一个新的错误类型。机器人有自己的 <code>ToolError</code>：</p>
+  <figure class="excerpt" data-file="src/tools.py" data-start="33">
+    <script type="text/x-python">
+class ToolError(Exception):
+    """工具执行失败。会被包成 is_error 的结果回灌给模型，让它自己纠错。"""
+    </script>
+    <figcaption>
+      <p>两行就造出一个新的错误类型（类是第 12 课的内容，先当固定写法用）。文档字符串说了用途：失败要回灌给模型。</p>
+    </figcaption>
+  </figure>
+  <div class="cell">
+    <script type="text/x-python">
+class ToolError(Exception):    # 专门给工具用的错误类型
+    pass
+
+def read_note(name):
+    notes = {"math.txt": "3x - 8 = 92"}
+    if name not in notes:
+        raise ToolError(f"no such file: {name}")
+    return notes[name]
+
+for name in ["math.txt", "secret.txt"]:
+    try:
+        print("结果：", read_note(name))
+    except ToolError as e:
+        print("交给 AI 的错误结果：", e)
+    </script>
+  </div>
+  <p class="takeaway"><code>raise</code> 抛出错误；自己的错误类型让你只接住想接的那种。</p>
+</section>
+
+<section>
+  <h2>失败变消息</h2>
+  <p>这是今天的核心。AI 每要用一次工具，主循环都会调用 <code>_execute</code>：</p>
+  <figure class="excerpt" data-file="src/agent.py" data-start="144" data-highlight="148,156-161">
+    <script type="text/x-python">
+    def _execute(self, call: ToolCall) -> ToolResult:
+        """执行一次工具调用。失败也返回结果，交给模型自己纠错。"""
+        print(f"\033[92mtool\033[0m: {call.name}({json.dumps(call.input, ensure_ascii=False)})")
+        tool = self.tools.get(call.name)
+        try:
+            if tool is None:
+                raise ToolError(f"unknown tool: {call.name}")
+            if call.input_error:
+                raise ToolError(call.input_error)
+            if tool.needs_approval and not self.approve(call):
+                raise ToolError("the user denied this tool call")
+            return ToolResult(call.id, tool.run(call.input))
+        except ToolError as e:
+            error = str(e)
+        except KeyError as e:  # 模型漏传了必填参数
+            error = f"missing argument: {e}"
+        print(f"\033[91m      → error\033[0m: {error}")
+        return ToolResult(call.id, error, is_error=True)
+    </script>
+    <figcaption>
+      <p>第 149–154 行把三种问题（没这个工具、参数坏了、你拒绝了）都变成 <code>ToolError</code>；第 156–161 行把它们和漏参数的 <code>KeyError</code> 接住，当作「结果」交回 AI。程序从不崩。</p>
+    </figcaption>
+  </figure>
+  <div class="quiz" id="q-09-design" data-answer="b">
+    <p class="q">AI 要用一个叫 <code>rm_rf</code> 的工具，可是根本没有这个工具。机器人会怎么做？</p>
+    <ol class="options">
+      <li data-why="那样的话，AI 犯一个错，你整个会话就结束了。">崩溃，打印 traceback</li>
+      <li>把「Error: unknown tool: rm_rf」作为工具结果发回去，让 AI 换个办法</li>
+      <li data-why="每个 tool_call 都必须恰好得到一条回复，不然下一次 API 请求会被拒绝。">跳过这次调用，什么都不发回去</li>
+      <li data-why="机器人自己就能处理，你什么都不用做。">让你重启程序</li>
+    </ol>
+    <div class="explain"><p><code>_execute</code> 抛出 <code>ToolError("unknown tool: rm_rf")</code>，几行后又自己接住，当作错误结果返回。AI 读到后会换个做法。</p></div>
+  </div>
+  <details class="more">
+    <summary>多了解一点：有些错误就该崩溃</summary>
+    <p>AI 犯的错要接住，让 AI 自己改。程序员犯的错（比如设置写坏了）要立刻停下、说清楚，这叫<strong>快速失败</strong>。</p>
+    <figure class="excerpt" data-file="src/agent.py" data-start="121">
+      <script type="text/x-python">
+        if max_tool_rounds < 1:
+            raise ValueError(f"max_tool_rounds must be >= 1, got {max_tool_rounds}")
+      </script>
+      <figcaption>
+        <p>轮数上限小于 1，机器人干脆拒绝启动，消息里写明拿到的值。</p>
+      </figcaption>
+    </figure>
+  </details>
+  <p class="takeaway">工具失败不崩溃：变成一条消息交给 AI，让它自己纠正。</p>
+</section>
+
+<section>
+  <h2>别吞掉错误</h2>
+  <p>不写错误类型的 <code>except:</code> 加上 <code>pass</code>，会把所有错误都藏起来，连你自己的拼写错误也一起。看看总价：</p>
+  <div class="cell">
+    <script type="text/x-python">
+prices = ["3", "4", "five", "6"]
+total = 0
+for price in prices:
+    try:
+        total = total + int(prise)    # 糟糕：拼错了
+    except:
+        pass                           # 「不管出什么错都无视」
+print("总价：", total)
+    </script>
+  </div>
+  <p>总价是 0，却一个报错都没有。把 <code>except:</code> 换成 <code>except ValueError:</code>，拼写错误就会大声报出来。</p>
+  <aside class="callout principle">
+    <p class="callout-label">编程原则</p>
+    <h4>永远别悄悄吞掉错误</h4>
+    <p>只接住你预料到的错误类型；接住之后，要让人看得见：告诉用户、告诉 AI，或者记下来。</p>
+  </aside>
+  <p class="takeaway"><code>except</code> 后面写明类型，别写光秃秃的 <code>except: pass</code>。</p>
+</section>
+
+<section>
+  <h2>动手挑战</h2>
+  <section class="challenge" id="ch-09-execute">
+    <div class="challenge-head"><span class="badge">挑战</span><h3>你自己的 <code>_execute</code></h3></div>
+    <p>写一个<strong>永远不会</strong>崩溃的 <code>execute(name, args)</code>，返回一对值（消息保持英文，它们是给 AI 看的）：</p>
+    <ul>
+      <li>正常：<code>("ok", 结果)</code></li>
+      <li>没有这个工具：<code>("error", "unknown tool: 名字")</code></li>
+      <li>工具抛出 <code>ToolError</code>：<code>("error", 消息)</code></li>
+      <li>工具抛出 <code>KeyError</code>：<code>("error", f"missing argument: {e}")</code></li>
+    </ul>
+    <div class="cell">
+      <script type="text/x-python">
+class ToolError(Exception):
+    pass
+
+def read_note(args):
+    notes = {"todo.txt": "买牛奶", "math.txt": "3x - 8 = 92"}
+    name = args["path"]                      # 缺了 "path" 就会 KeyError
+    if name not in notes:
+        raise ToolError(f"no such file: {name}")
+    return notes[name]
+
+TOOLS = {"read_note": read_note}
+
+def execute(name, args):
+    # 把这个函数改安全：它绝对不能崩溃。
+    return ("ok", TOOLS[name](args))
+
+print(execute("read_note", {"path": "math.txt"}))
+print(execute("read_note", {"path": "nope.txt"}))
+print(execute("rm_rf", {}))
+print(execute("read_note", {}))
+      </script>
+      <script type="text/x-python" class="check">
+assert execute("read_note", {"path": "math.txt"}) == ("ok", "3x - 8 = 92"), "正常的调用应该返回 ('ok', '3x - 8 = 92')。"
+assert execute("read_note", {"path": "nope.txt"}) == ("error", "no such file: nope.txt"), "ToolError 应该变成 ('error', 'no such file: nope.txt')。"
+assert execute("rm_rf", {}) == ("error", "unknown tool: rm_rf"), "不存在的工具应该变成 ('error', 'unknown tool: rm_rf')。"
+assert execute("read_note", {}) == ("error", "missing argument: 'path'"), "漏传参数（KeyError）应该变成 ('error', \"missing argument: 'path'\")。"
+assert execute("read_note", {"path": "todo.txt"}) == ("ok", "买牛奶"), "读 todo.txt 应该得到 ('ok', '买牛奶')。"
+      </script>
+      <script type="text/x-python" class="solution">
+class ToolError(Exception):
+    pass
+
+def read_note(args):
+    notes = {"todo.txt": "买牛奶", "math.txt": "3x - 8 = 92"}
+    name = args["path"]                      # 缺了 "path" 就会 KeyError
+    if name not in notes:
+        raise ToolError(f"no such file: {name}")
+    return notes[name]
+
+TOOLS = {"read_note": read_note}
+
+def execute(name, args):
+    tool = TOOLS.get(name)
+    try:
+        if tool is None:
+            raise ToolError(f"unknown tool: {name}")
+        return ("ok", tool(args))
+    except ToolError as e:
+        return ("error", str(e))
+    except KeyError as e:
+        return ("error", f"missing argument: {e}")
+
+print(execute("read_note", {"path": "math.txt"}))
+print(execute("read_note", {"path": "nope.txt"}))
+print(execute("rm_rf", {}))
+print(execute("read_note", {}))
+      </script>
+    </div>
+    <details class="hint"><summary>提示</summary><p>照着 <code>_execute</code>：先 <code>TOOLS.get(name)</code>，在一个 <code>try</code> 里处理 <code>None</code> 和调用，再写 <code>except ToolError</code> 和 <code>except KeyError</code>。</p></details>
+  </section>
+
+  <section class="challenge" id="ch-09-edit">
+    <div class="challenge-head"><span class="badge">挑战</span><h3>一个小心谨慎的文本编辑器</h3></div>
+    <p>写 <code>edit_text(content, old, new)</code>，迷你版 <code>edit_file</code>。先检查坏情况并抛出 <code>ToolError</code>，都没问题才返回替换后的文本：</p>
+    <ul>
+      <li><code>old == new</code>：<code>"old_str and new_str must differ"</code></li>
+      <li>找不到 <code>old</code>：<code>"old_str not found"</code></li>
+      <li>出现不止一次：<code>"old_str matched 2 times; make it unique"</code>（用真实次数）</li>
+    </ul>
+    <div class="cell">
+      <script type="text/x-python">
+class ToolError(Exception):
+    pass
+
+def edit_text(content, old, new):
+    return content.replace(old, new)
+
+code = "x = 1\ny = 2\n"
+print(edit_text(code, "y = 2", "y = 3"))
+print(edit_text("a = 0\na = 0\n", "a = 0", "a = 5"))   # 这里应该抛出 ToolError！
+      </script>
+      <script type="text/x-python" class="check">
+code = "x = 1\ny = 2\n"
+assert edit_text(code, "y = 2", "y = 3") == "x = 1\ny = 3\n", "把 'y = 2' 换成 'y = 3' 应该得到 'x = 1\\ny = 3\\n'。"
+
+
+def expect_tool_error(content, old, new, words):
+    try:
+        edit_text(content, old, new)
+    except ToolError as e:
+        assert words in str(e), f"edit_text({content!r}, {old!r}, {new!r}) 抛出了 ToolError({str(e)!r})；消息里应该包含 {words!r}。"
+        return
+    raise AssertionError(f"edit_text({content!r}, {old!r}, {new!r}) 应该抛出 ToolError（{words}）。")
+
+
+expect_tool_error(code, "y = 2", "y = 2", "must differ")
+expect_tool_error(code, "z = 9", "z = 1", "not found")
+expect_tool_error("a = 0\na = 0\n", "a = 0", "a = 5", "matched 2 times")
+expect_tool_error("go go go", "go", "stop", "matched 3 times")
+assert edit_text("go home", "home", "school") == "go school", "只出现一次就应该替换：'go home' 应该变成 'go school'。"
+      </script>
+      <script type="text/x-python" class="solution">
+class ToolError(Exception):
+    pass
+
+def edit_text(content, old, new):
+    if old == new:
+        raise ToolError("old_str and new_str must differ")
+    occurrences = content.count(old)
+    if occurrences == 0:
+        raise ToolError("old_str not found")
+    if occurrences > 1:
+        raise ToolError(f"old_str matched {occurrences} times; make it unique")
+    return content.replace(old, new)
+
+code = "x = 1\ny = 2\n"
+print(edit_text(code, "y = 2", "y = 3"))
+try:
+    print(edit_text("a = 0\na = 0\n", "a = 0", "a = 5"))
+except ToolError as e:
+    print("ToolError:", e)
+      </script>
+    </div>
+    <details class="hint"><summary>提示</summary><p>先比较 <code>old == new</code>，再用 <code>content.count(old)</code> 数出现了几次。</p></details>
+  </section>
+</section>
+
+<section class="keywords">
+  <h2>小结</h2>
+  <ul class="recap">
+    <li>报错告诉你行号、类型和消息；traceback 从下往上读。</li>
+    <li><code>try</code> / <code>except</code> 接住预料到的错误；<code>raise</code> 自己抛出。</li>
+    <li>机器人把工具失败变成给 AI 的消息，从不崩溃。</li>
+    <li>别写 <code>except: pass</code>，要让错误被看见。</li>
+  </ul>
+  <h3>关键词</h3>
+  <dl>
+    <div><dt>异常 <span class="en">exception</span></dt><dd>程序运行时出的错。</dd></div>
+    <div><dt>抛出 <span class="en">raise</span></dt><dd>引发一个异常。</dd></div>
+    <div><dt>捕获 <span class="en">try / except</span></dt><dd>接住错误，不让程序崩溃。</dd></div>
+    <div><dt>traceback <span class="en">回溯信息</span></dt><dd>出错时的调用记录。</dd></div>
+    <div><dt>自定义异常 <span class="en">custom exception</span></dt><dd>如 <code>ToolError</code>。</dd></div>
+    <div><dt>快速失败 <span class="en">fail fast</span></dt><dd>发现坏值立刻停下说清楚。</dd></div>
+  </dl>
+</section>
+
+</main>
+</div>
+</body>
+</html>

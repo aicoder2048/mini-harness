@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>文件与外部世界 · 拆机学 Python 10</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap">
+<link rel="stylesheet" href="../assets/course.css">
+<script src="../assets/course.js"></script>
+</head>
+<body data-lesson="10" data-root="../">
+<div class="page">
+
+<header class="hero">
+  <p class="eyebrow">第 10 课 · 第 3 单元 · 工具</p>
+  <h1>文件与外部世界</h1>
+  <p class="lede">程序一停，变量就没了，文件却会留下来。文件也是机器人伸向真实世界的手。</p>
+  <div class="bench" aria-label="今天工作台上的零件">
+    <span class="prompt">$</span> <span>teardown</span> <span class="path">src/tools.py</span> <span>--lines 45-54</span> <span class="cursor" aria-hidden="true"></span>
+  </div>
+  <dl class="hero-meta">
+    <div><dt>工作台上的零件</dt><dd><code>tools.py</code> 的读写工具</dd></div>
+    <div><dt>时长</dt><dd>约 30 分钟</dd></div>
+    <div><dt>你会学到</dt><dd>读写文件 · 路径 · 密钥 · 安全地运行命令</dd></div>
+  </dl>
+</header>
+
+<main class="lesson">
+
+<section>
+  <h2>读写文件</h2>
+  <p><code>open()</code> 打开文件，<code>with</code> 保证用完自动关上。这个页面有一块「假磁盘」，写的文件会留到你刷新页面。</p>
+  <div class="cell">
+    <script type="text/x-python">
+with open("hello.txt", "w", encoding="utf-8") as f:   # "w"：写
+    f.write("机器人向你问好！\n")                       # write 不会自己换行，要加 \n
+
+with open("hello.txt", encoding="utf-8") as f:        # 不写模式就是 "r"：读
+    text = f.read()
+
+print(text)
+    </script>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>模式</th><th>意思</th><th>文件已存在时</th></tr></thead>
+      <tbody>
+        <tr><td><code>"r"</code>（默认）</td><td>读</td><td>读取它</td></tr>
+        <tr><td><code>"w"</code></td><td>写</td><td><strong>先清空</strong>再写</td></tr>
+        <tr><td><code>"a"</code></td><td>追加</td><td>接在末尾写</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="quiz" id="q-10-mode" data-answer="b">
+    <p class="q">用 <code>"w"</code> 模式打开 <code>diary.txt</code>，写了一行。原来的内容会怎样？</p>
+    <ol class="options">
+      <li data-why="那是追加模式 &quot;a&quot; 的效果。">保留下来，新的一行接在末尾</li>
+      <li>被清空了，文件里只剩新写的那一行</li>
+      <li data-why="&quot;w&quot; 很乐意打开已经存在的文件，危险就在这里。">文件已存在，Python 报错</li>
+      <li data-why="Python 从来不会问你，它只按模式办事。">Python 会问你要不要覆盖</li>
+    </ol>
+    <div class="explain"><p><code>"w"</code> 一打开就清空，没有提醒也没法撤销。只想接着写，用 <code>"a"</code>。</p></div>
+  </div>
+  <details class="more">
+    <summary>多了解一点：read_file 为什么要分页</summary>
+    <p>真正的 <code>read_file</code> 每次最多给 AI 500 行。没读完时，它会在末尾写一句给 AI 看的说明，比如 <code>... (showing lines 1-500 of 1234; call read_file with offset=501 to read more)</code>。AI 看到就会去要下一页。截断了就要说出来，绝不悄悄丢掉内容。</p>
+  </details>
+  <p class="takeaway"><code>with open(路径, 模式, encoding="utf-8") as f:</code>，而且 <code>"w"</code> 会清空文件。</p>
+</section>
+
+<section>
+  <h2>读文件出错</h2>
+  <p>文件可能不存在，也可能根本不是文字（比如图片）。机器人不让这些错误弄崩程序，而是把它们变成发给 AI 的消息：</p>
+  <figure class="excerpt" data-file="src/tools.py" data-start="45" data-highlight="48,49">
+    <script type="text/x-python">
+def _read_text(path: str) -> str:
+    """read_file 和 edit_file 共用：读 UTF-8 文本，失败一律变成 ToolError。"""
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except OSError as e:
+        raise ToolError(str(e)) from e
+    except UnicodeDecodeError as e:
+        # 不是 OSError，漏接的话一张图片就能让整个 agent 崩掉。
+        raise ToolError(f"{path} is not a UTF-8 text file (binary?): {e.reason} at byte {e.start}") from e
+    </script>
+    <figcaption>
+      <p>第 48–49 行就是你刚学的写法。第 53 行的注释说：一张图片就能让整个 agent 崩掉，所以这个错误也要接住。</p>
+    </figcaption>
+  </figure>
+  <div class="cell">
+    <script type="text/x-python">
+try:
+    with open("does_not_exist.txt", encoding="utf-8") as f:
+        print(f.read())
+except FileNotFoundError as e:
+    print("交给 AI 的消息：", e)
+print("程序继续运行。")
+    </script>
+  </div>
+  <p class="takeaway">读文件可能失败，接住错误，把它变成一条消息。</p>
+</section>
+
+<section>
+  <h2>路径与文件夹</h2>
+  <p><strong>路径</strong>是文件的地址。<code>input/math.txt</code> 这种<strong>相对路径</strong>从程序当前所在的文件夹算起。<code>os</code> 模块负责和电脑的文件夹打交道：</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>写法</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><code>os.path.join("src", "a.py")</code></td><td>拼出路径 <code>src/a.py</code></td></tr>
+        <tr><td><code>os.makedirs(文件夹, exist_ok=True)</code></td><td>建文件夹，缺几层建几层</td></tr>
+        <tr><td><code>os.walk(文件夹)</code></td><td>走遍里面所有文件夹</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="cell">
+    <script type="text/x-python">
+import os
+
+# 造一个小项目
+for folder in ["project/src", "project/.git/objects"]:
+    os.makedirs(folder, exist_ok=True)
+for path in ["project/README.md", "project/src/agent.py", "project/.git/HEAD"]:
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("# hi\n")
+
+for dirpath, dirnames, filenames in os.walk("project"):
+    dirnames[:] = [d for d in dirnames if d != ".git"]   # 原地改：不进 .git
+    print(dirpath, sorted(filenames))
+    </script>
+  </div>
+  <p>机器人的 <code>list_files</code> 也这样跳过 <code>.git</code>、<code>.venv</code> 这些没人想读的文件夹。注意要写 <code>dirnames[:] =</code>，<code>os.walk</code> 才会照做。</p>
+  <p class="takeaway"><code>os.walk</code> 走遍文件夹，<code>dirnames[:] = ...</code> 决定不进哪些。</p>
+</section>
+
+<section>
+  <h2>密钥放外面</h2>
+  <p>机器人要用 <strong>API 密钥</strong>登录 DeepSeek。密钥写进代码，谁看到代码都能花你的钱。所以它放在<strong>环境变量</strong>里，用 <code>os.environ.get</code> 读：</p>
+  <figure class="excerpt" data-file="src/step1_chat.py" data-start="20">
+    <script type="text/x-python">
+def main() -> None:
+    api_key = os.environ.get("DEEPSEEK_API_KEY")
+    if not api_key:
+        raise SystemExit("请先 export DEEPSEEK_API_KEY=... （https://platform.deepseek.com）")
+    client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
+    </script>
+    <figcaption>
+      <p>没设置密钥时得到 <code>None</code>，程序就带着一句清楚的提示停下来。</p>
+    </figcaption>
+  </figure>
+  <div class="cell">
+    <script type="text/x-python">
+import os
+
+print("API 密钥：", os.environ.get("DEEPSEEK_API_KEY"))   # 这里没设置，是 None
+print("模型：", os.environ.get("DEEPSEEK_MODEL", "deepseek-v4-flash"))
+    </script>
+  </div>
+  <aside class="callout watch">
+    <p class="callout-label">易错点</p>
+    <p>真密钥别写进代码、别截图、别传上 GitHub。项目把它放在 <code>.env</code> 文件里，<code>.gitignore</code> 不让 git 保存这个文件。</p>
+  </aside>
+  <p class="takeaway">密钥放环境变量或 <code>.env</code>，永远不进代码和 git。</p>
+</section>
+
+<section>
+  <h2>运行命令</h2>
+  <p><code>run_bash</code> 能在你的电脑上运行任何终端命令（浏览器里跑不了，这里只看代码）。能力这么大，它有三道保险：</p>
+  <ul>
+    <li>超过 30 秒还没跑完，就强行停掉</li>
+    <li>输出太长，只留最后 10,000 个字符（报错都在最后）</li>
+    <li>每条命令执行前，先问你 <code>允许执行? [Y/n/a]</code></li>
+  </ul>
+  <figure class="excerpt" data-file="src/tools.py" data-start="264">
+    <script type="text/x-python">
+    run=_run_bash,
+    needs_approval=True,
+)
+    </script>
+    <figcaption>
+      <p>四个工具里，只有 <code>run_bash</code> 写了 <code>needs_approval=True</code>。</p>
+    </figcaption>
+  </figure>
+  <aside class="callout principle">
+    <p class="callout-label">编程原则</p>
+    <h4>最小权限</h4>
+    <p>每个部件只给它干活需要的权力。能动整台电脑的工具，每次都要人来批准。</p>
+  </aside>
+  <div class="quiz" id="q-10-approval" data-answer="d">
+    <p class="q">机器人的哪个工具每次使用前都要问你？</p>
+    <ol class="options">
+      <li data-why="读文件改变不了你电脑上的任何东西，所以不问。"><code>read_file</code></li>
+      <li data-why="列出文件夹没什么危害，所以不问。"><code>list_files</code></li>
+      <li data-why="它确实能改文件，但这个机器人靠安全检查来限制它（比如不许清空非空文件），而不是每次都问。"><code>edit_file</code></li>
+      <li><code>run_bash</code></li>
+    </ol>
+    <div class="explain"><p>只有 <code>run_bash</code> 写着 <code>needs_approval=True</code>。回答 <code>a</code>，这次会话里就不再问了。</p></div>
+  </div>
+  <p class="takeaway">危险的事让人来批准：<code>run_bash</code> 每条命令都先问你。</p>
+</section>
+
+<section>
+  <h2>动手挑战</h2>
+  <section class="challenge" id="ch-10-todo">
+    <div class="challenge-head"><span class="badge">挑战</span><h3>保存待办清单，再读回来</h3></div>
+    <p>把 <code>lines_to_save</code> 的三项写进 <code>todo.txt</code>（每项一行），再读回来，让 <code>line_count</code> 等于读到的行数。</p>
+    <div class="cell">
+      <script type="text/x-python">
+lines_to_save = ["读文件", "修 bug", "跑测试"]
+
+# 1. 把每一项写进 todo.txt，一项一行
+
+
+# 2. 把 todo.txt 读回来，数一数有几行
+line_count = 0
+
+print("todo.txt 的行数：", line_count)
+      </script>
+      <script type="text/x-python" class="check">
+import os
+assert os.path.exists("todo.txt"), '找不到 todo.txt。用 "w" 模式打开它，把三项写进去。'
+with open("todo.txt", encoding="utf-8") as f:
+    saved = f.read().splitlines()
+assert saved == ["读文件", "修 bug", "跑测试"], f"todo.txt 里应该是这 3 项，每项一行。现在的内容是：{saved}"
+assert __source__.count("open(") >= 2, "要打开文件两次：一次写入，一次读回来。"
+assert line_count == 3, f"line_count 应该是 3，现在是 {line_count}。数一数你读回来的行。"
+      </script>
+      <script type="text/x-python" class="solution">
+lines_to_save = ["读文件", "修 bug", "跑测试"]
+
+with open("todo.txt", "w", encoding="utf-8") as f:
+    for item in lines_to_save:
+        f.write(item + "\n")
+
+with open("todo.txt", encoding="utf-8") as f:
+    line_count = len(f.read().splitlines())
+
+print("todo.txt 的行数：", line_count)
+      </script>
+    </div>
+    <details class="hint"><summary>提示</summary><p>写：<code>f.write(item + "\n")</code>；读：<code>len(f.read().splitlines())</code>。</p></details>
+  </section>
+
+  <section class="challenge" id="ch-10-list-files">
+    <div class="challenge-head"><span class="badge">挑战</span><h3>做一个你自己的 list_files</h3></div>
+    <p>写完 <code>list_files(root)</code>：返回 root 下所有文件和文件夹的相对路径（文件夹末尾带 <code>/</code>），跳过 <code>.git</code> 和 <code>__pycache__</code>，排好序。</p>
+    <p>下面这个小项目的答案是 <code>['README.md', 'src/', 'src/main.py']</code>。</p>
+    <div class="cell">
+      <script type="text/x-python">
+import os
+
+SKIP = {".git", "__pycache__"}
+
+def list_files(root):
+    entries = []
+    for dirpath, dirnames, filenames in os.walk(root):
+        # 1. 剪掉 SKIP 里的文件夹（要原地修改 dirnames！）
+        # 2. rel_dir = os.path.relpath(dirpath, root)
+        # 3. 除非 rel_dir 是 "."，否则把这个文件夹本身加进去，末尾带 "/"
+        # 4. 把每个文件按相对于 root 的路径加进去
+        pass
+    return sorted(entries)
+
+# 在一个小项目上试试
+os.makedirs("shop/src", exist_ok=True)
+os.makedirs("shop/.git", exist_ok=True)
+for path in ["shop/README.md", "shop/src/main.py", "shop/.git/HEAD"]:
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("x\n")
+print(list_files("shop"))
+      </script>
+      <script type="text/x-python" class="check">
+import os, shutil
+shutil.rmtree("check_tree", ignore_errors=True)
+for folder in ["check_tree/app/utils", "check_tree/.git/refs", "check_tree/app/__pycache__", "check_tree/docs"]:
+    os.makedirs(folder)
+for path in ["check_tree/main.py", "check_tree/app/robot.py", "check_tree/app/utils/text.py",
+             "check_tree/app/__pycache__/robot.pyc", "check_tree/.git/HEAD", "check_tree/docs/guide.md"]:
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("x\n")
+got = list_files("check_tree")
+assert isinstance(got, list), "list_files 应该返回一个列表。是不是忘了 return？"
+assert got, "list_files 返回了一个空列表。把文件和文件夹加进 entries 里。"
+for name in got:
+    assert ".git" not in name and "__pycache__" not in name, f".git 和 __pycache__ 要整个跳过，可我找到了 {name!r}。"
+    assert not name.startswith("check_tree"), f"路径要相对于 root，所以 {name!r} 不应该以 root 文件夹开头。用 os.path.relpath。"
+assert "main.py" in got, "直接放在 root 里的文件前面没有文件夹：'main.py'。"
+assert "app/" in got and "docs/" in got and "app/utils/" in got, "文件夹末尾要带斜杠，比如 'app/' 和 'app/utils/'。"
+expected = ["app/", "app/robot.py", "app/utils/", "app/utils/text.py", "docs/", "docs/guide.md", "main.py"]
+assert got == expected, f"应该得到 {expected}，实际得到 {got}"
+      </script>
+      <script type="text/x-python" class="solution">
+import os
+
+SKIP = {".git", "__pycache__"}
+
+def list_files(root):
+    entries = []
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if d not in SKIP]
+        rel_dir = os.path.relpath(dirpath, root)
+        if rel_dir != ".":
+            entries.append(rel_dir + "/")
+        for name in filenames:
+            if rel_dir == ".":
+                entries.append(name)
+            else:
+                entries.append(os.path.join(rel_dir, name))
+    return sorted(entries)
+
+os.makedirs("shop/src", exist_ok=True)
+os.makedirs("shop/.git", exist_ok=True)
+for path in ["shop/README.md", "shop/src/main.py", "shop/.git/HEAD"]:
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("x\n")
+print(list_files("shop"))
+      </script>
+    </div>
+    <details class="hint"><summary>提示</summary><p>照第 3 步的 <code>dirnames[:] = [...]</code> 剪枝，再用 <code>os.path.relpath(dirpath, root)</code> 算相对路径。</p></details>
+  </section>
+</section>
+
+<section class="keywords">
+  <h2>小结</h2>
+  <ul class="recap">
+    <li><code>with open(...)</code> 读写文件；<code>"w"</code> 会清空，<code>"a"</code> 是追加。</li>
+    <li>读文件出错时接住它，变成一条消息，不让程序崩溃。</li>
+    <li><code>os.path.join</code> 拼路径，<code>os.walk</code> 走遍文件夹。</li>
+    <li>密钥放环境变量；<code>run_bash</code> 每条命令都先问人。</li>
+  </ul>
+  <h3>关键词</h3>
+  <dl>
+    <div><dt>文件 <span class="en">file</span></dt><dd>存在磁盘上，程序结束后还在。</dd></div>
+    <div><dt>模式 <span class="en">mode</span></dt><dd><code>"r"</code> 读，<code>"w"</code> 写，<code>"a"</code> 追加。</dd></div>
+    <div><dt>路径 <span class="en">path</span></dt><dd>文件的地址。</dd></div>
+    <div><dt>环境变量 <span class="en">environment variable</span></dt><dd>交给程序的带名字的设置。</dd></div>
+    <div><dt>API 密钥 <span class="en">API key</span></dt><dd>在线服务的秘密口令。</dd></div>
+    <div><dt>最小权限 <span class="en">least privilege</span></dt><dd>只给干活需要的权力。</dd></div>
+  </dl>
+</section>
+
+</main>
+</div>
+</body>
+</html>

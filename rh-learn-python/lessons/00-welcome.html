@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>认识机器人 · 拆机学 Python 00</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap">
+<link rel="stylesheet" href="../assets/course.css">
+<script src="../assets/course.js"></script>
+</head>
+<body data-lesson="00" data-root="../">
+<div class="page">
+
+<header class="hero">
+  <p class="eyebrow">第 00 课 · 第 1 单元 · 通电</p>
+  <h1>认识机器人</h1>
+  <p class="lede">这门课把一台真正的 AI 编程 agent 拆开来学 Python。今天先认识它。</p>
+  <div class="bench" aria-label="今天放在工作台上的零件">
+    <span class="prompt">$</span> <span>teardown</span> <span class="path">mini-harness/</span> <span>--all-parts</span> <span class="cursor" aria-hidden="true"></span>
+  </div>
+  <dl class="hero-meta">
+    <div><dt>工作台上的零件</dt><dd>整台机器人</dd></div>
+    <div><dt>时长</dt><dd>约 25 分钟</dd></div>
+    <div><dt>你会学到</dt><dd>agent 是什么 · <code>print()</code> · 注释</dd></div>
+  </dl>
+</header>
+
+<main class="lesson">
+
+<section>
+  <h2>agent 是什么</h2>
+  <p>聊天机器人只会聊天。这台机器人是 <strong>agent</strong>：它还能在你的电脑上读文件、改代码、跑命令。下面是一次真实的对话：</p>
+  <figure class="terminal-figure wide">
+    <div class="term-title"><i></i><i></i><i></i>&nbsp; 终端：uv run src/agent.py</div>
+<div class="terminal">已加载 1 个 skill：run-checks
+已加载 AGENTS.md（3,860 字符）作为项目指令
+Chat with DeepSeek — 4 个工具可用（/exit、/quit 或 Ctrl-D 退出）
+<span class="a-blue">You</span>: input/math.txt 里写了什么？解出来
+<span class="a-dim">· in 2,961 (cached 2,816) · out 61</span>
+<span class="a-green">tool</span>: read_file({"path": "input/math.txt"})
+<span class="a-dim">· in 3,050 (cached 2,944) · out 140</span>
+<span class="a-yellow">DeepSeek</span>:
+文件里写的是 3x - 8 = 92。两边同时加 8 得到 3x = 100，所以 x = 100/3 ≈ 33.33。
+<span class="a-blue">You</span>: 跑一下测试
+<span class="a-dim">· in 3,402 (cached 3,328) · out 52</span>
+<span class="a-green">tool</span>: run_bash({"command": "uv run pytest -q"})
+<span class="a-magenta">      允许执行? [Y/n/a]（回车=允许，a=本会话都允许 run_bash）</span></div>
+    <figcaption>AI 没有马上回答，而是先用工具 <code>read_file</code> 读了文件。最后一行紫色的字，是机器人在请你授权。</figcaption>
+  </figure>
+  <p class="takeaway">agent 不光会说，还会用工具动手做事。</p>
+</section>
+
+<section>
+  <h2>大脑 + 身体</h2>
+  <p>AI 模型像一颗泡在罐子里的大脑：只会读进文字、写出文字，没有手，也没有记忆。其余的事都归 <strong>harness</strong> 管，也就是你要拆开的这个 Python 程序：</p>
+  <ul>
+    <li><strong>心跳（循环）：</strong>问你，问 AI，跑工具，再来一遍。</li>
+    <li><strong>双手（工具）：</strong>读文件、列文件夹、改代码、跑命令的小函数。</li>
+    <li><strong>记忆（对话记录）：</strong>一个列表，记下说过的每一句话。</li>
+    <li><strong>规矩（系统提示词）：</strong>比如「改文件前先读一遍」。</li>
+  </ul>
+  <div class="quiz" id="q-00-model" data-answer="b">
+    <p class="q">没有 harness，AI 模型自己能做什么？</p>
+    <ol class="options">
+      <li data-why="它没有手。读文件是 harness 替它运行的工具。">打开并读取你电脑上的文件</li>
+      <li>读进文字，写出文字，仅此而已</li>
+      <li data-why="运行命令靠的是 run_bash 工具，它在 harness 里（而且会先问你）。">在你的终端里运行命令</li>
+      <li data-why="意外吧：每次请求之间模型什么都不记得，记忆是 harness 帮它保存的。">记住你说过的所有话</li>
+    </ol>
+    <div class="explain"><p>模型就是「文字进、文字出」。读文件、跑命令、记住上文，全是外面那个 Python 程序在做。</p></div>
+  </div>
+  <p class="takeaway">Agent = 模型 + harness。这门课拆的是 harness。</p>
+</section>
+
+<section>
+  <h2>零件清单</h2>
+  <p>整台机器人就是 <code>src/</code> 里的 7 个 Python 文件。顺着箭头，看一条消息怎么走：</p>
+  <figure class="diagram wide">
+    <svg viewBox="0 0 760 290" role="img" aria-labelledby="parts-title" style="min-width:620px">
+      <title id="parts-title">机器人的各个文件怎样连在一起：你在 cli_input.py 里打字，agent.py 运行主循环，providers.py 和 DeepSeek 模型对话，tools.py 操作你的文件，prompt.py 和 skills.py 准备规则。</title>
+      <defs>
+        <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="d-head"/></marker>
+      </defs>
+      <!-- 第一行：一条消息走过的路 -->
+      <rect x="10" y="30" width="90" height="58" rx="8" class="d-box d-you"/>
+      <text x="55" y="56" text-anchor="middle" class="d-text">你</text>
+      <text x="55" y="74" text-anchor="middle" class="d-label">键盘</text>
+
+      <rect x="130" y="30" width="130" height="58" rx="8" class="d-box"/>
+      <text x="195" y="56" text-anchor="middle" class="d-text">cli_input.py</text>
+      <text x="195" y="74" text-anchor="middle" class="d-label">读取你的输入</text>
+
+      <rect x="290" y="30" width="140" height="58" rx="8" class="d-box d-ask"/>
+      <text x="360" y="56" text-anchor="middle" class="d-text">agent.py</text>
+      <text x="360" y="74" text-anchor="middle" class="d-label">主循环（心跳）</text>
+
+      <rect x="460" y="30" width="140" height="58" rx="8" class="d-box"/>
+      <text x="530" y="56" text-anchor="middle" class="d-text">providers.py</text>
+      <text x="530" y="74" text-anchor="middle" class="d-label">翻译官</text>
+
+      <rect x="630" y="30" width="120" height="58" rx="8" class="d-box d-model"/>
+      <text x="690" y="56" text-anchor="middle" class="d-text">DeepSeek</text>
+      <text x="690" y="74" text-anchor="middle" class="d-label">AI 模型（云端）</text>
+
+      <path d="M100,59 L128,59" class="d-arrow" marker-end="url(#ah)"/>
+      <path d="M260,59 L288,59" class="d-arrow" marker-end="url(#ah)"/>
+      <path d="M430,59 L458,59" class="d-arrow" marker-start="url(#ah)" marker-end="url(#ah)"/>
+      <path d="M600,59 L628,59" class="d-arrow" marker-start="url(#ah)" marker-end="url(#ah)"/>
+
+      <!-- 第二行：工具、提示词、skill -->
+      <rect x="10" y="190" width="90" height="58" rx="8" class="d-box"/>
+      <text x="55" y="216" text-anchor="middle" class="d-text">skills.py</text>
+      <text x="55" y="234" text-anchor="middle" class="d-label">技能手册</text>
+
+      <rect x="130" y="190" width="130" height="58" rx="8" class="d-box"/>
+      <text x="195" y="216" text-anchor="middle" class="d-text">prompt.py</text>
+      <text x="195" y="234" text-anchor="middle" class="d-label">写规矩</text>
+
+      <rect x="290" y="190" width="140" height="58" rx="8" class="d-box d-tool"/>
+      <text x="360" y="216" text-anchor="middle" class="d-text">tools.py</text>
+      <text x="360" y="234" text-anchor="middle" class="d-label">双手</text>
+
+      <rect x="460" y="190" width="140" height="58" rx="8" class="d-box"/>
+      <text x="530" y="216" text-anchor="middle" class="d-text">你的文件</text>
+      <text x="530" y="234" text-anchor="middle" class="d-label">和终端</text>
+
+      <rect x="630" y="190" width="120" height="58" rx="8" class="d-box" stroke-dasharray="5 4"/>
+      <text x="690" y="216" text-anchor="middle" class="d-text">step1_chat.py</text>
+      <text x="690" y="234" text-anchor="middle" class="d-label">第一版原型</text>
+
+      <path d="M100,219 L128,219" class="d-arrow" marker-end="url(#ah)"/>
+      <path d="M240,190 L318,90" class="d-arrow" marker-end="url(#ah)"/>
+      <text x="236" y="150" class="d-label">规矩</text>
+      <path d="M345,90 L345,188" class="d-arrow" marker-end="url(#ah)"/>
+      <text x="306" y="144" class="d-label">调用</text>
+      <path d="M375,188 L375,90" class="d-arrow" marker-end="url(#ah)"/>
+      <text x="382" y="144" class="d-label">结果</text>
+      <path d="M430,219 L458,219" class="d-arrow" marker-start="url(#ah)" marker-end="url(#ah)"/>
+    </svg>
+    <figcaption>你打字 → <code>agent.py</code> 经过翻译官发给 AI → AI 要用工具 → <code>tools.py</code> 去做 → 结果送回 AI。</figcaption>
+  </figure>
+  <details class="more">
+    <summary>多了解一点：7 个文件各管什么</summary>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>文件</th><th>它的工作</th><th>在哪几课拆它</th></tr></thead>
+        <tbody>
+          <tr><td><code>step1_chat.py</code></td><td>第一版：有记忆的聊天循环，没有工具</td><td>第 01–05 课</td></tr>
+          <tr><td><code>agent.py</code></td><td>主循环、请求授权、启动流程</td><td>第 03–07、12、13 课</td></tr>
+          <tr><td><code>tools.py</code></td><td>四个工具：读、列、改、跑</td><td>第 08–10、12 课</td></tr>
+          <tr><td><code>providers.py</code></td><td>和 DeepSeek 的数据格式互相翻译</td><td>第 06、12 课</td></tr>
+          <tr><td><code>prompt.py</code></td><td>写出 AI 要遵守的规矩</td><td>第 02、08、10 课</td></tr>
+          <tr><td><code>skills.py</code></td><td>找到 skill 说明，列成清单</td><td>第 07、11 课</td></tr>
+          <tr><td><code>cli_input.py</code></td><td>好用的键盘输入：方向键、历史</td><td>第 11 课</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </details>
+  <p class="takeaway">7 个文件，各管一件事。</p>
+</section>
+
+<section>
+  <h2>第一个程序</h2>
+  <p>页面的配色和机器人终端一样：</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>颜色</th><th>在页面上表示</th></tr></thead>
+      <tbody>
+        <tr><td><strong style="color:var(--you)">蓝色</strong></td><td>试一试：能改、能运行的代码</td></tr>
+        <tr><td><strong style="color:var(--model)">黄色</strong></td><td>想一想：小测验</td></tr>
+        <tr><td><strong style="color:var(--tool)">绿色</strong></td><td>拆自机器人：<code>src/</code> 里的真代码</td></tr>
+        <tr><td><strong style="color:var(--err)">红色</strong></td><td>易错点</td></tr>
+        <tr><td><strong style="color:var(--ask)">紫色</strong></td><td>编程原则</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p><code>print()</code> 把引号里的文字显示到屏幕上。点<strong>运行</strong>，再改改文字运行一次。第一次运行要下载 Python，等几秒就好。</p>
+  <div class="cell">
+    <script type="text/x-python">
+print("你好！我正在拆一台机器人，顺便学 Python。")
+print("目前找到的机器人零件：", 7)
+    </script>
+  </div>
+  <details class="more">
+    <summary>多了解一点：偷看一眼第 13 课</summary>
+    <p>这是机器人第一版 <code>step1_chat.py</code> 的核心，只是把 AI 换成了一个只会数数的冒牌货。输入框里的几行扮演你在打字。现在看不懂没关系，学完第 13 课你就能逐行讲清楚。</p>
+    <div class="cell" data-inputs="你好，机器人|你会做什么？||再见" data-label="试一试 · 冒牌大脑聊天机器人">
+      <script type="text/x-python">
+conversation = []          # 机器人的记忆：一个装消息的列表
+
+while True:
+    try:
+        user_input = input("\033[94mYou\033[0m: ")
+    except EOFError:       # 没有更多输入了（Ctrl-D）：离开循环
+        break
+    if not user_input:     # 空行？再问一次
+        continue
+
+    conversation.append({"role": "user", "content": user_input})
+    reply = f"你输入了 {len(user_input)} 个字符。我的记忆里有 {len(conversation)} 条消息。"
+    conversation.append({"role": "assistant", "content": reply})
+
+    print(f"\033[93mBot\033[0m: {reply}")
+
+print("再见！记忆里一共有", len(conversation), "条消息。")
+      </script>
+    </div>
+  </details>
+  <p class="takeaway"><code>print()</code> 把文字显示到屏幕上。</p>
+</section>
+
+<section>
+  <h2>注释</h2>
+  <p>Python 从上到下一行一行执行。<code>#</code> 后面的内容是<strong>注释</strong>，Python 会跳过它，它是写给人看的。</p>
+  <div class="quiz" id="q-00-order" data-answer="c">
+    <p class="q">这个程序会打印出什么？</p>
+    <div class="snippet"><script type="text/x-python">
+print("1. 通电")
+print("2. 读规矩")   # 注释也可以写在一行的末尾
+# print("3. 这一行被关掉了")
+print("4. 启动循环")
+    </script></div>
+    <ol class="options">
+      <li data-why="第 3 行以 # 开头，Python 会跳过整行。">1、2、3、4</li>
+      <li data-why="第 2 行末尾的注释只关掉 # 后面的部分，前面的 print 照样执行。">1 和 4</li>
+      <li>1、2 和 4</li>
+      <li data-why="Python 永远从上往下执行。">4、2、1</li>
+    </ol>
+    <div class="explain"><p>第 3 行是注释，不会执行；第 2 行末尾的注释只藏起 <code>#</code> 后面的字。这样「注释掉」一行，就能暂时关掉它。</p></div>
+  </div>
+  <p>机器人每个文件开头都有一段三引号包起来的说明，叫<strong>文档字符串</strong>：</p>
+  <figure class="excerpt" data-file="src/step1_chat.py" data-start="1">
+    <script type="text/x-python">
+"""第 1 步：一个会记住上下文的终端聊天循环。
+
+    uv run src/step1_chat.py
+
+对应原文 "Let's dive right in" 一节。这一步还不是 agent——它只有循环，没有工具。
+要点：模型服务端是无状态的，它只看到你这次发过去的 messages 列表，
+所以「记忆」完全是本地这个 conversation 列表维持出来的。
+    </script>
+    <figcaption>作者没只写「做什么」，还点出了最关键的事：AI 自己没有记忆，记忆靠本地的 <code>conversation</code> 列表。</figcaption>
+  </figure>
+  <aside class="callout principle">
+    <p class="callout-label">编程原则</p>
+    <h4>注释写「为什么」</h4>
+    <p><code># 给 x 加 1</code> 这种注释没用，代码已经说了。好注释讲代码讲不出的东西：为什么这样写，不这样会出什么事。</p>
+  </aside>
+  <p class="takeaway"><code>#</code> 开始注释；好的注释解释「为什么」。</p>
+</section>
+
+<section>
+  <h2>动手挑战</h2>
+  <section class="challenge" id="ch-00-intro">
+    <div class="challenge-head"><span class="badge">挑战</span><h3>让机器人做个自我介绍</h3></div>
+    <p>打印<strong>至少三行</strong>：机器人的名字、它会做的一件事、谁造了它（你！）。再加<strong>至少一条注释</strong>。</p>
+    <div class="cell">
+      <script type="text/x-python">
+print("你好，我是……")
+      </script>
+      <script type="text/x-python" class="check">
+lines = [line for line in __output__.splitlines() if line.strip()]
+assert len(lines) >= 3, f"至少要打印 3 行，我只数到了 {len(lines)} 行。"
+assert "#" in __source__, "加上至少一条注释：一行（或者一行的末尾）用 # 开头。"
+      </script>
+      <script type="text/x-python" class="solution">
+# 机器人做自我介绍
+print("你好，我是小闪，一个编程 agent。")
+print("我会读文件、列文件夹、改代码，还会运行命令。")
+print("造我的人是小明。")  # 这里换成你自己的名字
+      </script>
+    </div>
+    <details class="hint"><summary>提示</summary><p>每行一个 <code>print("...")</code>；注释以 <code>#</code> 开头。</p></details>
+  </section>
+</section>
+
+<section class="keywords">
+  <h2>小结</h2>
+  <ul class="recap">
+    <li>agent = 模型（文字进、文字出）+ harness（循环、工具、记忆、规矩）。</li>
+    <li>机器人就是 <code>src/</code> 里的 7 个 Python 文件。</li>
+    <li><code>print()</code> 显示文字；Python 从上到下执行。</li>
+    <li><code>#</code> 开始注释，好注释解释「为什么」。</li>
+  </ul>
+  <h3>关键词</h3>
+  <dl>
+    <div><dt>agent <span class="en">agent</span></dt><dd>能动手做事的 AI。</dd></div>
+    <div><dt>模型 <span class="en">AI model</span></dt><dd>「大脑」：文字进，文字出。</dd></div>
+    <div><dt>harness <span class="en">harness</span></dt><dd>包在模型外面的程序。</dd></div>
+    <div><dt>工具 <span class="en">tool</span></dt><dd>AI 请 harness 运行的函数。</dd></div>
+    <div><dt>注释 <span class="en">comment</span></dt><dd><code>#</code> 后面写给人看的笔记。</dd></div>
+    <div><dt>文档字符串 <span class="en">docstring</span></dt><dd>三引号包起来的说明。</dd></div>
+  </dl>
+</section>
+
+</main>
+</div>
+</body>
+</html>

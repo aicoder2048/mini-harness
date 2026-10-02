@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>变量 · 拆机学 Python 01</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap">
+<link rel="stylesheet" href="../assets/course.css">
+<script src="../assets/course.js"></script>
+</head>
+<body data-lesson="01" data-root="../">
+<div class="page">
+
+<header class="hero">
+  <p class="eyebrow">第 01 课 · 第 1 单元 · 通电</p>
+  <h1>变量</h1>
+  <p class="lede">机器人要记住很多东西：用哪个模型、用了几轮工具、该不该等你说话。这些都存在变量里。</p>
+  <div class="bench" aria-label="今天放在工作台上的零件">
+    <span class="prompt">$</span> <span>teardown</span> <span class="path">src/step1_chat.py</span> <span>--lines 17-25</span> <span class="cursor" aria-hidden="true"></span>
+  </div>
+  <dl class="hero-meta">
+    <div><dt>工作台上的零件</dt><dd>机器人的设置和计数器</dd></div>
+    <div><dt>时长</dt><dd>约 30 分钟</dd></div>
+    <div><dt>你会学到</dt><dd>变量 · 类型 · 算术 · 常量</dd></div>
+  </dl>
+</header>
+
+<main class="lesson">
+
+<section>
+  <h2>给值起名字</h2>
+  <p><strong>变量</strong>就是值的名字，用 <code>=</code> 创建。之后写这个名字（不加引号），Python 就会拿出它的值。</p>
+  <div class="cell">
+    <script type="text/x-python">
+robot_name = "小闪"
+max_tool_rounds = 20
+
+print(robot_name, "可以连续使用工具", max_tool_rounds, "次。")
+    </script>
+  </div>
+  <aside class="callout analogy">
+    <p class="callout-label">打个比方</p>
+    <p>变量像贴在值上的<strong>名字标签</strong>。标签随时可以撕下来，贴到别的值上。</p>
+  </aside>
+  <figure class="excerpt" data-file="src/step1_chat.py" data-start="17">
+    <script type="text/x-python">
+MODEL = os.environ.get("DEEPSEEK_MODEL", "deepseek-v4-flash")
+
+
+def main() -> None:
+    api_key = os.environ.get("DEEPSEEK_API_KEY")
+    if not api_key:
+        raise SystemExit("请先 export DEEPSEEK_API_KEY=... （https://platform.deepseek.com）")
+    client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
+    conversation: list[dict] = []
+    </script>
+    <figcaption>
+      <p>机器人最早的几个变量：<code>MODEL</code> 是模型名，<code>api_key</code> 是登录密码，<code>conversation</code> 是它的全部记忆。规律都一样：<strong>名字 = 值</strong>。</p>
+    </figcaption>
+  </figure>
+  <p class="takeaway">变量 = 名字 + 值。<code>=</code> 的意思是「贴上」，不是数学里的「等于」。</p>
+</section>
+
+<section>
+  <h2>变量会变</h2>
+  <p>机器人用一个计数器记录连续用了几轮工具：从 0 开始，每用完一轮加 1。</p>
+  <figure class="excerpt" data-file="src/agent.py" data-start="195">
+    <script type="text/x-python">
+        need_user_input = True
+        tool_rounds = 0  # 自上次用户输入以来连续的工具轮数
+    </script>
+    <figcaption>
+      <p><code>tool_rounds</code> 是计数器，<code>need_user_input</code> 是个「是 / 否」开关（第 04 课会讲它有多重要）。</p>
+    </figcaption>
+  </figure>
+  <div class="cell">
+    <script type="text/x-python">
+tool_rounds = 0
+tool_rounds = tool_rounds + 1    # 取出旧值，加 1，再贴回去
+tool_rounds += 1                 # 上一行的简写
+print("用了几轮工具：", tool_rounds)
+    </script>
+  </div>
+  <div class="quiz" id="q-01-tags" data-answer="a">
+    <p class="q">这段代码打印什么？</p>
+    <div class="snippet"><script type="text/x-python">
+a = 5
+b = a
+a = 7
+print(b)
+    </script></div>
+    <ol class="options">
+      <li><code>5</code></li>
+      <li data-why="b 贴在值 5 上。之后把标签 a 挪走，b 不会跟着动。"><code>7</code></li>
+      <li data-why="没有引号时，b 是名字，Python 打印的是它的值。"><code>a</code></li>
+      <li data-why="不会出错：a 和 b 都存在。"><code>NameError</code></li>
+    </ol>
+    <div class="explain"><p><code>b = a</code> 只是把 <code>b</code> 贴到 <code>a</code> 当时的值 <code>5</code> 上。之后 <code>a</code> 换了值，<code>b</code> 不受影响。</p></div>
+  </div>
+  <p class="takeaway"><code>x += 1</code> 就是 <code>x = x + 1</code>：把 x 的值加 1。</p>
+</section>
+
+<section>
+  <h2>值的类型</h2>
+  <p>每个值都有<strong>类型</strong>。机器人里最常见的是这五种：</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>类型</th><th>装什么</th><th>例子</th></tr></thead>
+      <tbody>
+        <tr><td><code>str</code> 字符串</td><td>文字，带引号</td><td><code>"deepseek-v4-flash"</code></td></tr>
+        <tr><td><code>int</code> 整数</td><td>整数</td><td><code>20</code></td></tr>
+        <tr><td><code>float</code> 浮点数</td><td>小数</td><td><code>0.7</code></td></tr>
+        <tr><td><code>bool</code> 布尔值</td><td>真 / 假</td><td><code>True</code></td></tr>
+        <tr><td><code>None</code> 空值</td><td>「什么也没有」</td><td><code>None</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="cell">
+    <script type="text/x-python">
+print(type("小闪"))
+print(type(60_000))      # 数字里的下划线只是为了好读
+print(type(0.7))
+print(type(True))
+print(type(None))
+    </script>
+  </div>
+  <div class="quiz" id="q-01-type" data-answer="c">
+    <p class="q"><code>"20"</code>（带引号）是什么类型？</p>
+    <ol class="options">
+      <li data-why="看起来像数字，但引号让它变成了文字。"><code>int</code></li>
+      <li data-why="没有小数点，而且引号已经让它变成了文字。"><code>float</code></li>
+      <li><code>str</code></li>
+      <li data-why="bool 只有 True 和 False。"><code>bool</code></li>
+    </ol>
+    <div class="explain"><p>加了引号就是字符串，哪怕里面全是数字。要拿它做算术，先用 <code>int("20")</code> 转换。</p></div>
+  </div>
+  <details class="more">
+    <summary>多了解一点：类型转换</summary>
+    <p>字符串和数字不能直接相加，Python 不会替你猜。用 <code>int()</code>、<code>str()</code>、<code>float()</code> 主动转换：</p>
+    <div class="cell">
+      <script type="text/x-python">
+max_rounds = "20"                # 比如别人从键盘输入的
+print(int(max_rounds) + 1)       # 21
+print(max_rounds + str(1))       # "201"
+      </script>
+    </div>
+  </details>
+  <p class="takeaway">带引号的是文字（<code>str</code>），哪怕看起来像数字。</p>
+</section>
+
+<section>
+  <h2>做算术</h2>
+  <p>机器人有个 token 预算：每次发给 AI 的内容超过 <code>60_000</code> 个 token，就要清理旧消息。每轮用掉 4,210 个，能撑几轮？</p>
+  <div class="cell">
+    <script type="text/x-python">
+CONTEXT_BUDGET = 60_000
+tokens_per_round = 4_210
+
+print(CONTEXT_BUDGET / tokens_per_round)    # 普通除法，得到小数
+print(CONTEXT_BUDGET // tokens_per_round)   # 整除：完整的轮数
+print(CONTEXT_BUDGET % tokens_per_round)    # 余数：剩下的 token
+    </script>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>运算符</th><th>意思</th><th>例子</th></tr></thead>
+      <tbody>
+        <tr><td><code>+ - * /</code></td><td>加减乘除</td><td><code>10 / 4</code> → <code>2.5</code></td></tr>
+        <tr><td><code>//</code></td><td>整除（扔掉小数）</td><td><code>10 // 4</code> → <code>2</code></td></tr>
+        <tr><td><code>%</code></td><td>余数</td><td><code>10 % 4</code> → <code>2</code></td></tr>
+        <tr><td><code>**</code></td><td>乘方</td><td><code>2 ** 10</code> → <code>1024</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="quiz" id="q-01-floor" data-answer="b">
+    <p class="q">文件有 1234 行，<code>read_file</code> 每页 500 行。<code>1234 // 500</code> 等于几？</p>
+    <ol class="options">
+      <li data-why="这是普通除法 1234 / 500。// 会扔掉小数部分。">2.468</li>
+      <li>2</li>
+      <li data-why="// 只会往下取，不会往上。">3</li>
+      <li data-why="这是余数 1234 % 500。">234</li>
+    </ol>
+    <div class="explain"><p>2 整页，剩下 <code>1234 % 500 = 234</code> 行放在第 3 页。</p></div>
+  </div>
+  <p class="takeaway"><code>//</code> 算「能装几个」，<code>%</code> 算「还剩多少」。</p>
+</section>
+
+<section>
+  <h2>给数字起名</h2>
+  <p>变量名可以用字母、数字、下划线，但不能以数字开头、不能有空格，而且<strong>区分大小写</strong>。习惯写法是小写加下划线：<code>tool_rounds</code>。</p>
+  <p>全大写的名字是<strong>常量</strong>：设定一次就不改。机器人把每个重要的数字都写成常量，还注明理由：</p>
+  <figure class="excerpt" data-file="src/agent.py" data-start="41">
+    <script type="text/x-python">
+# 同一次用户输入之后，最多连续几轮「模型要工具 → 执行 → 回灌」。防止模型原地打转、烧 token。
+# 到上限就暂停交回给用户；教程（Vercel Academy harness）里对应 stopWhen: stepCountIs(10)。
+MAX_TOOL_ROUNDS = 20
+    </script>
+    <figcaption>
+      <p>想把 20 改成 10？只改这一行。读到 <code>tool_rounds &gt;= MAX_TOOL_ROUNDS</code> 的人也一眼就懂。</p>
+    </figcaption>
+  </figure>
+  <aside class="callout principle">
+    <p class="callout-label">编程原则</p>
+    <h4>不写「魔法数字」</h4>
+    <p>代码里光秃秃的 <code>60000</code> 没人知道是什么。给它起个名字，再写一句为什么。</p>
+  </aside>
+  <p class="takeaway">好名字说清楚值的含义；重要的数字写成大写常量。</p>
+</section>
+
+<section>
+  <h2>动手挑战</h2>
+  <section class="challenge" id="ch-01-budget">
+    <div class="challenge-head"><span class="badge">挑战</span><h3>预算里能装下几轮？</h3></div>
+    <p>预算 <code>60_000</code>，每轮 <code>4_210</code>。用运算符算出 <code>rounds_that_fit</code>（完整轮数）和 <code>tokens_left</code>（剩下的 token），并打印出来。</p>
+    <div class="cell">
+      <script type="text/x-python">
+CONTEXT_BUDGET = 60_000
+tokens_per_round = 4_210
+
+rounds_that_fit = 0   # 把 0 换成算式
+tokens_left = 0       # 把 0 换成算式
+
+print("能装下的轮数：", rounds_that_fit)
+print("剩下的 token：", tokens_left)
+      </script>
+      <script type="text/x-python" class="check">
+assert rounds_that_fit == 14, f"rounds_that_fit 应该是 14，现在是 {rounds_that_fit!r}。哪个运算符是整除？"
+assert tokens_left == 1060, f"tokens_left 应该是 1060，现在是 {tokens_left!r}。哪个运算符求余数？"
+assert "//" in __source__ and "%" in __source__, "用 // 和 % 算出来，不要直接写数字。"
+assert "14" in __output__ and "1060" in __output__, "把两个数都打印出来。"
+      </script>
+      <script type="text/x-python" class="solution">
+CONTEXT_BUDGET = 60_000
+tokens_per_round = 4_210
+
+rounds_that_fit = CONTEXT_BUDGET // tokens_per_round
+tokens_left = CONTEXT_BUDGET % tokens_per_round
+
+print("能装下的轮数：", rounds_that_fit)
+print("剩下的 token：", tokens_left)
+      </script>
+    </div>
+    <details class="hint"><summary>提示</summary><p><code>//</code> 整除，<code>%</code> 求余数。</p></details>
+  </section>
+
+  <section class="challenge" id="ch-01-fix">
+    <div class="challenge-head"><span class="badge">挑战</span><h3>修好机器人的设置</h3></div>
+    <p>下面有 <strong>3 个 bug</strong>。Python 一次只报一个错：运行、看红框、修一个，再运行。修好后会打印：</p>
+    <pre class="code">小闪 最多尝试 21 轮，每条命令最多等 30 秒。</pre>
+    <div class="cell">
+      <script type="text/x-python">
+robot_name = "小闪"
+max_rounds = "20"
+max_rounds = max_rounds + 1
+bash timeout = 30
+print(Robot_name, "最多尝试", max_rounds, "轮，每条命令最多等", bash_timeout, "秒。")
+      </script>
+      <script type="text/x-python" class="check">
+expected = "小闪 最多尝试 21 轮，每条命令最多等 30 秒。"
+assert expected in __output__, "程序能运行了，但打印的句子还不完全一样。逐字对比一下。"
+assert max_rounds == 21, "max_rounds 最后应该是数字 21（int），而不是文字。"
+      </script>
+      <script type="text/x-python" class="solution">
+robot_name = "小闪"
+max_rounds = 20                 # 数字，不是文字 "20"
+max_rounds = max_rounds + 1
+bash_timeout = 30               # 名字里不能有空格
+print(robot_name, "最多尝试", max_rounds, "轮，每条命令最多等", bash_timeout, "秒。")
+      </script>
+    </div>
+    <details class="hint"><summary>提示</summary><p>找：一个带空格的名字、一个存成文字的数字、一个大小写写错的名字。</p></details>
+  </section>
+</section>
+
+<section class="keywords">
+  <h2>小结</h2>
+  <ul class="recap">
+    <li><code>名字 = 值</code> 创建或修改变量。</li>
+    <li>带引号的是 <code>str</code>；用 <code>int()</code>、<code>str()</code> 转换类型。</li>
+    <li><code>//</code> 整除，<code>%</code> 求余，<code>+=</code> 累加。</li>
+    <li>重要的数字写成大写常量，并注明理由。</li>
+  </ul>
+  <h3>关键词</h3>
+  <dl>
+    <div><dt>变量 <span class="en">variable</span></dt><dd>值的名字。</dd></div>
+    <div><dt>赋值 <span class="en">assignment</span></dt><dd>用 <code>=</code> 把名字贴到值上。</dd></div>
+    <div><dt>类型 <span class="en">type</span></dt><dd>值的种类，如 <code>str</code>、<code>int</code>。</dd></div>
+    <div><dt>常量 <span class="en">constant</span></dt><dd>设定一次、全大写的值。</dd></div>
+    <div><dt><code>None</code> <span class="en">None</span></dt><dd>「什么也没有」。</dd></div>
+  </dl>
+</section>
+
+</main>
+</div>
+</body>
+</html>

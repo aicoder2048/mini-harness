@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>字符串与颜色 · 拆机学 Python 02</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap">
+<link rel="stylesheet" href="../assets/course.css">
+<script src="../assets/course.js"></script>
+</head>
+<body data-lesson="02" data-root="../">
+<div class="page">
+
+<header class="hero">
+  <p class="eyebrow">第 02 课 · 第 1 单元 · 通电</p>
+  <h1>字符串与颜色</h1>
+  <p class="lede">你打的字、机器人说的话、它读的文件，全是字符串。今天学拼、切、洗，还要上色。</p>
+  <div class="bench" aria-label="今天放在工作台上的零件">
+    <span class="prompt">$</span> <span>teardown</span> <span class="path">src/step1_chat.py</span> <span>--lines 20-43</span> <span class="cursor" aria-hidden="true"></span>
+  </div>
+  <dl class="hero-meta">
+    <div><dt>工作台上的零件</dt><dd>聊天循环和剪短长文字的工具</dd></div>
+    <div><dt>时长</dt><dd>约 35 分钟</dd></div>
+    <div><dt>你会学到</dt><dd><code>input()</code> · f-字符串 · 颜色 · 方法 · 切片</dd></div>
+  </dl>
+</header>
+
+<main class="lesson">
+
+<section>
+  <h2>字符串与输入</h2>
+  <p><strong>字符串</strong>就是引号里的文字，单引号、双引号都行。<code>+</code> 把它们拼起来，<code>len()</code> 数有几个字符。</p>
+  <p><code>input()</code> 先显示一句提示，再等用户打一行字。它给你的<strong>永远是字符串</strong>，哪怕打的是数字。</p>
+  <div class="cell" data-inputs="小明|14">
+    <script type="text/x-python">
+name = input("你叫什么名字？")
+print("很高兴认识你，" + name + "！")
+
+age = input("你几岁了？")              # 拿到的是文字 "14"
+print("明年你就", int(age) + 1, "岁了")  # 先用 int() 变成数字再算
+    </script>
+  </div>
+  <div class="quiz" id="q-02-plus" data-answer="b">
+    <p class="q"><code>print("5" + "5")</code> 会显示什么？</p>
+    <ol class="options">
+      <li data-why="那是不带引号的 5 + 5。带了引号，两个都是文字。">10</li>
+      <li>55</li>
+      <li data-why="两个字符串相加是允许的。只有字符串和数字混在一起才会报错。">TypeError 报错</li>
+      <li data-why="+ 不会在字符串之间加空格，要空格得自己加。">5 5</li>
+    </ol>
+    <div class="explain"><p>字符串之间的 <code>+</code> 是拼接：<code>"5"</code> 加 <code>"5"</code> 得到 <code>"55"</code>。而 <code>"5" + 5</code> 会报 TypeError。</p></div>
+  </div>
+  <p class="takeaway"><code>input()</code> 给的是文字；要做算术，先用 <code>int()</code> 转换。</p>
+</section>
+
+<section>
+  <h2>f-字符串</h2>
+  <p>用 <code>+</code> 拼多了很乱。在引号前加个 <code>f</code>，再把变量写进 <code>{ }</code>，Python 会帮你填空。<code>{x:,}</code> 还能给大数字加千位分隔符。</p>
+  <div class="cell">
+    <script type="text/x-python">
+label = "DeepSeek"
+tool_count = 4
+print(f"Chat with {label} — {tool_count} 个工具可用")
+print(f"二加二等于 {2 + 2}")              # { } 里可以写算式
+print(f"· in {4210:,} (cached {3800:,})")  # 机器人的 token 计数行
+    </script>
+  </div>
+  <figure class="excerpt" data-file="src/step1_chat.py" data-start="43">
+    <script type="text/x-python">
+        print(f"\033[93mDeepSeek\033[0m: {message.content}")
+    </script>
+    <figcaption>聊天循环打印 AI 回答的那一行：<code>{message.content}</code> 会被换成 AI 说的话。</figcaption>
+  </figure>
+  <div class="quiz" id="q-02-fstring" data-answer="b">
+    <p class="q">你忘了写 <code>f</code>。这段代码会打印什么？</p>
+    <div class="snippet"><script type="text/x-python">
+name = "小闪"
+print("你好 {name}")
+    </script></div>
+    <ol class="options">
+      <li data-why="没有 f，Python 根本不会去看花括号里面。">你好 小闪</li>
+      <li>你好 {name}</li>
+      <li data-why="不会报错：这就是一个普通的、恰好带花括号的字符串。">报错</li>
+      <li data-why="花括号也会留着。Python 原样打印这个字符串。">你好 name</li>
+    </ol>
+    <div class="explain"><p>没有 <code>f</code>，花括号就是普通字符。忘写 <code>f</code> 不会报错，所以特别容易漏掉。</p></div>
+  </div>
+  <p class="takeaway"><code>f"...{变量}..."</code>：花括号里的东西会被填进去。</p>
+</section>
+
+<section>
+  <h2>终端上色</h2>
+  <p>反斜杠开头的是<strong>转义字符</strong>：<code>\n</code> 是换行，<code>\033</code> 是一个看不见的 ESC 字符。终端看到 <code>\033[94m</code> 就把后面的字变成亮蓝色，看到 <code>\033[0m</code> 就恢复正常。</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>代码</th><th>颜色</th><th>机器人用来</th></tr></thead>
+      <tbody>
+        <tr><td><code>\033[94m</code></td><td><strong style="color:var(--you)">亮蓝</strong></td><td><code>You:</code></td></tr>
+        <tr><td><code>\033[93m</code></td><td><strong style="color:var(--model)">亮黄</strong></td><td><code>DeepSeek:</code></td></tr>
+        <tr><td><code>\033[92m</code></td><td><strong style="color:var(--tool)">亮绿</strong></td><td><code>tool:</code></td></tr>
+        <tr><td><code>\033[91m</code></td><td><strong style="color:var(--err)">亮红</strong></td><td><code>→ error</code></td></tr>
+        <tr><td><code>\033[0m</code></td><td>恢复</td><td>每个彩色词后面</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="cell">
+    <script type="text/x-python">
+BLUE = "\033[94m"
+YELLOW = "\033[93m"
+GREEN = "\033[92m"
+RESET = "\033[0m"
+
+print(f"{BLUE}You{RESET}: input/math.txt 里写了什么？解出来")
+print(f"{GREEN}tool{RESET}: read_file")
+print(f"{YELLOW}DeepSeek{RESET}: x = 100/3")
+    </script>
+  </div>
+  <p>试试删掉一个 <code>{RESET}</code>，看颜色怎样「漏」到后面去。</p>
+  <p class="takeaway">颜色代码开头，<code>\033[0m</code> 收尾。</p>
+</section>
+
+<section>
+  <h2>字符串方法</h2>
+  <p>每个字符串都自带一些工具，叫<strong>方法</strong>，用点来调用。最常用的几个：</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>方法</th><th>例子</th></tr></thead>
+      <tbody>
+        <tr><td><code>.strip()</code> 去掉两头空白</td><td><code>"  hi \n".strip()</code> → <code>"hi"</code></td></tr>
+        <tr><td><code>.lower()</code> 变小写</td><td><code>"YeS".lower()</code> → <code>"yes"</code></td></tr>
+        <tr><td><code>.split()</code> 拆成词</td><td><code>"/exit now".split()</code> → <code>['/exit', 'now']</code></td></tr>
+        <tr><td><code>.replace(a, b)</code> 替换</td><td><code>"x = 1".replace("1", "2")</code> → <code>"x = 2"</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="cell">
+    <script type="text/x-python">
+answer = "  YeS \n"              # 用户可能打出这样的东西
+print(repr(answer))               # repr() 能显示隐藏的空格和 \n
+print(answer.strip().lower())     # 先去空白，再变小写
+print(answer)                     # 原来的字符串没变
+    </script>
+  </div>
+  <figure class="excerpt" data-file="src/agent.py" data-start="95">
+    <script type="text/x-python">
+                answer = self.read(self.PROMPT.format(tool=call.name)).strip().lower()
+    </script>
+    <figcaption>机器人请求授权时，用 <code>.strip().lower()</code> 把你的回答洗干净，<code>" Y "</code> 和 <code>"y"</code> 就是同一个意思。</figcaption>
+  </figure>
+  <p class="takeaway">方法不改原字符串，而是返回一个新的。</p>
+</section>
+
+<section>
+  <h2>切片</h2>
+  <p>每个字符都有位置编号，从 <strong>0</strong> 开始；<code>-1</code> 是最后一个。<code>text[a:b]</code> 取从 a 到 b 之前的一段，省略一头就取到底。</p>
+  <div class="cell">
+    <script type="text/x-python">
+word = "DeepSeek"
+print(word[0], word[-1])    # 第一个、最后一个
+print(word[:4])             # 前 4 个
+print(word[-4:])            # 后 4 个
+
+output = "collecting 58 items\n........F\nFAILED test_edit_file"
+print(output[-21:])         # 报错信息在结尾
+    </script>
+  </div>
+  <figure class="excerpt" data-file="src/tools.py" data-start="239">
+    <script type="text/x-python">
+    if len(output) > MAX_OUTPUT_CHARS:
+        output = (
+            f"... (truncated: showing last {MAX_OUTPUT_CHARS} of {len(output)} chars)\n" + output[-MAX_OUTPUT_CHARS:]
+        )
+    </script>
+    <figcaption><code>run_bash</code> 输出太长时只留<strong>最后</strong>一段（报错都在结尾），还在前面写明剪掉了多少。</figcaption>
+  </figure>
+  <aside class="callout principle">
+    <p class="callout-label">编程原则</p>
+    <h4>不要悄悄剪掉内容</h4>
+    <p>缩短了东西就说出来。机器人的注释原话：「悄悄截断比不截断更糟」。</p>
+  </aside>
+  <div class="quiz" id="q-02-slice" data-answer="a">
+    <p class="q"><code>"read_file"[:4]</code> 是什么？</p>
+    <ol class="options">
+      <li>"read"</li>
+      <li data-why="切片在位置 4 之前就停了，而位置 4 是下划线。">"read_"</li>
+      <li data-why="那是字符串的结尾部分：得用 [-4:] 或 [5:]。">"file"</li>
+      <li data-why="[:4] 是好几个字符组成的切片，不是单个字符。">"r"</li>
+    </ol>
+    <div class="explain"><p>位置 0–3 是 r、e、a、d，在 4 之前停下。<code>[:4]</code> 就是「前 4 个」。</p></div>
+  </div>
+  <p class="takeaway"><code>[:n]</code> 取开头 n 个，<code>[-n:]</code> 取结尾 n 个。</p>
+</section>
+
+<section>
+  <h2>动手挑战</h2>
+  <section class="challenge" id="ch-02-prompt">
+    <div class="challenge-head"><span class="badge">挑战</span><h3>你自己的彩色提示符</h3></div>
+    <p>用<strong>一个 f-字符串</strong>打印 <code>小明: 你好，机器人</code>，只让名字是蓝色（代码 94），然后恢复颜色。</p>
+    <div class="cell">
+      <script type="text/x-python">
+name = "小明"
+message = "你好，机器人"
+# 把名字打印成蓝色（代码 94），恢复颜色（代码 0），再接上 ": " 和消息
+print(name + ": " + message)
+      </script>
+      <script type="text/x-python" class="check">
+assert "\x1b[94m" in __output__, "名字前面应该有蓝色代码 \\033[94m。"
+assert f"\x1b[94m{name}\x1b[0m: {message}" in __output__, "依次打印：蓝色代码、名字、重置代码 \\033[0m，然后是 ': ' 和消息。"
+assert 'f"' in __source__ or "f'" in __source__, "用 f-字符串：在开头的引号前面紧挨着加一个字母 f。"
+      </script>
+      <script type="text/x-python" class="solution">
+name = "小明"
+message = "你好，机器人"
+print(f"\033[94m{name}\033[0m: {message}")
+      </script>
+    </div>
+    <details class="hint"><summary>提示</summary><p>照着 <code>"\033[94mYou\033[0m: "</code> 写，把 <code>You</code> 换成 <code>{name}</code>，前面加 <code>f</code>。</p></details>
+  </section>
+
+  <section class="challenge" id="ch-02-tail">
+    <div class="challenge-head"><span class="badge">挑战</span><h3>像 run_bash 一样剪短</h3></div>
+    <p>拼出 <code>shown</code>：先一行 <code>... (truncated: showing last 20 of 62 chars)</code>，换行，再接 <code>text</code> 的最后 <code>LIMIT</code> 个字符。62 用 <code>len()</code> 算。</p>
+    <div class="cell">
+      <script type="text/x-python">
+LIMIT = 20
+text = "Collecting tests... 57 passed, 1 failed: test_read_file_binary"
+shown = text    # 在这里拼出剪短后的版本
+print(shown)
+      </script>
+      <script type="text/x-python" class="check">
+expected = f"... (truncated: showing last {LIMIT} of {len(text)} chars)\n" + text[-LIMIT:]
+assert shown.endswith(text[-LIMIT:]), "shown 应该以 text 的最后 20 个字符结尾。试试负数切片。"
+first = shown.split("\n")[0]
+assert first == f"... (truncated: showing last {LIMIT} of {len(text)} chars)", f"第一行应该是 '... (truncated: showing last {LIMIT} of {len(text)} chars)'，现在却是 {first!r}。"
+assert shown == expected, "说明和最后 20 个字符之间，要正好放一个换行（\\n）。"
+assert "len(" in __source__, "用 len(text) 算出长度，不要直接写数字。"
+      </script>
+      <script type="text/x-python" class="solution">
+LIMIT = 20
+text = "Collecting tests... 57 passed, 1 failed: test_read_file_binary"
+shown = f"... (truncated: showing last {LIMIT} of {len(text)} chars)\n" + text[-LIMIT:]
+print(shown)
+      </script>
+    </div>
+    <details class="hint"><summary>提示</summary><p>一个以 <code>\n</code> 结尾的 f-字符串，<code>+</code> 上切片 <code>text[-LIMIT:]</code>。</p></details>
+  </section>
+</section>
+
+<section class="keywords">
+  <h2>小结</h2>
+  <ul class="recap">
+    <li><code>input()</code> 永远返回字符串，算术前先 <code>int()</code>。</li>
+    <li>f-字符串用 <code>{ }</code> 填空；<code>\033[94m</code> … <code>\033[0m</code> 给文字上色。</li>
+    <li><code>.strip()</code>、<code>.lower()</code> 等方法返回新字符串。</li>
+    <li>切片 <code>[:n]</code>、<code>[-n:]</code> 取开头或结尾；剪了就要说。</li>
+  </ul>
+  <h3>关键词</h3>
+  <dl>
+    <div><dt>字符串 <span class="en">string</span></dt><dd>引号里的文字。</dd></div>
+    <div><dt>f-字符串 <span class="en">f-string</span></dt><dd>带 <code>f</code>、能填空的字符串。</dd></div>
+    <div><dt>转义字符 <span class="en">escape sequence</span></dt><dd>像 <code>\n</code> 的反斜杠代码。</dd></div>
+    <div><dt>方法 <span class="en">method</span></dt><dd>用点调用的工具，如 <code>.strip()</code>。</dd></div>
+    <div><dt>索引 <span class="en">index</span></dt><dd>字符的位置，从 0 开始。</dd></div>
+    <div><dt>切片 <span class="en">slice</span></dt><dd>字符串的一段：<code>text[a:b]</code>。</dd></div>
+  </dl>
+</section>
+
+</main>
+</div>
+</body>
+</html>

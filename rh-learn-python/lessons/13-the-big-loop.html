@@ -1,0 +1,1451 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>大循环 · 拆机学 Python 13</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap">
+<link rel="stylesheet" href="../assets/course.css">
+<script src="../assets/course.js"></script>
+<style>
+  /* 循环模拟器：只用 course.css 里的颜色变量，所以浅色和深色主题都适用。 */
+  .sim {
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--card);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .sim-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.8rem;
+    padding: 0.7rem 0.9rem;
+    background: var(--tint);
+    border-bottom: 1px solid var(--line);
+  }
+  .sim-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+  .sim-tabs .btn[aria-pressed="true"] {
+    background: var(--ink);
+    border-color: var(--ink);
+    color: var(--paper);
+  }
+  .sim-count {
+    margin-left: auto;
+    font: 700 0.8rem/1.3 var(--mono);
+    color: var(--ink-3);
+    font-variant-numeric: tabular-nums;
+  }
+  .sim-say {
+    margin: 0;
+    padding: 0.9rem 1rem 0.6rem;
+    font-size: 1.02rem;
+    min-height: 5.2em;
+  }
+  .sim-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    padding: 0 1rem 0.9rem;
+    border-bottom: 1px solid var(--line);
+  }
+  .sim-controls .btn:disabled {
+    cursor: not-allowed;
+  }
+  .sim-keys {
+    font-size: 0.82rem;
+    color: var(--ink-3);
+  }
+  .sim-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  }
+  .sim-col {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .sim-col + .sim-col {
+    border-left: 1px solid var(--line);
+  }
+  .sim-label {
+    margin: 0;
+    padding: 0.6rem 0.9rem 0.35rem;
+    font: 700 0.7rem/1.3 var(--mono);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-3);
+  }
+  .sim-code {
+    background: var(--code-bg);
+    color: var(--code-fg);
+    font: 0.8rem/1.6 var(--mono);
+    padding: 0.4rem 0;
+    overflow-x: auto;
+    border-block: 1px solid var(--line);
+  }
+  .sim-line {
+    display: flex;
+    white-space: pre;
+    padding-right: 0.8rem;
+    min-width: max-content;
+  }
+  .sim-line .n {
+    flex: none;
+    width: 2.8em;
+    padding-right: 0.9em;
+    text-align: right;
+    color: var(--ink-3);
+    user-select: none;
+  }
+  .sim-line.on {
+    background: color-mix(in srgb, var(--signal) 32%, transparent);
+    box-shadow: inset 4px 0 0 var(--model);
+  }
+  .sim-vars {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    padding: 0.2rem 0.9rem 0.9rem;
+  }
+  .sim-var {
+    font: 600 0.8rem/1.3 var(--mono);
+    background: var(--tint);
+    border: 1.5px solid transparent;
+    border-radius: 6px;
+    padding: 0.3rem 0.5rem;
+  }
+  .sim-var b {
+    color: var(--you);
+  }
+  .sim-var.changed {
+    background: var(--model-tint);
+    border-color: var(--model);
+  }
+  .sim-conv {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    padding: 0.2rem 0.9rem 0.8rem;
+  }
+  .sim-empty {
+    margin: 0;
+    font: 0.82rem/1.5 var(--mono);
+    color: var(--ink-3);
+  }
+  .msg {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    border-radius: 8px;
+    padding: 0.45rem 0.65rem;
+    border-left: 4px solid var(--line);
+    background: var(--tint);
+    font: 0.8rem/1.45 var(--mono);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    min-width: 0;
+  }
+  .msg .role {
+    font-weight: 700;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .msg.user {
+    background: var(--you-tint);
+    border-left-color: var(--you);
+  }
+  .msg.user .role {
+    color: var(--you);
+  }
+  .msg.assistant {
+    background: var(--model-tint);
+    border-left-color: var(--model);
+  }
+  .msg.assistant .role {
+    color: var(--model);
+  }
+  .msg.tool {
+    background: var(--tool-tint);
+    border-left-color: var(--tool);
+  }
+  .msg.tool .role {
+    color: var(--tool);
+  }
+  .msg.tool.error {
+    background: var(--err-tint);
+    border-left-color: var(--err);
+  }
+  .msg.tool.error .role {
+    color: var(--err);
+  }
+  .msg.new {
+    box-shadow: 0 0 0 2px var(--signal);
+  }
+  .sim-term {
+    background: var(--term-bg);
+    color: var(--term-fg);
+    font: 0.8rem/1.55 var(--mono);
+    padding: 0.7rem 0.9rem;
+    margin: 0 0.9rem 0.9rem;
+    border-radius: 8px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    min-height: 7rem;
+    max-height: 16rem;
+    overflow-y: auto;
+  }
+  .sim-new {
+    background: color-mix(in srgb, var(--signal) 20%, transparent);
+  }
+  @media (max-width: 720px) {
+    .sim-grid {
+      grid-template-columns: 1fr;
+    }
+    .sim-col + .sim-col {
+      border-left: 0;
+      border-top: 1px solid var(--line);
+    }
+    .sim-count {
+      margin-left: 0;
+    }
+  }
+</style>
+</head>
+<body data-lesson="13" data-root="../">
+<div class="page">
+
+<header class="hero">
+  <p class="eyebrow">第 13 课 · 第 5 单元 · 总装</p>
+  <h1>大循环</h1>
+  <p class="lede">你学过的零件都汇进了 <code>Agent.run</code>。读懂它、看它跑，再亲手搭一个 agent。</p>
+  <div class="bench" aria-label="今天工作台上的零件">
+    <span class="prompt">$</span> <span>teardown</span> <span class="path">src/agent.py</span> <span>--lines 190-248</span> <span class="cursor" aria-hidden="true"></span>
+  </div>
+  <dl class="hero-meta">
+    <div><dt>工作台上的零件</dt><dd><code>Agent.run</code> 和 <code>_execute</code></dd></div>
+    <div><dt>时长</dt><dd>约 45 分钟</dd></div>
+    <div><dt>你会学到</dt><dd>读懂主循环 · 错误变结果 · 搭迷你 agent</dd></div>
+  </dl>
+</header>
+
+<main class="lesson">
+
+<section>
+  <h2>读懂主循环</h2>
+  <p>你学过的每个零件，都汇进了 <code>src/agent.py</code> 的 <code>Agent.run</code>。它就是机器人的心跳，下面是原文。</p>
+
+  <figure class="excerpt" data-file="src/agent.py" data-start="190" data-highlight="195,197,235,248">
+    <script type="text/x-python">
+    def run(self) -> None:
+        conversation: list[dict] = []
+        tools = list(self.tools.values())
+        print(f"Chat with {self.provider.label} — {len(tools)} 个工具可用（/exit、/quit 或 Ctrl-D 退出）")
+
+        need_user_input = True
+        tool_rounds = 0  # 自上次用户输入以来连续的工具轮数
+        while True:
+            if need_user_input:
+                user_input = self.get_user_input()
+                if user_input is None:
+                    break
+                if not user_input:
+                    continue
+                command = slash_command(user_input)
+                if command in ("exit", "quit"):
+                    break
+                if command in self.skills:
+                    message = self._skill_message(self.skills[command], user_input)
+                    if message is None:
+                        continue
+                    conversation.append({"role": "user", "content": message})
+                elif command is not None:
+                    available = "  ".join(f"/{name}" for name in self.commands)
+                    print(f"\033[91m未知命令 /{command}\033[0m。可用：{available}（输入 / 看说明）")
+                    continue
+                else:
+                    conversation.append({"role": "user", "content": user_input})
+                tool_rounds = 0
+
+            # provider.chat 会把 assistant 回复按本家格式 append 进 conversation。
+            reply = self.provider.chat(conversation, tools, self.system)
+
+            if reply.usage:
+                self._log_usage(reply.usage)
+                if reply.usage.input_tokens > self.context_budget:
+                    pruned = self.provider.prune_tool_results(conversation, self.keep_tool_results)
+                    if pruned:
+                        print(
+                            f"\033[2m· 上下文超过 {self.context_budget:,} token 预算，清理了 {pruned} 个旧工具结果\033[0m",
+                            file=sys.stderr,
+                        )
+            for text in reply.texts:
+                print(f"\033[93m{self.provider.label}\033[0m:")
+                console.print(Markdown(text))  # Markdown 按块渲染，所以标签单独一行
+            results = [self._execute(call) for call in reply.tool_calls]
+
+            if not results:
+                need_user_input = True  # 没工具调用 → 回到用户
+                continue
+
+            conversation.extend(self.provider.tool_results(results))
+            tool_rounds += 1
+            if tool_rounds >= self.max_tool_rounds:
+                # 结果已经回灌，每个 tool_call id 都有回复；用户下一句（比如「继续」）接在 tool 消息后面即可。
+                print(f"\033[91m已连续 {tool_rounds} 轮工具调用，先暂停交回给你；回复「继续」让它接着做。\033[0m")
+                need_user_input = True
+                continue
+            need_user_input = False  # 有工具调用 → 不等用户，直接再问模型
+    </script>
+    <figcaption>
+      <p>高亮的四行是骨架。读第 238 和 248 行的注释：没工具调用就回到你，有工具调用就直接再问模型。</p>
+    </figcaption>
+  </figure>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>行</th><th>做什么</th></tr></thead>
+      <tbody>
+        <tr><td>191–196</td><td>准备：空的对话记录，两个控制变量</td></tr>
+        <tr><td>197–218</td><td>轮到你时：读输入、认命令、把消息加进记录</td></tr>
+        <tr><td>221</td><td>把<strong>整个</strong>对话记录发给模型</td></tr>
+        <tr><td>235</td><td>执行模型要的每个工具</td></tr>
+        <tr><td>237–248</td><td>没工具调用 → 轮到你；有 → 记一轮，到上限就刹车，否则直接再问模型</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="quiz" id="q-13-wait" data-answer="b">
+    <p class="q">工具跑完后，第 248 行把 <code>need_user_input</code> 设成 <code>False</code>。为什么不先问你？</p>
+    <ol class="options">
+      <li data-why="恰好相反：再问一次模型要多花一次请求的钱。">为了省 token 的钱</li>
+      <li>模型要工具是因为需要结果，只有它知道拿到结果后该做什么</li>
+      <li data-why="Python 想调用 input() 多少次都行。">Python 不能连续调用两次 <code>input()</code></li>
+      <li data-why="跟速度无关，关键是下一步轮到谁。">这样程序跑得更快</li>
+    </ol>
+    <div class="explain"><p>模型说「请读 <code>input/math.txt</code>」，是因为它想看文件。模型和工具你来我往、不用你插手，这就是 agent 和聊天机器人的区别。</p></div>
+  </div>
+
+  <details class="more">
+    <summary>多了解一点：学过的概念都在哪一行</summary>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>概念</th><th>课</th><th>在 <code>Agent.run</code> 里</th></tr></thead>
+        <tbody>
+          <tr><td>变量</td><td>01</td><td><code>need_user_input = True</code>（第 195 行）</td></tr>
+          <tr><td>字符串与颜色</td><td>02</td><td>黄色的 <code>DeepSeek:</code> 标签（第 233 行）</td></tr>
+          <tr><td>if / elif / else</td><td>03</td><td>是命令还是消息（第 205–217 行）</td></tr>
+          <tr><td>while 循环</td><td>04</td><td><code>while True:</code>（第 197 行）</td></tr>
+          <tr><td>列表</td><td>05</td><td><code>conversation</code> 的 <code>.append</code> / <code>.extend</code></td></tr>
+          <tr><td>字典</td><td>06</td><td><code>{"role": "user", "content": user_input}</code></td></tr>
+          <tr><td>for 与推导式</td><td>07</td><td><code>[self._execute(call) for call in ...]</code>（第 235 行）</td></tr>
+          <tr><td>函数</td><td>08</td><td><code>slash_command(user_input)</code>（第 204 行）</td></tr>
+          <tr><td>错误与异常</td><td>09</td><td><code>_execute</code> 接住工具的失败</td></tr>
+          <tr><td>类与对象</td><td>12</td><td><code>self.provider.chat(...)</code>（第 221 行）</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </details>
+
+  <p class="takeaway">有工具调用就不等你、直接再问模型：这一行让它成了 agent。</p>
+</section>
+
+<section>
+  <h2>错误变结果</h2>
+  <p>第 235 行对每个工具调用执行一次 <code>_execute</code>。它的每条路都以 <code>return</code> 结尾，失败也会变成一个错误结果。</p>
+
+  <figure class="excerpt" data-file="src/agent.py" data-start="144" data-highlight="148,156,158,161">
+    <script type="text/x-python">
+    def _execute(self, call: ToolCall) -> ToolResult:
+        """执行一次工具调用。失败也返回结果，交给模型自己纠错。"""
+        print(f"\033[92mtool\033[0m: {call.name}({json.dumps(call.input, ensure_ascii=False)})")
+        tool = self.tools.get(call.name)
+        try:
+            if tool is None:
+                raise ToolError(f"unknown tool: {call.name}")
+            if call.input_error:
+                raise ToolError(call.input_error)
+            if tool.needs_approval and not self.approve(call):
+                raise ToolError("the user denied this tool call")
+            return ToolResult(call.id, tool.run(call.input))
+        except ToolError as e:
+            error = str(e)
+        except KeyError as e:  # 模型漏传了必填参数
+            error = f"missing argument: {e}"
+        print(f"\033[91m      → error\033[0m: {error}")
+        return ToolResult(call.id, error, is_error=True)
+    </script>
+    <figcaption>
+      <p>文档字符串一句话说清了：「失败也返回结果，交给模型自己纠错」。</p>
+    </figcaption>
+  </figure>
+
+  <aside class="callout watch">
+    <p class="callout-label">易错点</p>
+    <p>每个工具调用都必须有且只有一个回复。少回一个，下一次请求就会被 DeepSeek 拒绝，会话直接卡死。</p>
+  </aside>
+
+  <div class="quiz" id="q-13-crash" data-answer="b">
+    <p class="q">如果 <code>_execute</code> 里没有 <code>try</code>/<code>except</code>，模型又要读一个不存在的文件，会怎样？</p>
+    <ol class="options">
+      <li data-why="有 try/except 才会这样。没有它，模型根本看不到这个错误。">模型收到错误消息，换个办法</li>
+      <li>程序崩溃，对话记录（机器人的记忆）全部丢失</li>
+      <li data-why="Python 不会自己跳过错误，没被捕获的异常会让程序停下。">Python 自动跳过这个调用</li>
+      <li data-why="读文件永远不会创建文件。">创建一个空文件</li>
+    </ol>
+    <div class="explain"><p>异常一路往上冲出 <code>run</code>，程序停下，只存在内存里的 <code>conversation</code> 也没了。变成错误结果，模型就能读到问题、换个计划。</p></div>
+  </div>
+
+  <p class="takeaway">工具失败不崩溃，而是变成错误结果交给模型。</p>
+</section>
+
+<section>
+  <h2>看循环跑起来</h2>
+  <p>按「下一步」，看代码行、变量、<code>conversation</code> 和终端一起变化。再试试第二个场景：文件不存在时，模型怎么自己改计划。</p>
+
+  <div class="sim wide" id="sim" role="region" aria-label="agent 循环模拟器">
+    <div class="sim-top">
+      <div class="sim-tabs" role="group" aria-label="场景">
+        <button type="button" class="btn" data-scenario="math" aria-pressed="true">解 input/math.txt</button>
+        <button type="button" class="btn" data-scenario="error" aria-pressed="false">要一个不存在的文件</button>
+      </div>
+      <span class="sim-count" id="sim-count">第 1 步 / 共 13 步</span>
+    </div>
+    <p class="sim-say" id="sim-say" aria-live="polite">机器人启动了。它的记忆 <code>conversation</code> 是一个空列表。<code>need_user_input</code> 是 <code>True</code>，所以它要做的第一件事是问你。</p>
+    <div class="sim-controls">
+      <button type="button" class="btn" id="sim-back" disabled>← 上一步</button>
+      <button type="button" class="btn run" id="sim-next">下一步 →</button>
+      <button type="button" class="btn ghost" id="sim-restart">重来</button>
+      <span class="sim-keys">也可以用键盘的 ← 和 → 键。</span>
+    </div>
+    <div class="sim-grid">
+      <div class="sim-col">
+        <p class="sim-label">循环（简化版 Agent.run）</p>
+        <div class="sim-code" id="sim-code"></div>
+        <p class="sim-label">变量</p>
+        <div class="sim-vars" id="sim-vars"></div>
+      </div>
+      <div class="sim-col">
+        <p class="sim-label">conversation（机器人的记忆）</p>
+        <div class="sim-conv" id="sim-conv"><p class="sim-empty">[]（空列表：还什么都没记住）</p></div>
+        <p class="sim-label">终端</p>
+        <div class="sim-term" id="sim-term"><span class="a-dim">Chat with DeepSeek — 4 个工具可用（/exit、/quit 或 Ctrl-D 退出）</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="quiz" id="q-13-memory" data-answer="a">
+    <p class="q">模拟器里，模型每次都收到<em>整个</em>对话记录。为什么？</p>
+    <ol class="options">
+      <li>模型在两次请求之间什么都不记得，这个列表就是唯一的记忆</li>
+      <li data-why="回答的长短和你发过去多少历史无关。">为了让模型写出更长的回答</li>
+      <li data-why="发旧消息会多花 token。这么做是因为不得不做。">为了少用一些 token</li>
+      <li data-why="那是 API 密钥的事，对话记录只是内容。">为了让服务器检查密码</li>
+    </ol>
+    <div class="explain"><p>模型是无状态的，每次请求都从零开始。所以真机器人要统计 token、修剪旧结果：这个列表只会越来越长。</p></div>
+  </div>
+
+  <p class="takeaway">模型不记事，每次都要把整个对话记录重新发过去。</p>
+</section>
+
+<section>
+  <h2>自己搭一个</h2>
+  <p>下面是一个完整的迷你 agent，用的全是学过的东西。只有大脑是假的：<code>FakeBrain</code> 按几条 <code>if</code> 规则办事，工具真的会读（虚拟）磁盘。</p>
+
+  <div class="cell" data-label="试一试 · 你自己的 agent" data-inputs="你好|你有哪些文件？|input/math.txt 里写了什么？解出来|请读一下 notes.txt">
+    <script type="text/x-python">
+import json
+import os
+from dataclasses import dataclass, field
+
+# 在（虚拟）磁盘上准备一个小项目，让机器人去探索
+os.makedirs("input", exist_ok=True)
+with open("input/math.txt", "w", encoding="utf-8") as f:
+    f.write("3x - 8 = 92, 求 x ?")
+
+MAX_TOOL_ROUNDS = 5
+
+
+# ---------- 零件（第 09 课和第 12 课）----------
+class ToolError(Exception):
+    """工具出错了。它会变成交给大脑的错误结果，而不是让程序崩溃。"""
+
+
+@dataclass(frozen=True)
+class Tool:
+    name: str
+    run: object  # 一个函数：参数字典 -> 文本
+
+
+@dataclass(frozen=True)
+class ToolCall:
+    id: str
+    name: str
+    input: dict
+
+
+@dataclass
+class Reply:
+    texts: list = field(default_factory=list)
+    tool_calls: list = field(default_factory=list)
+
+
+# ---------- 双手：工具（第 08 课和第 10 课）----------
+def read_file(args):
+    path = args["path"]
+    if not os.path.isfile(path):
+        raise ToolError(f"no such file: {path}")
+    with open(path, encoding="utf-8") as f:
+        return f.read()
+
+
+def list_files(args):
+    found = []
+    for folder, dirs, files in os.walk(args.get("path") or "."):
+        for name in files:
+            found.append(os.path.relpath(os.path.join(folder, name)))
+    return json.dumps(sorted(found))
+
+
+TOOLS = [Tool("read_file", read_file), Tool("list_files", list_files)]
+
+
+# ---------- 大脑：一个按 if 规则办事的假大脑 ----------
+class FakeBrain:
+    label = "FakeSeek"
+
+    def __init__(self):
+        self.calls = 0
+
+    def chat(self, conversation, tools):
+        # 和真正的 provider 干同样的活：读对话记录，追加一条回复，再把回复返回
+        self.calls += 1
+        last = conversation[-1]
+        if last["role"] == "tool":
+            if last["content"].startswith("Error:"):
+                return self._say(conversation, f"没成功（{last['content']}）。要不要我列出所有文件？")
+            return self._say(conversation, "我找到的内容：\n" + last["content"])
+        message = last["content"].lower()
+        # 假大脑只认得前后有空格的文件名，比如「请读一下 notes.txt」
+        paths = [w.strip("?!,.？！，。") for w in message.split() if "." in w.strip("?!,.？！，。")]
+        if paths and "数一数" in message:
+            return self._use(conversation, "count_words", {"path": paths[0]})
+        if paths:
+            return self._use(conversation, "read_file", {"path": paths[0]})
+        if "文件" in message or "列出" in message:
+            return self._use(conversation, "list_files", {})
+        return self._say(conversation, "我是个假大脑。你可以让我列出文件，或者读一个文件。")
+
+    def _say(self, conversation, text):
+        conversation.append({"role": "assistant", "content": text})
+        return Reply(texts=[text])
+
+    def _use(self, conversation, name, args):
+        call = ToolCall(f"call_{self.calls}", name, args)
+        conversation.append({"role": "assistant", "content": None, "tool_calls": [call]})
+        return Reply(tool_calls=[call])
+
+
+# ---------- 心跳：agent 循环 ----------
+class Agent:
+    def __init__(self, brain, tools, get_user_input, max_tool_rounds=MAX_TOOL_ROUNDS):
+        self.brain = brain
+        self.tools = {t.name: t for t in tools}
+        self.get_user_input = get_user_input
+        self.max_tool_rounds = max_tool_rounds
+        self.conversation = []
+
+    def execute(self, call):
+        print(f"\033[92mtool\033[0m: {call.name}({json.dumps(call.input)})")
+        tool = self.tools.get(call.name)
+        try:
+            if tool is None:
+                raise ToolError(f"unknown tool: {call.name}")
+            return {"role": "tool", "tool_call_id": call.id, "content": tool.run(call.input)}
+        except ToolError as e:
+            error = str(e)
+        except KeyError as e:
+            error = f"missing argument: {e}"
+        print(f"\033[91m      → error\033[0m: {error}")
+        return {"role": "tool", "tool_call_id": call.id, "content": f"Error: {error}"}
+
+    def run(self):
+        print(f"Chat with {self.brain.label} — {len(self.tools)} 个工具可用（Ctrl-D 退出）")
+        need_user_input = True
+        tool_rounds = 0
+        while True:
+            if need_user_input:
+                user_input = self.get_user_input()
+                if user_input is None:
+                    break
+                if not user_input:
+                    continue
+                self.conversation.append({"role": "user", "content": user_input})
+                tool_rounds = 0
+            reply = self.brain.chat(self.conversation, list(self.tools.values()))
+            for text in reply.texts:
+                print(f"\033[93m{self.brain.label}\033[0m: {text}")
+            results = [self.execute(call) for call in reply.tool_calls]
+            if not results:
+                need_user_input = True  # 没工具调用 → 回到用户
+                continue
+            self.conversation.extend(results)
+            tool_rounds += 1
+            if tool_rounds >= self.max_tool_rounds:
+                print(f"\033[91m已连续 {tool_rounds} 轮工具调用，先暂停交回给你。\033[0m")
+                need_user_input = True
+                continue
+            need_user_input = False  # 有工具调用 → 不等用户，直接再问大脑
+
+
+def keyboard():
+    try:
+        return input("\033[94mYou\033[0m: ")
+    except EOFError:  # 没有输入了，相当于按 Ctrl-D
+        return None
+
+
+agent = Agent(FakeBrain(), TOOLS, keyboard)
+agent.run()
+print(f"\033[2m（对话结束，conversation 里共有 {len(agent.conversation)} 条消息）\033[0m")
+    </script>
+  </div>
+
+  <p>试试在输入框加一行「数一数 input/math.txt 有几个词」：工具还不存在，红色错误出现了，程序却照样往下跑。</p>
+
+  <aside class="callout principle">
+    <p class="callout-label">编程原则</p>
+    <h4>循环要小，零件要聪明</h4>
+    <p>主循环只管轮到谁、把对话记录传下去。难办的事都藏在函数和类里，所以换个大脑不用改循环一行。</p>
+  </aside>
+
+  <details class="more">
+    <summary>多了解一点：真机器人还多了什么</summary>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>真机器人多出来的</th><th>在哪儿</th></tr></thead>
+        <tbody>
+          <tr><td>真的大脑：通过网络问 DeepSeek</td><td><code>providers.py</code></td></tr>
+          <tr><td>四个工具，包括 <code>edit_file</code> 和 <code>run_bash</code>，都有大小上限</td><td><code>tools.py</code></td></tr>
+          <tr><td>执行命令前问一句 <code>[Y/n/a]</code></td><td><code>agent.py</code> 的 <code>ConsoleApprover</code></td></tr>
+          <tr><td>模型必须遵守的规则（系统提示词）</td><td><code>prompt.py</code></td></tr>
+          <tr><td>记忆太大时修剪旧的工具结果</td><td><code>Agent.run</code> + <code>providers.py</code></td></tr>
+          <tr><td>skill、记忆笔记、好用的键盘输入</td><td><code>skills.py</code>、<code>prompt.py</code>、<code>cli_input.py</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </details>
+
+  <p class="takeaway">把 <code>FakeBrain</code> 换成真模型，就是 <code>providers.py</code> 做的事。</p>
+</section>
+
+<section>
+  <h2>动手挑战</h2>
+
+  <section class="challenge" id="ch-13-count">
+    <div class="challenge-head"><span class="badge">挑战 1</span><h3>新工具：<code>count_words</code></h3></div>
+    <p>提到文件又说「数一数」时，假大脑会要 <code>count_words</code>。写完它（返回词数字符串，math.txt 是 <code>"8"</code>），再加进 <code>TOOLS</code>。</p>
+    <div class="cell" data-inputs="数一数 input/math.txt 有几个词">
+      <script type="text/x-python">
+import json
+import os
+from dataclasses import dataclass, field
+
+os.makedirs("input", exist_ok=True)
+with open("input/math.txt", "w", encoding="utf-8") as f:
+    f.write("3x - 8 = 92, 求 x ?")
+
+
+class ToolError(Exception):
+    pass
+
+
+@dataclass(frozen=True)
+class Tool:
+    name: str
+    run: object
+
+
+@dataclass(frozen=True)
+class ToolCall:
+    id: str
+    name: str
+    input: dict
+
+
+@dataclass
+class Reply:
+    texts: list = field(default_factory=list)
+    tool_calls: list = field(default_factory=list)
+
+
+def read_file(args):
+    path = args["path"]
+    if not os.path.isfile(path):
+        raise ToolError(f"no such file: {path}")
+    with open(path, encoding="utf-8") as f:
+        return f.read()
+
+
+def count_words(args):
+    # TODO：读取 args["path"] 指向的文件，以字符串形式返回它有几个词。
+    # 提示：你已经有一个会读文件的工具了。text.split() 会按空格切分。
+    return "?"
+
+
+TOOLS = [Tool("read_file", read_file)]  # TODO：把 count_words 也加进来
+
+
+class FakeBrain:
+    label = "FakeSeek"
+
+    def __init__(self):
+        self.calls = 0
+
+    def chat(self, conversation, tools):
+        self.calls += 1
+        last = conversation[-1]
+        if last["role"] == "tool":
+            if last["content"].startswith("Error:"):
+                return self._say(conversation, f"没成功（{last['content']}）。")
+            return self._say(conversation, "我找到的内容：\n" + last["content"])
+        message = last["content"].lower()
+        paths = [w.strip("?!,.？！，。") for w in message.split() if "." in w.strip("?!,.？！，。")]
+        if paths and "数一数" in message:
+            return self._use(conversation, "count_words", {"path": paths[0]})
+        if paths:
+            return self._use(conversation, "read_file", {"path": paths[0]})
+        return self._say(conversation, "我是个假大脑。你可以让我读一个文件，或者数一数它有几个词。")
+
+    def _say(self, conversation, text):
+        conversation.append({"role": "assistant", "content": text})
+        return Reply(texts=[text])
+
+    def _use(self, conversation, name, args):
+        call = ToolCall(f"call_{self.calls}", name, args)
+        conversation.append({"role": "assistant", "content": None, "tool_calls": [call]})
+        return Reply(tool_calls=[call])
+
+
+class Agent:
+    def __init__(self, brain, tools, get_user_input, max_tool_rounds=5):
+        self.brain = brain
+        self.tools = {t.name: t for t in tools}
+        self.get_user_input = get_user_input
+        self.max_tool_rounds = max_tool_rounds
+        self.conversation = []
+
+    def execute(self, call):
+        print(f"\033[92mtool\033[0m: {call.name}({json.dumps(call.input)})")
+        tool = self.tools.get(call.name)
+        try:
+            if tool is None:
+                raise ToolError(f"unknown tool: {call.name}")
+            return {"role": "tool", "tool_call_id": call.id, "content": tool.run(call.input)}
+        except ToolError as e:
+            error = str(e)
+        except KeyError as e:
+            error = f"missing argument: {e}"
+        print(f"\033[91m      → error\033[0m: {error}")
+        return {"role": "tool", "tool_call_id": call.id, "content": f"Error: {error}"}
+
+    def run(self):
+        need_user_input = True
+        tool_rounds = 0
+        while True:
+            if need_user_input:
+                user_input = self.get_user_input()
+                if user_input is None:
+                    break
+                if not user_input:
+                    continue
+                self.conversation.append({"role": "user", "content": user_input})
+                tool_rounds = 0
+            reply = self.brain.chat(self.conversation, list(self.tools.values()))
+            for text in reply.texts:
+                print(f"\033[93m{self.brain.label}\033[0m: {text}")
+            results = [self.execute(call) for call in reply.tool_calls]
+            if not results:
+                need_user_input = True
+                continue
+            self.conversation.extend(results)
+            tool_rounds += 1
+            if tool_rounds >= self.max_tool_rounds:
+                print(f"\033[91m已连续 {tool_rounds} 轮工具调用，先暂停交回给你。\033[0m")
+                need_user_input = True
+                continue
+            need_user_input = False
+
+
+def keyboard():
+    try:
+        return input("\033[94mYou\033[0m: ")
+    except EOFError:
+        return None
+
+
+Agent(FakeBrain(), TOOLS, keyboard).run()
+      </script>
+      <script type="text/x-python" class="check">
+with open("input/math.txt", "w", encoding="utf-8") as f:
+    f.write("3x - 8 = 92, 求 x ?")
+with open("input/story.txt", "w", encoding="utf-8") as f:
+    f.write("one two three")
+got = count_words({"path": "input/math.txt"})
+assert got == "8", f"对 input/math.txt，count_words 应该返回字符串 '8'，实际返回了 {got!r}。"
+got = count_words({"path": "input/story.txt"})
+assert got == "3", f"count_words 要真的去数：文件内容是 'one two three' 时应该返回 '3'，而不是 {got!r}。"
+assert any(t.name == "count_words" for t in TOOLS), "把 Tool(\"count_words\", count_words) 加进 TOOLS 列表，agent 才能用上它。"
+lines = iter(["数一数 input/math.txt 有几个词"])
+test_agent = Agent(FakeBrain(), TOOLS, lambda: next(lines, None))
+test_agent.run()
+answers = [m["content"] for m in test_agent.conversation if m["role"] == "tool"]
+assert answers == ["8"], f"agent 运行时，count_words 的结果应该是 '8'。实际的工具结果是 {answers!r}。"
+      </script>
+      <script type="text/x-python" class="solution">
+import json
+import os
+from dataclasses import dataclass, field
+
+os.makedirs("input", exist_ok=True)
+with open("input/math.txt", "w", encoding="utf-8") as f:
+    f.write("3x - 8 = 92, 求 x ?")
+
+
+class ToolError(Exception):
+    pass
+
+
+@dataclass(frozen=True)
+class Tool:
+    name: str
+    run: object
+
+
+@dataclass(frozen=True)
+class ToolCall:
+    id: str
+    name: str
+    input: dict
+
+
+@dataclass
+class Reply:
+    texts: list = field(default_factory=list)
+    tool_calls: list = field(default_factory=list)
+
+
+def read_file(args):
+    path = args["path"]
+    if not os.path.isfile(path):
+        raise ToolError(f"no such file: {path}")
+    with open(path, encoding="utf-8") as f:
+        return f.read()
+
+
+def count_words(args):
+    text = read_file(args)  # 直接复用 read_file 工具，不用再抄一遍读文件的代码
+    return str(len(text.split()))
+
+
+TOOLS = [Tool("read_file", read_file), Tool("count_words", count_words)]
+
+
+class FakeBrain:
+    label = "FakeSeek"
+
+    def __init__(self):
+        self.calls = 0
+
+    def chat(self, conversation, tools):
+        self.calls += 1
+        last = conversation[-1]
+        if last["role"] == "tool":
+            if last["content"].startswith("Error:"):
+                return self._say(conversation, f"没成功（{last['content']}）。")
+            return self._say(conversation, "我找到的内容：\n" + last["content"])
+        message = last["content"].lower()
+        paths = [w.strip("?!,.？！，。") for w in message.split() if "." in w.strip("?!,.？！，。")]
+        if paths and "数一数" in message:
+            return self._use(conversation, "count_words", {"path": paths[0]})
+        if paths:
+            return self._use(conversation, "read_file", {"path": paths[0]})
+        return self._say(conversation, "我是个假大脑。你可以让我读一个文件，或者数一数它有几个词。")
+
+    def _say(self, conversation, text):
+        conversation.append({"role": "assistant", "content": text})
+        return Reply(texts=[text])
+
+    def _use(self, conversation, name, args):
+        call = ToolCall(f"call_{self.calls}", name, args)
+        conversation.append({"role": "assistant", "content": None, "tool_calls": [call]})
+        return Reply(tool_calls=[call])
+
+
+class Agent:
+    def __init__(self, brain, tools, get_user_input, max_tool_rounds=5):
+        self.brain = brain
+        self.tools = {t.name: t for t in tools}
+        self.get_user_input = get_user_input
+        self.max_tool_rounds = max_tool_rounds
+        self.conversation = []
+
+    def execute(self, call):
+        print(f"\033[92mtool\033[0m: {call.name}({json.dumps(call.input)})")
+        tool = self.tools.get(call.name)
+        try:
+            if tool is None:
+                raise ToolError(f"unknown tool: {call.name}")
+            return {"role": "tool", "tool_call_id": call.id, "content": tool.run(call.input)}
+        except ToolError as e:
+            error = str(e)
+        except KeyError as e:
+            error = f"missing argument: {e}"
+        print(f"\033[91m      → error\033[0m: {error}")
+        return {"role": "tool", "tool_call_id": call.id, "content": f"Error: {error}"}
+
+    def run(self):
+        need_user_input = True
+        tool_rounds = 0
+        while True:
+            if need_user_input:
+                user_input = self.get_user_input()
+                if user_input is None:
+                    break
+                if not user_input:
+                    continue
+                self.conversation.append({"role": "user", "content": user_input})
+                tool_rounds = 0
+            reply = self.brain.chat(self.conversation, list(self.tools.values()))
+            for text in reply.texts:
+                print(f"\033[93m{self.brain.label}\033[0m: {text}")
+            results = [self.execute(call) for call in reply.tool_calls]
+            if not results:
+                need_user_input = True
+                continue
+            self.conversation.extend(results)
+            tool_rounds += 1
+            if tool_rounds >= self.max_tool_rounds:
+                print(f"\033[91m已连续 {tool_rounds} 轮工具调用，先暂停交回给你。\033[0m")
+                need_user_input = True
+                continue
+            need_user_input = False
+
+
+def keyboard():
+    try:
+        return input("\033[94mYou\033[0m: ")
+    except EOFError:
+        return None
+
+
+Agent(FakeBrain(), TOOLS, keyboard).run()
+      </script>
+    </div>
+    <details class="hint"><summary>提示</summary><p>用 <code>read_file(args)</code> 拿到文本，返回 <code>str(len(text.split()))</code>；再在列表里加 <code>Tool("count_words", count_words)</code>。</p></details>
+  </section>
+
+  <figure class="excerpt" data-file="src/agent.py" data-start="41">
+    <script type="text/x-python">
+# 同一次用户输入之后，最多连续几轮「模型要工具 → 执行 → 回灌」。防止模型原地打转、烧 token。
+# 到上限就暂停交回给用户；教程（Vercel Academy harness）里对应 stopWhen: stepCountIs(10)。
+MAX_TOOL_ROUNDS = 20
+    </script>
+    <figcaption><p>刹车就是一个常量加一个 <code>if</code>，防止模型「原地打转、烧 token」。</p></figcaption>
+  </figure>
+
+  <section class="challenge" id="ch-13-brake">
+    <div class="challenge-head"><span class="badge">挑战 2</span><h3>装上刹车</h3></div>
+    <p><code>LoopyBrain</code> 会连要 50 次工具。在 TODO 处装刹车：<code>tool_rounds</code> 达到 <code>max_tool_rounds</code> 时打印红字，返回 <code>"paused"</code>。</p>
+    <div class="cell">
+      <script type="text/x-python">
+from dataclasses import dataclass, field
+
+
+@dataclass(frozen=True)
+class ToolCall:
+    id: str
+    name: str
+    input: dict
+
+
+@dataclass
+class Reply:
+    texts: list = field(default_factory=list)
+    tool_calls: list = field(default_factory=list)
+
+
+class LoopyBrain:
+    """一个钻进死胡同的大脑：连着要 50 次 list_files 才肯回答。"""
+
+    def __init__(self):
+        self.calls = 0
+
+    def chat(self, conversation):
+        self.calls += 1
+        if self.calls > 50:
+            return Reply(texts=["好了，我不找了。"])
+        call = ToolCall(f"call_{self.calls}", "list_files", {})
+        conversation.append({"role": "assistant", "content": None, "tool_calls": [call]})
+        return Reply(tool_calls=[call])
+
+
+def run_turn(brain, conversation, max_tool_rounds):
+    """处理用户的一条消息。返回 "answered"（回答了）或 "paused"（暂停了）。"""
+    tool_rounds = 0
+    while True:
+        reply = brain.chat(conversation)
+        for text in reply.texts:
+            print(f"\033[93mBrain\033[0m: {text}")
+        if not reply.tool_calls:
+            return "answered"
+        for call in reply.tool_calls:
+            print(f"\033[92mtool\033[0m: {call.name}()  [第 {tool_rounds + 1} 轮]")
+            conversation.append({"role": "tool", "tool_call_id": call.id, "content": "[]"})
+        tool_rounds += 1
+        # TODO：刹车。如果 tool_rounds 达到了 max_tool_rounds，
+        #       就打印一行红字，并 return "paused"。
+
+
+brain = LoopyBrain()
+print(f"结果：{run_turn(brain, [], max_tool_rounds=3)}")
+print(f"大脑一共被问了 {brain.calls} 次。")
+      </script>
+      <script type="text/x-python" class="check">
+brain = LoopyBrain()
+result = run_turn(brain, [], max_tool_rounds=3)
+assert result == "paused", f"max_tool_rounds=3 时，run_turn 应该停下来并返回 'paused'，实际返回了 {result!r}。"
+assert brain.calls == 3, f"上限是 3 时，刹车之前大脑应该正好被问 3 次，实际被问了 {brain.calls} 次。"
+brain = LoopyBrain()
+result = run_turn(brain, [], max_tool_rounds=100)
+assert result == "answered" and brain.calls == 51, "上限是 100 时刹车不该触发：大脑问到第 51 次会自己结束，run_turn 应该返回 'answered'。"
+      </script>
+      <script type="text/x-python" class="solution">
+from dataclasses import dataclass, field
+
+
+@dataclass(frozen=True)
+class ToolCall:
+    id: str
+    name: str
+    input: dict
+
+
+@dataclass
+class Reply:
+    texts: list = field(default_factory=list)
+    tool_calls: list = field(default_factory=list)
+
+
+class LoopyBrain:
+    """一个钻进死胡同的大脑：连着要 50 次 list_files 才肯回答。"""
+
+    def __init__(self):
+        self.calls = 0
+
+    def chat(self, conversation):
+        self.calls += 1
+        if self.calls > 50:
+            return Reply(texts=["好了，我不找了。"])
+        call = ToolCall(f"call_{self.calls}", "list_files", {})
+        conversation.append({"role": "assistant", "content": None, "tool_calls": [call]})
+        return Reply(tool_calls=[call])
+
+
+def run_turn(brain, conversation, max_tool_rounds):
+    """处理用户的一条消息。返回 "answered"（回答了）或 "paused"（暂停了）。"""
+    tool_rounds = 0
+    while True:
+        reply = brain.chat(conversation)
+        for text in reply.texts:
+            print(f"\033[93mBrain\033[0m: {text}")
+        if not reply.tool_calls:
+            return "answered"
+        for call in reply.tool_calls:
+            print(f"\033[92mtool\033[0m: {call.name}()  [第 {tool_rounds + 1} 轮]")
+            conversation.append({"role": "tool", "tool_call_id": call.id, "content": "[]"})
+        tool_rounds += 1
+        if tool_rounds >= max_tool_rounds:
+            print(f"\033[91m已连续 {tool_rounds} 轮工具调用，先暂停。回复「继续」可以接着做。\033[0m")
+            return "paused"
+
+
+brain = LoopyBrain()
+print(f"结果：{run_turn(brain, [], max_tool_rounds=3)}")
+print(f"大脑一共被问了 {brain.calls} 次。")
+      </script>
+    </div>
+    <details class="hint"><summary>提示</summary><p>在 <code>tool_rounds += 1</code> 后面写 <code>if tool_rounds &gt;= max_tool_rounds:</code>，里面先 <code>print(...)</code>，再 <code>return "paused"</code>。</p></details>
+  </section>
+</section>
+
+<section class="keywords">
+  <h2>小结</h2>
+  <ul class="recap">
+    <li>整个机器人都在 <code>Agent.run</code> 的一个 <code>while True</code> 里运行。</li>
+    <li><code>need_user_input</code> 决定轮到你，还是轮到模型。</li>
+    <li><code>_execute</code> 把失败变成错误结果；刹车拦住失控的循环。</li>
+    <li>你亲手搭了一个 agent。下一课：不花钱也能证明它没坏。</li>
+  </ul>
+  <h3>关键词</h3>
+  <dl>
+    <div><dt>agent 循环 <span class="en">agent loop</span></dt><dd>在你、模型、工具之间传回合的循环。</dd></div>
+    <div><dt>标志变量 <span class="en">flag</span></dt><dd>记住一个决定的 <code>True</code>/<code>False</code>。</dd></div>
+    <div><dt>工具调用 <span class="en">tool call</span></dt><dd>模型请求运行某个工具，带 id。</dd></div>
+    <div><dt>错误结果 <span class="en">error result</span></dt><dd>报告失败的工具结果。</dd></div>
+    <div><dt>刹车 <span class="en">brake</span></dt><dd><code>MAX_TOOL_ROUNDS</code>：拦住停不下的工具调用。</dd></div>
+    <div><dt>假对象 <span class="en">fake</span></dt><dd>方法和真的一样的替身。</dd></div>
+  </dl>
+</section>
+
+</main>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  "use strict";
+  const sim = document.getElementById("sim");
+  if (!sim) return;
+
+  const CODE = [
+    "need_user_input = True",
+    "tool_rounds = 0",
+    "while True:",
+    "    if need_user_input:",
+    "        user_input = get_user_input()",
+    "        if user_input is None:",
+    "            break",
+    '        conversation.append({"role": "user", "content": user_input})',
+    "        tool_rounds = 0",
+    "    reply = provider.chat(conversation, tools)",
+    "    for text in reply.texts:",
+    '        print("DeepSeek:", text)',
+    "    results = [execute(call) for call in reply.tool_calls]",
+    "    if not results:",
+    "        need_user_input = True",
+    "        continue",
+    "    conversation.extend(tool_results(results))",
+    "    tool_rounds += 1",
+    "    if tool_rounds >= MAX_TOOL_ROUNDS:",
+    "        need_user_input = True",
+    "        continue",
+    "    need_user_input = False",
+  ];
+
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  const hl = window.AgentTeardown && window.AgentTeardown.highlight ? window.AgentTeardown.highlight : esc;
+
+  // 终端里的一行行输出，用机器人自己的颜色
+  const T = {
+    you: (t) => `<span class="a-blue">You</span>: ${esc(t)}`,
+    tool: (name, args) => `<span class="a-green">tool</span>: ${esc(name)}(${esc(args)})`,
+    err: (t) => `<span class="a-red">      → error</span>: ${esc(t)}`,
+    model: (t) => `<span class="a-yellow">DeepSeek</span>:\n${esc(t)}`,
+    dim: (t) => `<span class="a-dim">${esc(t)}</span>`,
+  };
+  // conversation 列表里的消息
+  const M = {
+    user: (content) => ({ role: "user", content }),
+    ask: (id, name, args) => ({ role: "assistant", content: null, call: { id, name, args } }),
+    say: (content) => ({ role: "assistant", content }),
+    tool: (id, content, error) => ({ role: "tool", id, content, error: !!error }),
+  };
+
+  const WELCOME = "Chat with DeepSeek — 4 个工具可用（/exit、/quit 或 Ctrl-D 退出）";
+  const START = {
+    lines: [1, 2],
+    set: { need_user_input: "True", tool_rounds: "0" },
+    term: [T.dim(WELCOME)],
+    say: "机器人启动了。它的记忆 <code>conversation</code> 是一个空列表。<code>need_user_input</code> 是 <code>True</code>，所以它要做的第一件事是问你。",
+  };
+  const MATH_Q = "input/math.txt 里写了什么？解出来";
+  const MATH_A = "文件里写的是 3x - 8 = 92。两边同时加 8：3x = 100，所以 x = 100/3 ≈ 33.33。";
+  const FILE_TEXT = "3x - 8 = 92, 求 x ?";
+  const MISSING = "[Errno 2] No such file or directory: 'notes.txt'";
+  const LISTING = '["AGENTS.md", "README.md", "input/math.txt", "src/agent.py", "src/tools.py"]';
+  const NO_NOTES = "这个文件夹里没有 notes.txt。我倒是找到了 input/math.txt，要我读一下它吗？";
+
+  const SCENARIOS = {
+    math: [
+      START,
+      {
+        lines: [3, 4, 5],
+        term: [T.you(MATH_Q)],
+        say: "<code>while True</code> 开始了心跳。轮到你了，所以机器人等你输入。你问：「input/math.txt 里写了什么？解出来」。",
+      },
+      {
+        lines: [6, 8, 9],
+        add: [M.user(MATH_Q)],
+        say: "你输入了内容（不是 <code>None</code>），所以你的消息被包成一个字典，追加到对话记录里。新问题还会把 <code>tool_rounds</code> 清零。",
+      },
+      {
+        lines: [10],
+        add: [M.ask("call_1", "read_file", '{"path": "input/math.txt"}')],
+        say: "机器人把<strong>整个</strong>对话记录（1 条消息）发给 DeepSeek。模型自己打不开文件，所以它回复了一个<em>工具调用</em>：「请对 input/math.txt 运行 read_file」。这条回复也加进了对话记录。",
+      },
+      {
+        lines: [11, 12],
+        say: "这次 <code>reply.texts</code> 是空列表：模型什么都没说，只要了一个工具。所以 <code>for</code> 循环一次也不执行，什么也不打印。",
+      },
+      {
+        lines: [13],
+        term: [T.tool("read_file", '{"path": "input/math.txt"}')],
+        say: "现在轮到双手干活了。<code>execute</code> 在你的电脑上运行 <code>read_file</code>，拿回文件的内容：<code>3x - 8 = 92, 求 x ?</code>",
+      },
+      {
+        lines: [14, 17],
+        add: [M.tool("call_1", FILE_TEXT)],
+        say: "<code>results</code> 不是空的，所以跳过 <code>if not results</code> 这一块。结果作为一条 <code>tool</code> 消息进入对话记录，带着和请求相同的 id（<code>call_1</code>）。",
+      },
+      {
+        lines: [18, 19],
+        set: { tool_rounds: "1" },
+        say: "跑完一轮工具，<code>tool_rounds</code> 变成 1。刹车要连续 20 轮才会触发，所以循环继续。",
+      },
+      {
+        lines: [22],
+        set: { need_user_input: "False" },
+        say: "机器人里最重要的一行：<code>need_user_input = False</code>。循环<strong>不</strong>等你，直接回到模型那里，模型正等着看结果呢。",
+      },
+      {
+        lines: [3, 4, 10],
+        add: [M.say(MATH_A)],
+        say: "回到顶部。<code>need_user_input</code> 是 <code>False</code>，所以跳过输入那几行。模型收到全部 3 条消息，读了文件内容，这次用文字回答。",
+      },
+      {
+        lines: [11, 12],
+        term: [T.model(MATH_A)],
+        say: "这次 <code>reply.texts</code> 里有一项，所以 <code>for</code> 循环在黄色标签后面把它打印出来。",
+      },
+      {
+        lines: [13, 14, 15, 16],
+        set: { need_user_input: "True" },
+        say: "这次没有工具调用，所以 <code>results</code> 是空列表，<code>not results</code> 为 <code>True</code>。模型说完了，又轮到你。<code>continue</code> 跳回顶部。",
+      },
+      {
+        lines: [3, 4, 5],
+        term: [T.you("")],
+        say: "心跳还在继续：机器人等着你的下一条消息。对话记录里现在有 4 条消息，下次提问时它们会全部一起发出去。这个列表<em>就是</em>机器人的记忆。",
+      },
+    ],
+    error: [
+      START,
+      {
+        lines: [3, 4, 5],
+        term: [T.you("给我看看 notes.txt")],
+        say: "开头一样。这次你要一个叫 <code>notes.txt</code> 的文件。",
+      },
+      {
+        lines: [6, 8, 9],
+        add: [M.user("给我看看 notes.txt")],
+        say: "你的消息作为一个字典加进对话记录。",
+      },
+      {
+        lines: [10],
+        add: [M.ask("call_1", "read_file", '{"path": "notes.txt"}')],
+        say: "模型要求对 <code>notes.txt</code> 运行 <code>read_file</code>。它根本不知道这个文件存不存在。",
+      },
+      {
+        lines: [13],
+        term: [T.tool("read_file", '{"path": "notes.txt"}'), T.err(MISSING)],
+        say: "文件不存在，所以 <code>read_file</code> 抛出了一个错误。<code>_execute</code> 用 <code>try</code>/<code>except</code> 接住它，把它变成一个标为错误的结果。程序<strong>没有</strong>崩溃。",
+      },
+      {
+        lines: [14, 17],
+        add: [M.tool("call_1", "Error: " + MISSING, true)],
+        say: "这个错误和其他结果一样进入对话记录，前面带着 <code>Error:</code>。现在模型能读到出了什么问题。",
+      },
+      {
+        lines: [18, 19, 22],
+        set: { tool_rounds: "1", need_user_input: "False" },
+        say: "一轮结束。<code>need_user_input</code> 变成 <code>False</code>，模型可以直接对这个错误做出反应，不用打扰你。",
+      },
+      {
+        lines: [3, 4, 10],
+        add: [M.ask("call_2", "list_files", "{}")],
+        say: "模型读了错误，换了个计划：它要 <code>list_files</code>，看看到底有哪些文件。这就是机器人在自己纠错。",
+      },
+      {
+        lines: [13],
+        term: [T.tool("list_files", "{}")],
+        say: "<code>list_files</code> 运行起来，返回文件夹里的文件名。",
+      },
+      {
+        lines: [17, 18, 19, 22],
+        add: [M.tool("call_2", LISTING)],
+        set: { tool_rounds: "2", need_user_input: "False" },
+        say: "文件列表进入对话记录，<code>tool_rounds</code> 变成 2，循环又直接回到模型。",
+      },
+      {
+        lines: [3, 4, 10],
+        add: [M.say(NO_NOTES)],
+        say: "读完 5 条消息，模型掌握了需要的一切，于是用文字回答。",
+      },
+      {
+        lines: [11, 12],
+        term: [T.model(NO_NOTES)],
+        say: "回答打印在黄色标签后面。",
+      },
+      {
+        lines: [13, 14, 15, 16],
+        set: { need_user_input: "True" },
+        say: "没有工具调用，又轮到你了。两轮工具、一个错误、零次崩溃：错误<em>结果</em>让模型自己恢复了过来。",
+      },
+    ],
+  };
+
+  const codeBox = document.getElementById("sim-code");
+  const varsBox = document.getElementById("sim-vars");
+  const convBox = document.getElementById("sim-conv");
+  const termBox = document.getElementById("sim-term");
+  const sayBox = document.getElementById("sim-say");
+  const countBox = document.getElementById("sim-count");
+  const backBtn = document.getElementById("sim-back");
+  const nextBtn = document.getElementById("sim-next");
+  const restartBtn = document.getElementById("sim-restart");
+  const tabs = [...sim.querySelectorAll("[data-scenario]")];
+
+  const lineEls = CODE.map((src, i) => {
+    const row = document.createElement("span");
+    row.className = "sim-line";
+    row.innerHTML = `<span class="n">${i + 1}</span><span class="src">${hl(src) || " "}</span>`;
+    codeBox.append(row);
+    return row;
+  });
+
+  let scenario = "math";
+  let step = 0;
+
+  function stateAt(steps, i) {
+    const vars = {};
+    const conv = [];
+    const term = [];
+    for (let j = 0; j <= i; j++) {
+      const s = steps[j];
+      if (s.set) Object.assign(vars, s.set);
+      if (s.add) conv.push(...s.add);
+      if (s.term) term.push(...s.term);
+    }
+    const cur = steps[i];
+    return {
+      vars,
+      conv,
+      term,
+      newConv: (cur.add || []).length,
+      newTerm: (cur.term || []).length,
+      changed: Object.keys(cur.set || {}),
+    };
+  }
+
+  function renderVars(st) {
+    varsBox.replaceChildren();
+    const items = [
+      ["need_user_input", st.vars.need_user_input, st.changed.includes("need_user_input")],
+      ["tool_rounds", st.vars.tool_rounds, st.changed.includes("tool_rounds")],
+      ["len(conversation)", String(st.conv.length), st.newConv > 0],
+    ];
+    for (const [name, value, changed] of items) {
+      const v = document.createElement("span");
+      v.className = "sim-var" + (changed ? " changed" : "");
+      v.innerHTML = `${esc(name)} = <b>${esc(value === undefined ? "?" : value)}</b>`;
+      varsBox.append(v);
+    }
+  }
+
+  function renderConv(st) {
+    convBox.replaceChildren();
+    if (!st.conv.length) {
+      const p = document.createElement("p");
+      p.className = "sim-empty";
+      p.textContent = "[]（空列表：还什么都没记住）";
+      convBox.append(p);
+      return;
+    }
+    st.conv.forEach((m, i) => {
+      const card = document.createElement("span");
+      card.className = "msg " + m.role + (m.error ? " error" : "") + (i >= st.conv.length - st.newConv ? " new" : "");
+      const head = document.createElement("span");
+      head.className = "role";
+      head.textContent = `[${i}] ${m.role}`;
+      const body = document.createElement("span");
+      if (m.role === "assistant" && m.call) {
+        body.textContent = `content: None\ntool_calls: ${m.call.name}(${m.call.args})  id=${m.call.id}`;
+      } else if (m.role === "tool") {
+        body.textContent = `tool_call_id: ${m.id}\ncontent: ${m.content}`;
+      } else {
+        body.textContent = `content: ${m.content}`;
+      }
+      card.append(head, body);
+      convBox.append(card);
+    });
+  }
+
+  function renderTerm(st) {
+    termBox.innerHTML = st.term
+      .map((line, i) => (i >= st.term.length - st.newTerm ? `<span class="sim-new">${line}</span>` : line))
+      .join("\n");
+    termBox.scrollTop = termBox.scrollHeight;
+  }
+
+  function render() {
+    const steps = SCENARIOS[scenario];
+    const cur = steps[step];
+    const st = stateAt(steps, step);
+    lineEls.forEach((row, i) => row.classList.toggle("on", cur.lines.includes(i + 1)));
+    renderVars(st);
+    renderConv(st);
+    renderTerm(st);
+    sayBox.innerHTML = cur.say;
+    countBox.textContent = `第 ${step + 1} 步 / 共 ${steps.length} 步`;
+    backBtn.disabled = step === 0;
+    nextBtn.disabled = step === steps.length - 1;
+    tabs.forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.scenario === scenario)));
+  }
+
+  function go(delta) {
+    const last = SCENARIOS[scenario].length - 1;
+    step = Math.min(last, Math.max(0, step + delta));
+    render();
+  }
+
+  backBtn.addEventListener("click", () => go(-1));
+  nextBtn.addEventListener("click", () => go(1));
+  restartBtn.addEventListener("click", () => {
+    step = 0;
+    render();
+  });
+  tabs.forEach((b) =>
+    b.addEventListener("click", () => {
+      scenario = b.dataset.scenario;
+      step = 0;
+      render();
+    })
+  );
+  sim.addEventListener("keydown", (e) => {
+    if (e.target.closest("textarea, input")) return;
+    if (e.key === "ArrowRight") {
+      e.preventDefault();
+      go(1);
+    } else if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      go(-1);
+    }
+  });
+
+  render();
+});
+</script>
+</body>
+</html>

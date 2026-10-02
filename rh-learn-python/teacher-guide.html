@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>拆机学 Python 教师指南</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap">
+<link rel="stylesheet" href="assets/course.css">
+<script src="assets/course.js"></script>
+<style>
+  body { font-family: var(--body), "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif; }
+  .guide { display: flex; flex-direction: column; gap: 1.1rem; }
+  .guide > * { max-width: var(--read); margin-inline: auto; width: 100%; }
+  .guide > .wide { max-width: var(--wide); }
+  .guide h2 { margin-top: 2rem; }
+  .guide ul, .guide ol { padding-left: 1.3rem; display: flex; flex-direction: column; gap: 0.3rem; }
+  .lesson-plan { display: flex; flex-direction: column; gap: 0.9rem; }
+  .lp {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 1rem 1.15rem;
+    display: grid;
+    grid-template-columns: 4.2rem minmax(0, 1fr);
+    gap: 0.3rem 1rem;
+  }
+  .lp .n { font: 800 1.6rem/1 var(--display); color: var(--ink-3); grid-row: span 2; }
+  .lp h3 { font-size: 1.12rem; }
+  .lp dl { display: grid; grid-template-columns: 5.5rem minmax(0, 1fr); gap: 0.25rem 0.8rem; font-size: 0.95rem; }
+  .lp dt { font: 700 0.72rem/1.9 var(--mono); color: var(--ink-3); letter-spacing: 0.06em; }
+  .lp dd { margin: 0; }
+  @media (max-width: 560px) {
+    .lp { grid-template-columns: 1fr; }
+    .lp .n { grid-row: auto; }
+    .lp dl { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body data-root="">
+<div class="page">
+
+<header class="hero">
+  <p class="eyebrow">给老师和家长 · 教师指南</p>
+  <h1>怎么用这套课带孩子学 Python</h1>
+  <p class="lede">15 节课，用 mini-harness 这个真实的 AI coding agent 当教具，从变量讲到类和测试。课文全部是中文，英文术语在第一次出现时附在括号里，关键词表也是中英对照。</p>
+</header>
+
+<main class="guide">
+
+<h2>设计思路</h2>
+<ul>
+  <li><strong>按概念递进，不按文件顺序。</strong>顺序是 变量 → 字符串 → if → while → list → dict/tuple/set → for → 函数 → 异常 → 文件 → 模块 → 类 → 总装 → 测试。每个概念都挑项目里<em>最能说明它</em>的那几行代码来讲，所以同一个文件会在不同课里被反复"拆开"。</li>
+  <li><strong>主线比喻：拆机（teardown）。</strong>agent = 模型（只会"文本进、文本出"的大脑）+ harness（循环、工具、记忆、规则）。每课从机器人身上拆下一个零件。</li>
+  <li><strong>每课分成 4–7 步，一屏一步。</strong>3–5 个知识点各占一步，每步只讲一件事：一两句讲解 + 一段代码（可运行的蓝色代码格，或绿色「拆自机器人」真实代码，与 <code>src/</code> 原文逐行一致）+ 可能有一道黄色小测验，最后一句「记住」。然后是「动手挑战」（2 道自动判分题，带提示和参考答案）和「小结」（要点 + 中英对照关键词）。页面顶部的「全部展开」可以一页看完整课，方便备课。</li>
+  <li><strong>每课正文控制在约 1,000 字。</strong>次要的展开内容收在默认折叠的「多了解一点」里，学有余力的孩子可以点开看。</li>
+  <li><strong>代码里哪些是中文、哪些保留英文：</strong>注释和给人看的输出用中文；变量名、函数名，以及模仿机器人和 AI 之间通信格式的内容（<code>role</code>、工具名、<code>Error: ...</code>）保持英文，和项目自己的约定一致（发给模型的文字用英文）。</li>
+  <li><strong>颜色就是机器人终端的 ANSI 颜色：</strong>蓝 = You，黄 = 模型，绿 = 工具，红 = 错误，紫 = 请求授权。孩子之后跑真程序时一眼就认得。</li>
+  <li><strong>只在课里用学过的语法。</strong>前面课的练习不会突然出现 <code>def</code> 或 <code>class</code>；摘录里出现后面的概念时，课文会注明"lesson NN 再讲"。</li>
+</ul>
+
+<h2>节奏建议</h2>
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>单元</th><th>课</th><th>每课时长</th><th>建议</th></tr></thead>
+    <tbody>
+      <tr><td>1 通电</td><td>00–04</td><td>25–35 分钟</td><td>一周 2 课。04 课（while + <code>need_user_input</code>）是全课程的第一个「顿悟点」，值得多花时间。</td></tr>
+      <tr><td>2 记忆</td><td>05–07</td><td>30 分钟左右</td><td>05 课讲清「模型没有记忆、整个列表每次都重发」，后面一切都建立在这上面。</td></tr>
+      <tr><td>3 工具</td><td>08–10</td><td>30–40 分钟</td><td>函数和异常是从「写脚本」到「写程序」的分水岭，可以多留些时间做挑战。</td></tr>
+      <tr><td>4 接线</td><td>11–12</td><td>30–40 分钟</td><td>12 课（类）最抽象，用 FakeProvider / DeepSeekProvider「换大脑」的例子落地。</td></tr>
+      <tr><td>5 总装</td><td>13–14</td><td>40–50 分钟</td><td>13 课有单步模拟器和浏览器里的迷你 agent，适合一起操作、一起改。</td></tr>
+    </tbody>
+  </table>
+</div>
+<p>全程大约 8 小时。孩子自学也可以：最后一步底部有「标记本课已学完」，首页会显示进度，每课也会记住学到了第几步（进度只存在这台电脑的浏览器里）。</p>
+
+<h2>上课前准备</h2>
+<ol>
+  <li>用浏览器直接打开 <code>rh-learn-python/index.html</code>（双击即可，不需要服务器）。</li>
+  <li>第一次点 Run 时会从 <code>cdn.jsdelivr.net</code> 下载浏览器版 Python（Pyodide 0.27.8，即 CPython 3.12，约 15 MB），之后浏览器有缓存。网络慢的话提前打开任意一课点一次 Run 预热。</li>
+  <li>代码格里死循环会在几秒后被自动停止（显示 "Stopped"），不会卡死页面。</li>
+  <li>如果想让孩子在手机或别的电脑上用，可以把整个 <code>rh-learn-python/</code> 目录放到任何静态网站托管上。注意：claude.ai 的 Artifact 页面会拦截 Pyodide 的下载，代码格无法运行，所以不适合发布成 Artifact。</li>
+</ol>
+
+<h2>现场演示真机器人（老师操作）</h2>
+<p>课程里的代码全部在浏览器跑，不花钱。真 agent 要调 DeepSeek API（需要 <code>.env</code> 里的 key，按 token 计费），建议只由老师在关键节点演示：</p>
+<div class="table-wrap wide">
+  <table>
+    <thead><tr><th>时机</th><th>命令</th><th>让孩子看什么</th></tr></thead>
+    <tbody>
+      <tr><td>00 课</td><td><code>uv run src/agent.py</code></td><td>问它「input/math.txt 里写了什么？解出来」，看绿色 <code>tool:</code> 行出现在回答之前。</td></tr>
+      <tr><td>01/02 课</td><td><code>uv run src/step1_chat.py</code></td><td>最朴素的聊天循环；先告诉它名字，再问"我叫什么"，然后讨论记忆在哪里。</td></tr>
+      <tr><td>04/05 课</td><td><code>uv run src/agent.py --step 2</code> → <code>--step 3</code></td><td>只有 <code>read_file</code> 时它不会列目录；加上 <code>list_files</code> 后能自己找文件。对应 <code>ALL_TOOLS[: step - 1]</code>。</td></tr>
+      <tr><td>05 课</td><td>任意多轮对话</td><td>灰色 <code>· in 4,210 (cached 3,800)</code> 行：输入 token 随轮数增长，因为整个列表每次重发。</td></tr>
+      <tr><td>09 课</td><td>让它读一个不存在的文件</td><td>红色 <code>→ error</code>，但程序不崩，模型读到错误后自己换个做法。</td></tr>
+      <tr><td>10 课</td><td><code>--step 5</code>，让它「跑一下测试」</td><td>紫色授权提示 <code>[Y/n/a]</code>：按 n 拒绝，看它如何反应。</td></tr>
+      <tr><td>14 课</td><td><code>uv run pytest</code></td><td>免费、几秒跑完 200 多个测试，全部用 FakeProvider，不碰真 API。</td></tr>
+      <tr><td>课程结束</td><td><code>git log --oneline</code>；<code>git checkout 7b7ffd1</code></td><td>项目每个 commit 只加一件事并写明原因，git 历史本身就是一套课；<code>7b7ffd1</code> 是最朴素的教程原版。看完记得 <code>git checkout main</code>。</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h2>每课要点</h2>
+<div class="lesson-plan wide">
+  <div class="lp"><span class="n">00</span><h3>认识机器人</h3><dl><dt>目标</dt><dd>理解 agent = model + harness；认识 7 个文件；print、注释、从上到下执行。</dd><dt>讨论</dt><dd>"AI 自己能读你的文件吗？"（不能，工具是 harness 执行的）。</dd><dt>卡点</dt><dd>孩子以为 AI 有记忆。先埋下伏笔，05 课揭晓。</dd></dl></div>
+  <div class="lp"><span class="n">01</span><h3>变量</h3><dl><dt>目标</dt><dd>赋值、五种类型、运算符、类型转换、命名规则、常量、None。</dd><dt>讨论</dt><dd>为什么项目把 20、60_000、30 都写成大写常量还配注释？（no magic numbers）</dd><dt>卡点</dt><dd><code>=</code> 不是等号；<code>"20"</code> 是字符串。"修三个 bug"挑战要求一次修一个，培养读报错的习惯。</dd></dl></div>
+  <div class="lp"><span class="n">02</span><h3>字符串与颜色</h3><dl><dt>目标</dt><dd>f-string、转义、ANSI 颜色、字符串方法、切片、<code>input()</code> 返回字符串。</dd><dt>讨论</dt><dd>run_bash 截断长输出时为什么保留<em>结尾</em>？（报错在最后）</dd><dt>卡点</dt><dd>忘写 f；<code>\033[0m</code> 不重置会把后面全染色（正好拿来玩）。</dd></dl></div>
+  <div class="lp"><span class="n">03</span><h3>做判断</h3><dl><dt>目标</dt><dd>布尔、比较、if/elif/else、真值、and/or/not、in、卫语句（guard clause）。</dd><dt>讨论</dt><dd>ConsoleApprover 为什么把 Ctrl-D 当"拒绝"而不是"允许"？（安全默认值）</dd><dt>卡点</dt><dd><code>if x == "y" or "yes"</code> 永远为真；缩进。</dd></dl></div>
+  <div class="lp"><span class="n">04</span><h3>while 循环</h3><dl><dt>目标</dt><dd>while、break、continue、计数器、"刹车"（MAX_TOOL_ROUNDS）、校验循环。</dd><dt>讨论</dt><dd>chatbot 和 agent 在代码上的唯一区别是什么？（<code>need_user_input</code> 这个布尔量）</dd><dt>卡点</dt><dd>死循环：让孩子故意写一个，看页面怎么停下，再找出原因。</dd></dl></div>
+  <div class="lp"><span class="n">05</span><h3>列表</h3><dl><dt>目标</dt><dd>索引、切片、append/extend、可变性、别名（aliasing）。</dd><dt>讨论</dt><dd>模型服务端是无状态的，"记忆"在哪？每轮成本为什么变高？</dd><dt>卡点</dt><dd><code>b = a</code> 后改 b 会影响 a；测试里 FakeProvider 用 <code>list(conversation)</code> 拍快照就是为此。</dd></dl></div>
+  <div class="lp"><span class="n">06</span><h3>字典、元组与集合</h3><dl><dt>目标</dt><dd>消息就是 dict；<code>.get</code> 默认值；元组解包；集合判重。</dd><dt>讨论</dt><dd>为什么每个 tool_call id 都必须有且只有一条 tool 回复？（否则下一次 API 请求被拒）</dd><dt>卡点</dt><dd>KeyError vs <code>.get</code>；<code>{}</code> 是空 dict 不是空 set。</dd></dl></div>
+  <div class="lp"><span class="n">07</span><h3>for 循环</h3><dl><dt>目标</dt><dd>for、range、enumerate、items、推导式、累加器和"预算"模式。</dd><dt>讨论</dt><dd>为什么给模型看的每个列表都有上限，而且要说明"还有 N 条没列出"？</dd><dt>卡点</dt><dd>range 不含终点；循环中修改正在遍历的列表。</dd></dl></div>
+  <div class="lp"><span class="n">08</span><h3>函数</h3><dl><dt>目标</dt><dd>def、参数、return、默认值、docstring、类型标注、纯函数、函数是值。</dd><dt>讨论</dt><dd><code>tools_for_step</code> 为什么好测试？（纯函数：同样的输入永远得到同样的输出，不读文件、不打印）</dd><dt>卡点</dt><dd>print 和 return 分不清；忘记 return 得到 None。</dd></dl></div>
+  <div class="lp"><span class="n">09</span><h3>错误与异常</h3><dl><dt>目标</dt><dd>读 traceback、try/except、raise、自定义异常、fail fast。</dd><dt>讨论</dt><dd>工具出错时为什么把错误交回给模型，而不是让程序崩溃？什么错误又应该让程序立刻停？</dd><dt>卡点</dt><dd><code>except: pass</code> 吞掉错误；try 块包太多代码。</dd></dl></div>
+  <div class="lp"><span class="n">10</span><h3>文件与外部世界</h3><dl><dt>目标</dt><dd>open/with、读写模式、路径、os.walk、环境变量与密钥、subprocess 与人工审批。</dd><dt>讨论</dt><dd>模型在<em>你的电脑</em>上执行命令，哪些防线让这件事可控？（审批、超时、输出上限）</dd><dt>卡点</dt><dd>"w" 模式会清空文件；相对路径取决于启动位置。浏览器里是虚拟磁盘，跑不了 shell 命令。</dd></dl></div>
+  <div class="lp"><span class="n">11</span><h3>模块与包</h3><dl><dt>目标</dt><dd>import 三种写法、标准库、uv 管理第三方包、自己的模块、<code>__name__</code>、json。</dd><dt>讨论</dt><dd>为什么只有 providers.py 知道 DeepSeek 的格式？换成别家模型要改几个文件？</dd><dt>卡点</dt><dd>把自己的文件起成和标准库模块一样的名字（比如 <code>json.py</code>），结果导入了自己的文件。</dd></dl></div>
+  <div class="lp"><span class="n">12</span><h3>类与对象</h3><dl><dt>目标</dt><dd>dataclass、实例、方法与 self、继承、property、Protocol 与依赖注入。</dd><dt>讨论</dt><dd>Agent 不关心大脑是 DeepSeek 还是 FakeProvider，只要有 <code>chat()</code> 方法。这像生活里的什么？（USB 接口、充电器）</dd><dt>卡点</dt><dd>忘写 self；类和实例分不清。</dd></dl></div>
+  <div class="lp"><span class="n">13</span><h3>大循环</h3><dl><dt>目标</dt><dd>完整读懂 <code>Agent.run</code>；在浏览器里搭一个能用工具的迷你 agent 并扩展它。</dd><dt>讨论</dt><dd>模拟器里每一步 <code>conversation</code> 列表怎么变？tool 消息为什么紧跟在带 tool_calls 的 assistant 消息后面？</dd><dt>卡点</dt><dd>代码较长，建议先用模拟器走一遍，再改迷你 agent。</dd></dl></div>
+  <div class="lp"><span class="n">14</span><h3>测试</h3><dl><dt>目标</dt><dd>assert、pytest、fake、先写测试（red → green）。</dd><dt>讨论</dt><dd>为什么项目的 200 多个测试都不调用真 API？一个"从来没失败过"的测试可信吗？</dd><dt>延伸</dt><dd>毕业项目：给真机器人加一个新工具（例如统计字数），先写测试，再实现，再跑 <code>uv run pytest</code>。</dd></dl></div>
+</div>
+
+<h2>维护与扩展课程</h2>
+<ul>
+  <li>页面结构约定写在 <code>assets/course.js</code> 开头的注释里：<code>.cell</code>（可运行）、<code>.snippet</code>（只读）、<code>figure.excerpt</code>（真实代码，<code>data-file</code> + <code>data-start</code>）、<code>.quiz</code>、<code>.challenge</code>（含 <code>class="check"</code> 判分代码和 <code>class="solution"</code> 参考答案）。</li>
+  <li>改完课文后运行校验：<code>uv run rh-learn-python/tools/check_lessons.py</code>。它会用同一套运行器在本机 Python 里跑每个代码格，确认参考答案能通过判分、初始代码不能通过，并逐行核对摘录和 <code>src/</code> 原文是否一致。<strong>项目代码改动后跑一次</strong>，就能发现哪些摘录的行号过期了。</li>
+  <li>进度存在浏览器 localStorage（键名 <code>agent-teardown-progress-v1</code>），首页底部可以重置。</li>
+</ul>
+
+</main>
+</div>
+</body>
+</html>
