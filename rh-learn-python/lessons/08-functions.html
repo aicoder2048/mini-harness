@@ -18,7 +18,7 @@
   <h1>函数</h1>
   <p class="lede">函数是有名字的小机器：放进值，交回结果。机器人的每个工具都是一个函数。</p>
   <div class="bench" aria-label="今天放在工作台上的零件">
-    <span class="prompt">$</span> <span>teardown</span> <span class="path">src/tools.py</span> <span>--lines 57-61</span> <span class="cursor" aria-hidden="true"></span>
+    <span class="prompt">$</span> <span>teardown</span> <span class="path">src/tools.py</span> <span>--lines 59-63</span> <span class="cursor" aria-hidden="true"></span>
   </div>
   <dl class="hero-meta">
     <div><dt>工作台上的零件</dt><dd><code>tools.py</code> 的小函数</dd></div>
@@ -85,7 +85,7 @@ print(f"a 是 {a}，b 是 {b}，b + 1 是 {b + 1}")
 <section>
   <h2>参数和默认值</h2>
   <p>参数是函数的「空位」。带 <code>=</code> 默认值的参数调用时可以不填；写上参数名（关键字参数），顺序就随意。</p>
-  <figure class="excerpt" data-file="src/tools.py" data-start="57">
+  <figure class="excerpt" data-file="src/tools.py" data-start="59">
     <script type="text/x-python">
 def _positive_int(args: dict[str, Any], key: str, default: int) -> int:
     value = args.get(key, default)
@@ -121,7 +121,7 @@ print(usage_line(output_tokens=61, input_tokens=2961))        # 写明名字，�
 <section>
   <h2>一个函数一件事</h2>
   <p><code>read_file</code> 和 <code>edit_file</code> 都要读文件。作者没写两遍，而是写成一个函数，两处共用：</p>
-  <figure class="excerpt" data-file="src/tools.py" data-start="45">
+  <figure class="excerpt" data-file="src/tools.py" data-start="47">
     <script type="text/x-python">
 def _read_text(path: str) -> str:
     """read_file 和 edit_file 共用：读 UTF-8 文本，失败一律变成 ToolError。"""
@@ -135,7 +135,7 @@ def _read_text(path: str) -> str:
         raise ToolError(f"{path} is not a UTF-8 text file (binary?): {e.reason} at byte {e.start}") from e
     </script>
     <figcaption>
-      <p>后来发现一张图片能让机器人崩掉（看第 53 行注释），只改这一处，两个工具就都修好了。</p>
+      <p>后来发现一张图片能让机器人崩掉（看第 55 行注释），只改这一处，两个工具就都修好了。</p>
     </figcaption>
   </figure>
   <aside class="callout principle">
@@ -149,7 +149,7 @@ def _read_text(path: str) -> str:
 <section>
   <h2>纯函数</h2>
   <p><strong>纯函数</strong>：同样的输入永远得到同样的输出，而且不碰外面的世界（不打印、不读写文件、不问用户）。它最好测试。</p>
-  <figure class="excerpt" data-file="src/agent.py" data-start="251">
+  <figure class="excerpt" data-file="src/agent.py" data-start="471">
     <script type="text/x-python">
 def tools_for_step(step: int) -> list[Tool]:
     """2=read_file, 3=+list_files, 4=+edit_file, 5=+run_bash"""
@@ -174,8 +174,8 @@ def tools_for_step(step: int) -> list[Tool]:
 
 <section>
   <h2>函数也是值</h2>
-  <p>函数可以像数字一样存进变量和字典。定义工具时写的是 <code>run=_run_bash</code>（<code>tools.py</code> 第 264 行），没有括号：存下函数本身，要用时再调用。</p>
-  <figure class="excerpt" data-file="src/agent.py" data-start="153">
+  <p>函数可以像数字一样存进变量和字典。定义工具时写的是 <code>run=_run_bash</code>（<code>tools.py</code> 第 269 行），没有括号：存下函数本身，要用时再调用。</p>
+  <figure class="excerpt" data-file="src/agent.py" data-start="355">
     <script type="text/x-python">
             if tool.needs_approval and not self.approve(call):
                 raise ToolError("the user denied this tool call")

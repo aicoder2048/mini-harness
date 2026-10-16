@@ -66,7 +66,7 @@ def main() -> None:
 <section>
   <h2>变量会变</h2>
   <p>机器人用一个计数器记录连续用了几轮工具：从 0 开始，每用完一轮加 1。</p>
-  <figure class="excerpt" data-file="src/agent.py" data-start="195">
+  <figure class="excerpt" data-file="src/agent.py" data-start="397">
     <script type="text/x-python">
         need_user_input = True
         tool_rounds = 0  # 自上次用户输入以来连续的工具轮数
@@ -191,7 +191,7 @@ print(CONTEXT_BUDGET % tokens_per_round)    # 余数：剩下的 token
   <h2>给数字起名</h2>
   <p>变量名可以用字母、数字、下划线，但不能以数字开头、不能有空格，而且<strong>区分大小写</strong>。习惯写法是小写加下划线：<code>tool_rounds</code>。</p>
   <p>全大写的名字是<strong>常量</strong>：设定一次就不改。机器人把每个重要的数字都写成常量，还注明理由：</p>
-  <figure class="excerpt" data-file="src/agent.py" data-start="41">
+  <figure class="excerpt" data-file="src/agent.py" data-start="43">
     <script type="text/x-python">
 # 同一次用户输入之后，最多连续几轮「模型要工具 → 执行 → 回灌」。防止模型原地打转、烧 token。
 # 到上限就暂停交回给用户；教程（Vercel Academy harness）里对应 stopWhen: stepCountIs(10)。

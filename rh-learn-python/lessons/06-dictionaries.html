@@ -150,7 +150,7 @@ print(f"回复的 id 对得上吗：{conversation[2]['tool_call_id'] == asked['i
 <section>
   <h2>元组与解包</h2>
   <p><strong>元组</strong>像列表，但写在 <code>( )</code> 里，<strong>创建后不能改</strong>，适合装一小组固定的东西，比如 <code>("", "y", "yes")</code>。还可以一行把它拆进几个变量，叫<strong>解包</strong>：</p>
-  <figure class="excerpt" data-file="src/tools.py" data-start="160" data-highlight="161">
+  <figure class="excerpt" data-file="src/tools.py" data-start="164" data-highlight="165">
     <script type="text/x-python">
 def _edit_file(args: dict[str, Any]) -> str:
     path, old, new = args["path"], args["old_str"], args["new_str"]
@@ -176,7 +176,7 @@ print(a, b)
 <section>
   <h2>集合</h2>
   <p><strong>集合</strong>是装<strong>不重复</strong>元素的袋子，没有顺序，最擅长回答「在不在里面？」。<code>list_files</code> 用它记住要跳过的文件夹：</p>
-  <figure class="excerpt" data-file="src/tools.py" data-start="110">
+  <figure class="excerpt" data-file="src/tools.py" data-start="113">
     <script type="text/x-python">
 _PRUNED_DIRS = {".git", "__pycache__", ".venv", "venv"}
     </script>

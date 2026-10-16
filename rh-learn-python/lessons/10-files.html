@@ -18,7 +18,7 @@
   <h1>文件与外部世界</h1>
   <p class="lede">程序一停，变量就没了，文件却会留下来。文件也是机器人伸向真实世界的手。</p>
   <div class="bench" aria-label="今天工作台上的零件">
-    <span class="prompt">$</span> <span>teardown</span> <span class="path">src/tools.py</span> <span>--lines 45-54</span> <span class="cursor" aria-hidden="true"></span>
+    <span class="prompt">$</span> <span>teardown</span> <span class="path">src/tools.py</span> <span>--lines 47-56</span> <span class="cursor" aria-hidden="true"></span>
   </div>
   <dl class="hero-meta">
     <div><dt>工作台上的零件</dt><dd><code>tools.py</code> 的读写工具</dd></div>
@@ -73,7 +73,7 @@ print(text)
 <section>
   <h2>读文件出错</h2>
   <p>文件可能不存在，也可能根本不是文字（比如图片）。机器人不让这些错误弄崩程序，而是把它们变成发给 AI 的消息：</p>
-  <figure class="excerpt" data-file="src/tools.py" data-start="45" data-highlight="48,49">
+  <figure class="excerpt" data-file="src/tools.py" data-start="47" data-highlight="50,51">
     <script type="text/x-python">
 def _read_text(path: str) -> str:
     """read_file 和 edit_file 共用：读 UTF-8 文本，失败一律变成 ToolError。"""
@@ -87,7 +87,7 @@ def _read_text(path: str) -> str:
         raise ToolError(f"{path} is not a UTF-8 text file (binary?): {e.reason} at byte {e.start}") from e
     </script>
     <figcaption>
-      <p>第 48–49 行就是你刚学的写法。第 53 行的注释说：一张图片就能让整个 agent 崩掉，所以这个错误也要接住。</p>
+      <p>第 50–51 行就是你刚学的写法。第 55 行的注释说：一张图片就能让整个 agent 崩掉，所以这个错误也要接住。</p>
     </figcaption>
   </figure>
   <div class="cell">
@@ -174,10 +174,11 @@ print("模型：", os.environ.get("DEEPSEEK_MODEL", "deepseek-v4-flash"))
     <li>输出太长，只留最后 10,000 个字符（报错都在最后）</li>
     <li>每条命令执行前，先问你 <code>允许执行? [Y/n/a]</code></li>
   </ul>
-  <figure class="excerpt" data-file="src/tools.py" data-start="264">
+  <figure class="excerpt" data-file="src/tools.py" data-start="269">
     <script type="text/x-python">
     run=_run_bash,
     needs_approval=True,
+    summary_zh="在终端运行一条命令（每次都要你点头同意，30 秒超时）",
 )
     </script>
     <figcaption>

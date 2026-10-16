@@ -129,7 +129,7 @@ print("循环结束。")
 <section>
   <h2>agent 的开关</h2>
   <p>chatbot 和 agent 在代码上只差一个布尔变量：<code>need_user_input</code>。AI 要用工具时，机器人跑完工具<strong>不等你</strong>，直接再问 AI。</p>
-  <figure class="excerpt" data-file="src/agent.py" data-start="237" data-highlight="238,248">
+  <figure class="excerpt" data-file="src/agent.py" data-start="448" data-highlight="449,459">
 <script type="text/x-python">
             if not results:
                 need_user_input = True  # 没工具调用 → 回到用户
@@ -145,7 +145,7 @@ print("循环结束。")
             need_user_input = False  # 有工具调用 → 不等用户，直接再问模型
     </script>
     <figcaption>
-      <p>看两条注释：没工具调用就回到你（第 238 行），有工具调用就直接再问模型（第 248 行）。中间几行是刹车，下一步讲。</p>
+      <p>看两条注释：没工具调用就回到你（第 449 行），有工具调用就直接再问模型（第 459 行）。中间几行是刹车，下一步讲。</p>
     </figcaption>
   </figure>
   <p>下面用假 AI 演一遍：你输入的数字，就是假 AI 需要跑几轮工具。</p>

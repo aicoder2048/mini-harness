@@ -18,7 +18,7 @@
   <h1>列表</h1>
   <p class="lede">AI 一答完就全忘了。机器人替它记着，记在一个叫 <code>conversation</code> 的列表里。</p>
   <div class="bench" aria-label="今天放在工作台上的零件">
-    <span class="prompt">$</span> <span>teardown</span> <span class="path">src/agent.py</span> <span>--lines 251-253</span> <span class="cursor" aria-hidden="true"></span>
+    <span class="prompt">$</span> <span>teardown</span> <span class="path">src/agent.py</span> <span>--lines 471-473</span> <span class="cursor" aria-hidden="true"></span>
   </div>
   <dl class="hero-meta">
     <div><dt>工作台上的零件</dt><dd><code>conversation</code> · <code>tools_for_step</code></dd></div>
@@ -109,7 +109,7 @@ print(tools[2:])     # 从索引 2 到末尾
 print(tools[-2:])    # 最后 2 个
     </script>
   </div>
-  <figure class="excerpt" data-file="src/agent.py" data-start="251" data-highlight="253">
+  <figure class="excerpt" data-file="src/agent.py" data-start="471" data-highlight="473">
 <script type="text/x-python">
 def tools_for_step(step: int) -> list[Tool]:
     """2=read_file, 3=+list_files, 4=+edit_file, 5=+run_bash"""
@@ -133,7 +133,7 @@ def tools_for_step(step: int) -> list[Tool]:
 <section>
   <h2>修改列表</h2>
   <p>列表创建后还能改：<code>append</code> 加一个，<code>extend</code> 把另一个列表的元素逐个加进来。AI 一次要两个工具时，机器人用 <code>extend</code> 把两个结果都加进记忆：</p>
-  <figure class="excerpt" data-file="src/agent.py" data-start="241">
+  <figure class="excerpt" data-file="src/agent.py" data-start="452">
 <script type="text/x-python">
             conversation.extend(self.provider.tool_results(results))
             tool_rounds += 1

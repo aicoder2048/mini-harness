@@ -76,10 +76,10 @@ Chat with DeepSeek — 4 个工具可用（/exit、/quit 或 Ctrl-D 退出）
 
 <section>
   <h2>零件清单</h2>
-  <p>整台机器人就是 <code>src/</code> 里的 7 个 Python 文件。顺着箭头，看一条消息怎么走：</p>
+  <p>整台机器人就是 <code>src/</code> 里的 8 个 Python 文件。顺着箭头，看一条消息怎么走：</p>
   <figure class="diagram wide">
-    <svg viewBox="0 0 760 290" role="img" aria-labelledby="parts-title" style="min-width:620px">
-      <title id="parts-title">机器人的各个文件怎样连在一起：你在 cli_input.py 里打字，agent.py 运行主循环，providers.py 和 DeepSeek 模型对话，tools.py 操作你的文件，prompt.py 和 skills.py 准备规则。</title>
+    <svg viewBox="0 0 760 350" role="img" aria-labelledby="parts-title" style="min-width:620px">
+      <title id="parts-title">机器人的各个文件怎样连在一起：你在 cli_input.py 里打字，agent.py 运行主循环，providers.py 和 DeepSeek 模型对话，tools.py 操作你的文件，prompt.py 和 skills.py 准备规则，personas.py 提供角色。</title>
       <defs>
         <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="d-head"/></marker>
       </defs>
@@ -138,11 +138,18 @@ Chat with DeepSeek — 4 个工具可用（/exit、/quit 或 Ctrl-D 退出）
       <path d="M375,188 L375,90" class="d-arrow" marker-end="url(#ah)"/>
       <text x="382" y="144" class="d-label">结果</text>
       <path d="M430,219 L458,219" class="d-arrow" marker-start="url(#ah)" marker-end="url(#ah)"/>
+
+      <!-- 第三行：角色 -->
+      <rect x="130" y="285" width="130" height="58" rx="8" class="d-box"/>
+      <text x="195" y="311" text-anchor="middle" class="d-text">personas.py</text>
+      <text x="195" y="329" text-anchor="middle" class="d-label">角色（换身份）</text>
+      <path d="M195,285 L195,250" class="d-arrow" marker-end="url(#ah)"/>
+      <text x="203" y="272" class="d-label">角色</text>
     </svg>
     <figcaption>你打字 → <code>agent.py</code> 经过翻译官发给 AI → AI 要用工具 → <code>tools.py</code> 去做 → 结果送回 AI。</figcaption>
   </figure>
   <details class="more">
-    <summary>多了解一点：7 个文件各管什么</summary>
+    <summary>多了解一点：8 个文件各管什么</summary>
     <div class="table-wrap">
       <table>
         <thead><tr><th>文件</th><th>它的工作</th><th>在哪几课拆它</th></tr></thead>
@@ -153,12 +160,13 @@ Chat with DeepSeek — 4 个工具可用（/exit、/quit 或 Ctrl-D 退出）
           <tr><td><code>providers.py</code></td><td>和 DeepSeek 的数据格式互相翻译</td><td>第 06、12 课</td></tr>
           <tr><td><code>prompt.py</code></td><td>写出 AI 要遵守的规矩</td><td>第 02、08、10 课</td></tr>
           <tr><td><code>skills.py</code></td><td>找到 skill 说明，列成清单</td><td>第 07、11 课</td></tr>
+          <tr><td><code>personas.py</code></td><td>读角色文件：一个角色一套提示词和工具（唐僧、悟空、八戒）</td><td>第 11 课；Harness 工程课专门讲</td></tr>
           <tr><td><code>cli_input.py</code></td><td>好用的键盘输入：方向键、历史</td><td>第 11 课</td></tr>
         </tbody>
       </table>
     </div>
   </details>
-  <p class="takeaway">7 个文件，各管一件事。</p>
+  <p class="takeaway">8 个文件，各管一件事。</p>
 </section>
 
 <section>
@@ -180,7 +188,7 @@ Chat with DeepSeek — 4 个工具可用（/exit、/quit 或 Ctrl-D 退出）
   <div class="cell">
     <script type="text/x-python">
 print("你好！我正在拆一台机器人，顺便学 Python。")
-print("目前找到的机器人零件：", 7)
+print("目前找到的机器人零件：", 8)
     </script>
   </div>
   <details class="more">
@@ -280,7 +288,7 @@ print("造我的人是小明。")  # 这里换成你自己的名字
   <h2>小结</h2>
   <ul class="recap">
     <li>agent = 模型（文字进、文字出）+ harness（循环、工具、记忆、规矩）。</li>
-    <li>机器人就是 <code>src/</code> 里的 7 个 Python 文件。</li>
+    <li>机器人就是 <code>src/</code> 里的 8 个 Python 文件。</li>
     <li><code>print()</code> 显示文字；Python 从上到下执行。</li>
     <li><code>#</code> 开始注释，好注释解释「为什么」。</li>
   </ul>

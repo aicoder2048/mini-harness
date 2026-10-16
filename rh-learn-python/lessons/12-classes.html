@@ -18,7 +18,7 @@
   <h1>类与对象</h1>
   <p class="lede">机器人把一个工具的所有信息装进一个「对象」，还能把整个大脑换成假的。</p>
   <div class="bench" aria-label="今天工作台上的零件">
-    <span class="prompt">$</span> <span>teardown</span> <span class="path">src/tools.py</span> <span>--lines 24-30</span> <span class="cursor" aria-hidden="true"></span>
+    <span class="prompt">$</span> <span>teardown</span> <span class="path">src/tools.py</span> <span>--lines 24-32</span> <span class="cursor" aria-hidden="true"></span>
   </div>
   <dl class="hero-meta">
     <div><dt>工作台上的零件</dt><dd><code>Tool</code>、<code>ConsoleApprover</code>、<code>Provider</code></dd></div>
@@ -58,7 +58,7 @@ run_bash = Tool(name="run_bash", needs_aproval=True)
 
 <section>
   <h2>工具的蓝图</h2>
-  <p>机器人的每个工具都照着这张 7 行的蓝图造：</p>
+  <p>机器人的每个工具都照着这张蓝图造：</p>
   <figure class="excerpt" data-file="src/tools.py" data-start="24" data-highlight="24,30">
     <script type="text/x-python">
 @dataclass(frozen=True)
@@ -68,6 +68,8 @@ class Tool:
     input_schema: dict[str, Any]
     run: Callable[[dict[str, Any]], str]
     needs_approval: bool = False  # True → agent 执行前先问用户（run_bash 这类能动整台机器的工具）
+    # 一行中文说明，只给人看（/tools 之类的显示用），不会发给模型：providers 只取 name / description / schema
+    summary_zh: str = ""
     </script>
     <figcaption>
       <p>每行是一个<strong>字段</strong>。<code>@dataclass</code> 替你写好创建对象的代码，<code>frozen=True</code> 让造好的工具不能再改。</p>
@@ -145,7 +147,7 @@ print(strict.tick(), strict.tick())    # 第 1 轮、第 2 轮
 print(relaxed.tick(), relaxed.rounds)  # 各数各的
     </script>
   </div>
-  <figure class="excerpt" data-file="src/agent.py" data-start="85">
+  <figure class="excerpt" data-file="src/agent.py" data-start="97">
     <script type="text/x-python">
     def __init__(self, read: Callable[[str], str] = input) -> None:
         self.read = read
@@ -171,7 +173,7 @@ print(relaxed.tick(), relaxed.rounds)  # 各数各的
 <section>
   <h2>继承</h2>
   <p>新类可以是某个已有类的「一种」。机器人的工具出错时，用的是自己的错误类型：</p>
-  <figure class="excerpt" data-file="src/tools.py" data-start="33">
+  <figure class="excerpt" data-file="src/tools.py" data-start="35">
     <script type="text/x-python">
 class ToolError(Exception):
     """工具执行失败。会被包成 is_error 的结果回灌给模型，让它自己纠错。"""

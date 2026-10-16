@@ -232,7 +232,7 @@
   <h1>大循环</h1>
   <p class="lede">你学过的零件都汇进了 <code>Agent.run</code>。读懂它、看它跑，再亲手搭一个 agent。</p>
   <div class="bench" aria-label="今天工作台上的零件">
-    <span class="prompt">$</span> <span>teardown</span> <span class="path">src/agent.py</span> <span>--lines 190-248</span> <span class="cursor" aria-hidden="true"></span>
+    <span class="prompt">$</span> <span>teardown</span> <span class="path">src/agent.py</span> <span>--lines 392-459</span> <span class="cursor" aria-hidden="true"></span>
   </div>
   <dl class="hero-meta">
     <div><dt>工作台上的零件</dt><dd><code>Agent.run</code> 和 <code>_execute</code></dd></div>
@@ -247,16 +247,17 @@
   <h2>读懂主循环</h2>
   <p>你学过的每个零件，都汇进了 <code>src/agent.py</code> 的 <code>Agent.run</code>。它就是机器人的心跳，下面是原文。</p>
 
-  <figure class="excerpt" data-file="src/agent.py" data-start="190" data-highlight="195,197,235,248">
+  <figure class="excerpt" data-file="src/agent.py" data-start="392" data-highlight="397,399,446,459">
     <script type="text/x-python">
     def run(self) -> None:
-        conversation: list[dict] = []
-        tools = list(self.tools.values())
-        print(f"Chat with {self.provider.label} — {len(tools)} 个工具可用（/exit、/quit 或 Ctrl-D 退出）")
+        print(f"Chat with {self.provider.label} — {len(self.tools)} 个工具可用（/exit、/quit 或 Ctrl-D 退出）")
+        if self.current.name != DEFAULT_SESSION:
+            print(f"当前角色：{self.current.label}（/persona 查看全部角色）")
 
         need_user_input = True
         tool_rounds = 0  # 自上次用户输入以来连续的工具轮数
         while True:
+            conversation = self.current.conversation  # 每轮重新取：/persona 切换后就是另一个角色的对话
             if need_user_input:
                 user_input = self.get_user_input()
                 if user_input is None:
@@ -266,6 +267,9 @@
                 command = slash_command(user_input)
                 if command in ("exit", "quit"):
                     break
+                if command in self._local_commands:
+                    self._local_commands[command](command_argument(user_input))
+                    continue
                 if command in self.skills:
                     message = self._skill_message(self.skills[command], user_input)
                     if message is None:
@@ -280,10 +284,11 @@
                 tool_rounds = 0
 
             # provider.chat 会把 assistant 回复按本家格式 append 进 conversation。
-            reply = self.provider.chat(conversation, tools, self.system)
+            reply = self.provider.chat(conversation, list(self.tools.values()), self.system)
 
             if reply.usage:
                 self._log_usage(reply.usage)
+                self.current.last_input_tokens = reply.usage.input_tokens
                 if reply.usage.input_tokens > self.context_budget:
                     pruned = self.provider.prune_tool_results(conversation, self.keep_tool_results)
                     if pruned:
@@ -291,8 +296,12 @@
                             f"\033[2m· 上下文超过 {self.context_budget:,} token 预算，清理了 {pruned} 个旧工具结果\033[0m",
                             file=sys.stderr,
                         )
+            # 有角色时标签写成「🐒 孙悟空 · DeepSeek」：换的是角色，大脑还是同一个
+            speaker = self.provider.label
+            if self.current.name != DEFAULT_SESSION:
+                speaker = f"{self.current.label} · {speaker}"
             for text in reply.texts:
-                print(f"\033[93m{self.provider.label}\033[0m:")
+                print(f"\033[93m{speaker}\033[0m:")
                 console.print(Markdown(text))  # Markdown 按块渲染，所以标签单独一行
             results = [self._execute(call) for call in reply.tool_calls]
 
@@ -310,7 +319,7 @@
             need_user_input = False  # 有工具调用 → 不等用户，直接再问模型
     </script>
     <figcaption>
-      <p>高亮的四行是骨架。读第 238 和 248 行的注释：没工具调用就回到你，有工具调用就直接再问模型。</p>
+      <p>高亮的四行是骨架。读第 449 和 459 行的注释：没工具调用就回到你，有工具调用就直接再问模型。</p>
     </figcaption>
   </figure>
 
@@ -318,17 +327,18 @@
     <table>
       <thead><tr><th>行</th><th>做什么</th></tr></thead>
       <tbody>
-        <tr><td>191–196</td><td>准备：空的对话记录，两个控制变量</td></tr>
-        <tr><td>197–218</td><td>轮到你时：读输入、认命令、把消息加进记录</td></tr>
-        <tr><td>221</td><td>把<strong>整个</strong>对话记录发给模型</td></tr>
-        <tr><td>235</td><td>执行模型要的每个工具</td></tr>
-        <tr><td>237–248</td><td>没工具调用 → 轮到你；有 → 记一轮，到上限就刹车，否则直接再问模型</td></tr>
+        <tr><td>393–398</td><td>准备：打个招呼，两个控制变量</td></tr>
+        <tr><td>400</td><td>每转一圈先拿出<strong>当前角色</strong>的对话记录（切换角色后就是另一份）</td></tr>
+        <tr><td>401–424</td><td>轮到你时：读输入、认命令、把消息加进记录</td></tr>
+        <tr><td>427</td><td>把<strong>整个</strong>对话记录发给模型</td></tr>
+        <tr><td>446</td><td>执行模型要的每个工具</td></tr>
+        <tr><td>448–459</td><td>没工具调用 → 轮到你；有 → 记一轮，到上限就刹车，否则直接再问模型</td></tr>
       </tbody>
     </table>
   </div>
 
   <div class="quiz" id="q-13-wait" data-answer="b">
-    <p class="q">工具跑完后，第 248 行把 <code>need_user_input</code> 设成 <code>False</code>。为什么不先问你？</p>
+    <p class="q">工具跑完后，第 459 行把 <code>need_user_input</code> 设成 <code>False</code>。为什么不先问你？</p>
     <ol class="options">
       <li data-why="恰好相反：再问一次模型要多花一次请求的钱。">为了省 token 的钱</li>
       <li>模型要工具是因为需要结果，只有它知道拿到结果后该做什么</li>
@@ -344,16 +354,16 @@
       <table>
         <thead><tr><th>概念</th><th>课</th><th>在 <code>Agent.run</code> 里</th></tr></thead>
         <tbody>
-          <tr><td>变量</td><td>01</td><td><code>need_user_input = True</code>（第 195 行）</td></tr>
-          <tr><td>字符串与颜色</td><td>02</td><td>黄色的 <code>DeepSeek:</code> 标签（第 233 行）</td></tr>
-          <tr><td>if / elif / else</td><td>03</td><td>是命令还是消息（第 205–217 行）</td></tr>
-          <tr><td>while 循环</td><td>04</td><td><code>while True:</code>（第 197 行）</td></tr>
+          <tr><td>变量</td><td>01</td><td><code>need_user_input = True</code>（第 397 行）</td></tr>
+          <tr><td>字符串与颜色</td><td>02</td><td>黄色的 <code>DeepSeek:</code> 标签（第 444 行）</td></tr>
+          <tr><td>if / elif / else</td><td>03</td><td>是命令还是消息（第 408–423 行）</td></tr>
+          <tr><td>while 循环</td><td>04</td><td><code>while True:</code>（第 399 行）</td></tr>
           <tr><td>列表</td><td>05</td><td><code>conversation</code> 的 <code>.append</code> / <code>.extend</code></td></tr>
           <tr><td>字典</td><td>06</td><td><code>{"role": "user", "content": user_input}</code></td></tr>
-          <tr><td>for 与推导式</td><td>07</td><td><code>[self._execute(call) for call in ...]</code>（第 235 行）</td></tr>
-          <tr><td>函数</td><td>08</td><td><code>slash_command(user_input)</code>（第 204 行）</td></tr>
+          <tr><td>for 与推导式</td><td>07</td><td><code>[self._execute(call) for call in ...]</code>（第 446 行）</td></tr>
+          <tr><td>函数</td><td>08</td><td><code>slash_command(user_input)</code>（第 407 行）</td></tr>
           <tr><td>错误与异常</td><td>09</td><td><code>_execute</code> 接住工具的失败</td></tr>
-          <tr><td>类与对象</td><td>12</td><td><code>self.provider.chat(...)</code>（第 221 行）</td></tr>
+          <tr><td>类与对象</td><td>12</td><td><code>self.provider.chat(...)</code>（第 427 行）</td></tr>
         </tbody>
       </table>
     </div>
@@ -364,9 +374,9 @@
 
 <section>
   <h2>错误变结果</h2>
-  <p>第 235 行对每个工具调用执行一次 <code>_execute</code>。它的每条路都以 <code>return</code> 结尾，失败也会变成一个错误结果。</p>
+  <p>第 446 行对每个工具调用执行一次 <code>_execute</code>。它的每条路都以 <code>return</code> 结尾，失败也会变成一个错误结果。</p>
 
-  <figure class="excerpt" data-file="src/agent.py" data-start="144" data-highlight="148,156,158,161">
+  <figure class="excerpt" data-file="src/agent.py" data-start="346" data-highlight="350,358,360,363">
     <script type="text/x-python">
     def _execute(self, call: ToolCall) -> ToolResult:
         """执行一次工具调用。失败也返回结果，交给模型自己纠错。"""
@@ -957,7 +967,7 @@ Agent(FakeBrain(), TOOLS, keyboard).run()
     <details class="hint"><summary>提示</summary><p>用 <code>read_file(args)</code> 拿到文本，返回 <code>str(len(text.split()))</code>；再在列表里加 <code>Tool("count_words", count_words)</code>。</p></details>
   </section>
 
-  <figure class="excerpt" data-file="src/agent.py" data-start="41">
+  <figure class="excerpt" data-file="src/agent.py" data-start="43">
     <script type="text/x-python">
 # 同一次用户输入之后，最多连续几轮「模型要工具 → 执行 → 回灌」。防止模型原地打转、烧 token。
 # 到上限就暂停交回给用户；教程（Vercel Academy harness）里对应 stopWhen: stepCountIs(10)。

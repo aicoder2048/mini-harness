@@ -18,7 +18,7 @@
   <h1>错误与异常</h1>
   <p class="lede">AI 会要不存在的文件、会漏传参数。好机器人不崩溃，而是把失败变成一条消息。</p>
   <div class="bench" aria-label="今天工作台上的零件">
-    <span class="prompt">$</span> <span>teardown</span> <span class="path">src/agent.py</span> <span>--lines 144-161</span> <span class="cursor" aria-hidden="true"></span>
+    <span class="prompt">$</span> <span>teardown</span> <span class="path">src/agent.py</span> <span>--lines 346-363</span> <span class="cursor" aria-hidden="true"></span>
   </div>
   <dl class="hero-meta">
     <div><dt>工作台上的零件</dt><dd><code>agent.py</code> 的 <code>_execute</code></dd></div>
@@ -102,7 +102,7 @@ print("程序继续往下运行。")
 <section>
   <h2>自己抛错</h2>
   <p>用 <code>raise</code> 可以自己抛出异常，还能造一个新的错误类型。机器人有自己的 <code>ToolError</code>：</p>
-  <figure class="excerpt" data-file="src/tools.py" data-start="33">
+  <figure class="excerpt" data-file="src/tools.py" data-start="35">
     <script type="text/x-python">
 class ToolError(Exception):
     """工具执行失败。会被包成 is_error 的结果回灌给模型，让它自己纠错。"""
@@ -135,7 +135,7 @@ for name in ["math.txt", "secret.txt"]:
 <section>
   <h2>失败变消息</h2>
   <p>这是今天的核心。AI 每要用一次工具，主循环都会调用 <code>_execute</code>：</p>
-  <figure class="excerpt" data-file="src/agent.py" data-start="144" data-highlight="148,156-161">
+  <figure class="excerpt" data-file="src/agent.py" data-start="346" data-highlight="350,358-363">
     <script type="text/x-python">
     def _execute(self, call: ToolCall) -> ToolResult:
         """执行一次工具调用。失败也返回结果，交给模型自己纠错。"""
@@ -157,7 +157,7 @@ for name in ["math.txt", "secret.txt"]:
         return ToolResult(call.id, error, is_error=True)
     </script>
     <figcaption>
-      <p>第 149–154 行把三种问题（没这个工具、参数坏了、你拒绝了）都变成 <code>ToolError</code>；第 156–161 行把它们和漏参数的 <code>KeyError</code> 接住，当作「结果」交回 AI。程序从不崩。</p>
+      <p>第 351–356 行把三种问题（没这个工具、参数坏了、你拒绝了）都变成 <code>ToolError</code>；第 358–363 行把它们和漏参数的 <code>KeyError</code> 接住，当作「结果」交回 AI。程序从不崩。</p>
     </figcaption>
   </figure>
   <div class="quiz" id="q-09-design" data-answer="b">
@@ -173,7 +173,7 @@ for name in ["math.txt", "secret.txt"]:
   <details class="more">
     <summary>多了解一点：有些错误就该崩溃</summary>
     <p>AI 犯的错要接住，让 AI 自己改。程序员犯的错（比如设置写坏了）要立刻停下、说清楚，这叫<strong>快速失败</strong>。</p>
-    <figure class="excerpt" data-file="src/agent.py" data-start="121">
+    <figure class="excerpt" data-file="src/agent.py" data-start="188">
       <script type="text/x-python">
         if max_tool_rounds < 1:
             raise ValueError(f"max_tool_rounds must be >= 1, got {max_tool_rounds}")

@@ -16,9 +16,9 @@
 <header class="hero">
   <p class="eyebrow">第 11 课 · 第 4 单元 · 接线</p>
   <h1>模块与包</h1>
-  <p class="lede">机器人由 7 个互相借代码的文件组成，还用了别人写的包。把它们连起来的就是 <code>import</code>。</p>
+  <p class="lede">机器人由 8 个互相借代码的文件组成，还用了别人写的包。把它们连起来的就是 <code>import</code>。</p>
   <div class="bench" aria-label="今天工作台上的零件">
-    <span class="prompt">$</span> <span>teardown</span> <span class="path">src/agent.py</span> <span>--lines 15-39</span> <span class="cursor" aria-hidden="true"></span>
+    <span class="prompt">$</span> <span>teardown</span> <span class="path">src/agent.py</span> <span>--lines 15-41</span> <span class="cursor" aria-hidden="true"></span>
   </div>
   <dl class="hero-meta">
     <div><dt>工作台上的零件</dt><dd><code>agent.py</code> 开头的 import</dd></div>
@@ -63,7 +63,7 @@ print(dt.date(2026, 10, 1).isoformat())
 <section>
   <h2>三组 import</h2>
   <p>打开任何 Python 文件，最先看到的就是 import。它列出了这个文件依赖的一切。这是 <code>agent.py</code> 的开头：</p>
-  <figure class="excerpt" data-file="src/agent.py" data-start="15" data-highlight="17-23,25-26,28-39">
+  <figure class="excerpt" data-file="src/agent.py" data-start="15" data-highlight="17-24,26-27,29-41">
     <script type="text/x-python">
 from __future__ import annotations
 
@@ -73,12 +73,14 @@ import os
 import re
 import sys
 from collections.abc import Callable
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 
 from rich.console import Console
 from rich.markdown import Markdown
 
 from cli_input import make_default_reader
+from personas import DEFAULT_PERSONAS_DIR, Persona, discover_personas, load_persona
 from prompt import (
     AGENTS_FILE,
     PromptContext,
@@ -92,7 +94,7 @@ from skills import Skill, discover_skills, skills_index
 from tools import ALL_TOOLS, Tool, ToolError, read_file
     </script>
     <figcaption>
-      <p>空行把它们分成三组：标准库（17–23 行）、别人写的包 <code>rich</code>（25–26 行）、机器人自己的文件（28–39 行）。</p>
+      <p>空行把它们分成三组：标准库（17–24 行）、别人写的包 <code>rich</code>（26–27 行）、机器人自己的文件（29–41 行）。</p>
     </figcaption>
   </figure>
   <p class="takeaway">每个 <code>.py</code> 文件都是模块，可以被别的文件导入。</p>
@@ -100,10 +102,10 @@ from tools import ALL_TOOLS, Tool, ToolError, read_file
 
 <section>
   <h2>分工明确</h2>
-  <p>机器人本来可以是一个 1,400 行的大文件，但它拆成了 7 个，每个只干一件事。箭头从 A 指向 B，表示「A 导入了 B」：</p>
+  <p>机器人本来可以是一个 1,800 行的大文件，但它拆成了 8 个，每个只干一件事。箭头从 A 指向 B，表示「A 导入了 B」：</p>
   <figure class="diagram wide">
     <svg viewBox="0 0 760 250" role="img" aria-labelledby="imports-title" style="min-width:620px">
-      <title id="imports-title">导入关系图：agent.py 导入 cli_input.py、prompt.py、skills.py、providers.py 和 tools.py。providers.py 导入 tools.py。tools.py 不导入机器人的任何文件，也没有文件导入 agent.py。</title>
+      <title id="imports-title">导入关系图：agent.py 导入 cli_input.py、prompt.py、personas.py、skills.py、providers.py 和 tools.py。personas.py 导入 skills.py，providers.py 导入 tools.py。tools.py 不导入机器人的任何文件，也没有文件导入 agent.py。</title>
       <defs>
         <marker id="ah11" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="d-head"/></marker>
       </defs>
@@ -112,35 +114,36 @@ from tools import ALL_TOOLS, Tool, ToolError, read_file
       <text x="380" y="58" text-anchor="middle" class="d-label">没有文件导入它</text>
       <text x="472" y="48" class="d-label">+ rich（第三方）</text>
 
-      <rect x="20" y="150" width="120" height="54" rx="8" class="d-box"/>
-      <text x="80" y="174" text-anchor="middle" class="d-text">cli_input.py</text>
-      <text x="80" y="192" text-anchor="middle" class="d-label">键盘</text>
-      <text x="80" y="226" text-anchor="middle" class="d-label">+ prompt_toolkit</text>
+      <rect x="5" y="150" width="110" height="54" rx="8" class="d-box"/>
+      <text x="60" y="174" text-anchor="middle" class="d-text">cli_input.py</text>
+      <text x="60" y="192" text-anchor="middle" class="d-label">键盘</text>
+      <text x="60" y="226" text-anchor="middle" class="d-label">+ prompt_toolkit</text>
+      <rect x="133" y="150" width="110" height="54" rx="8" class="d-box"/>
+      <text x="188" y="174" text-anchor="middle" class="d-text">prompt.py</text>
+      <text x="188" y="192" text-anchor="middle" class="d-label">规则</text>
+      <rect x="261" y="150" width="110" height="54" rx="8" class="d-box"/>
+      <text x="316" y="174" text-anchor="middle" class="d-text">personas.py</text>
+      <text x="316" y="192" text-anchor="middle" class="d-label">角色</text>
+      <rect x="389" y="150" width="110" height="54" rx="8" class="d-box"/>
+      <text x="444" y="174" text-anchor="middle" class="d-text">skills.py</text>
+      <text x="444" y="192" text-anchor="middle" class="d-label">技能手册</text>
+      <rect x="517" y="150" width="110" height="54" rx="8" class="d-box"/>
+      <text x="572" y="174" text-anchor="middle" class="d-text">providers.py</text>
+      <text x="572" y="192" text-anchor="middle" class="d-label">翻译官</text>
+      <text x="572" y="226" text-anchor="middle" class="d-label">+ openai</text>
+      <rect x="645" y="150" width="110" height="54" rx="8" class="d-box d-tool"/>
+      <text x="700" y="174" text-anchor="middle" class="d-text">tools.py</text>
+      <text x="700" y="192" text-anchor="middle" class="d-label">手</text>
+      <text x="700" y="226" text-anchor="middle" class="d-label">不导入我们的文件</text>
 
-      <rect x="170" y="150" width="120" height="54" rx="8" class="d-box"/>
-      <text x="230" y="174" text-anchor="middle" class="d-text">prompt.py</text>
-      <text x="230" y="192" text-anchor="middle" class="d-label">规则</text>
-
-      <rect x="320" y="150" width="120" height="54" rx="8" class="d-box"/>
-      <text x="380" y="174" text-anchor="middle" class="d-text">skills.py</text>
-      <text x="380" y="192" text-anchor="middle" class="d-label">技能手册</text>
-
-      <rect x="470" y="150" width="120" height="54" rx="8" class="d-box"/>
-      <text x="530" y="174" text-anchor="middle" class="d-text">providers.py</text>
-      <text x="530" y="192" text-anchor="middle" class="d-label">翻译官</text>
-      <text x="530" y="226" text-anchor="middle" class="d-label">+ openai</text>
-
-      <rect x="620" y="150" width="120" height="54" rx="8" class="d-box d-tool"/>
-      <text x="680" y="174" text-anchor="middle" class="d-text">tools.py</text>
-      <text x="680" y="192" text-anchor="middle" class="d-label">手</text>
-      <text x="680" y="226" text-anchor="middle" class="d-label">不导入我们的文件</text>
-
-      <path d="M360,70 L84,148" class="d-arrow" marker-end="url(#ah11)"/>
-      <path d="M370,70 L232,148" class="d-arrow" marker-end="url(#ah11)"/>
-      <path d="M380,70 L380,148" class="d-arrow" marker-end="url(#ah11)"/>
-      <path d="M390,70 L528,148" class="d-arrow" marker-end="url(#ah11)"/>
-      <path d="M400,70 L676,148" class="d-arrow" marker-end="url(#ah11)"/>
-      <path d="M590,177 L618,177" class="d-arrow" marker-end="url(#ah11)"/>
+      <path d="M355,70 L60,148" class="d-arrow" marker-end="url(#ah11)"/>
+      <path d="M365,70 L188,148" class="d-arrow" marker-end="url(#ah11)"/>
+      <path d="M375,70 L316,148" class="d-arrow" marker-end="url(#ah11)"/>
+      <path d="M385,70 L444,148" class="d-arrow" marker-end="url(#ah11)"/>
+      <path d="M395,70 L572,148" class="d-arrow" marker-end="url(#ah11)"/>
+      <path d="M405,70 L700,148" class="d-arrow" marker-end="url(#ah11)"/>
+      <path d="M371,177 L387,177" class="d-arrow" marker-end="url(#ah11)"/>
+      <path d="M627,177 L643,177" class="d-arrow" marker-end="url(#ah11)"/>
     </svg>
     <figcaption>箭头都朝下：<code>agent.py</code> 把零件接在一起，<code>tools.py</code> 在最底层，谁也不需要。</figcaption>
   </figure>
@@ -210,7 +213,7 @@ uv run --env-file .env src/agent.py  <span class="tok-com"># 在装好包的环�
 <section>
   <h2>运行还是导入</h2>
   <p>机器人里每个能直接运行的文件，结尾都是这两行：</p>
-  <figure class="excerpt" data-file="src/agent.py" data-start="352">
+  <figure class="excerpt" data-file="src/agent.py" data-start="622">
     <script type="text/x-python">
 if __name__ == "__main__":
     main()

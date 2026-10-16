@@ -143,7 +143,7 @@ print(answer.strip().lower())     # 先去空白，再变小写
 print(answer)                     # 原来的字符串没变
     </script>
   </div>
-  <figure class="excerpt" data-file="src/agent.py" data-start="95">
+  <figure class="excerpt" data-file="src/agent.py" data-start="107">
     <script type="text/x-python">
                 answer = self.read(self.PROMPT.format(tool=call.name)).strip().lower()
     </script>
@@ -166,7 +166,7 @@ output = "collecting 58 items\n........F\nFAILED test_edit_file"
 print(output[-21:])         # 报错信息在结尾
     </script>
   </div>
-  <figure class="excerpt" data-file="src/tools.py" data-start="239">
+  <figure class="excerpt" data-file="src/tools.py" data-start="244">
     <script type="text/x-python">
     if len(output) > MAX_OUTPUT_CHARS:
         output = (

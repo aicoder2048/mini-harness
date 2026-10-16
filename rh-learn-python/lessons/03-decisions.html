@@ -18,7 +18,7 @@
   <h1>做判断</h1>
   <p class="lede">机器人跑命令前会问「允许执行? [Y/n/a]」，再根据你的回答做选择。</p>
   <div class="bench" aria-label="今天放在工作台上的零件">
-    <span class="prompt">$</span> <span>teardown</span> <span class="path">src/agent.py</span> <span>--lines 75-105</span> <span class="cursor" aria-hidden="true"></span>
+    <span class="prompt">$</span> <span>teardown</span> <span class="path">src/agent.py</span> <span>--lines 87-117</span> <span class="cursor" aria-hidden="true"></span>
   </div>
   <dl class="hero-meta">
     <div><dt>工作台上的零件</dt><dd>请求授权的 <code>ConsoleApprover</code></dd></div>
@@ -152,7 +152,7 @@ else:
     print("打错了？再问一次")
     </script>
   </div>
-  <figure class="excerpt" data-file="src/agent.py" data-start="98">
+  <figure class="excerpt" data-file="src/agent.py" data-start="110">
     <script type="text/x-python">
             if answer in ("", "y", "yes"):
                 return True
@@ -180,7 +180,7 @@ else:
 <section>
   <h2>先挡坏情况</h2>
   <p><code>edit_file</code> 会改你的文件，所以动手前先把坏情况一个个挡在门外：</p>
-  <figure class="excerpt" data-file="src/tools.py" data-start="176">
+  <figure class="excerpt" data-file="src/tools.py" data-start="180">
     <script type="text/x-python">
     content = _read_text(path)
     occurrences = content.count(old)

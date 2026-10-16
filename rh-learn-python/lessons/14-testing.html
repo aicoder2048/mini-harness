@@ -18,7 +18,7 @@
   <h1>测试</h1>
   <p class="lede">机器人自带 206 个测试，两秒跑完、一分钱不花。最后一课，学会自己写测试。</p>
   <div class="bench" aria-label="今天工作台上的零件">
-    <span class="prompt">$</span> <span>teardown</span> <span class="path">tests/test_tools.py</span> <span>--lines 19-21</span> <span class="cursor" aria-hidden="true"></span>
+    <span class="prompt">$</span> <span>teardown</span> <span class="path">tests/test_tools.py</span> <span>--lines 25-27</span> <span class="cursor" aria-hidden="true"></span>
   </div>
   <dl class="hero-meta">
     <div><dt>工作台上的零件</dt><dd><code>tests/</code> 文件夹</dd></div>
@@ -85,7 +85,7 @@ print("测试 2 通过")
 <section>
   <h2>测试函数</h2>
   <p>真正的项目把测试写成名字以 <code>test_</code> 开头的函数。这是机器人给 <code>read_file</code> 写的一个：</p>
-  <figure class="excerpt" data-file="tests/test_tools.py" data-start="19">
+  <figure class="excerpt" data-file="tests/test_tools.py" data-start="25">
     <script type="text/x-python">
 def test_read_file_returns_file_content(tmp_path):
     (tmp_path / "a.txt").write_text("hello 老周", encoding="utf-8")
@@ -143,7 +143,7 @@ run_tests()
 <section>
   <h2>假对象</h2>
   <p>主循环要和 DeepSeek 对话，还要等你打字，怎么测？把这两样都换成假的：<code>FakeProvider</code> 交出写好的回复，<code>scripted()</code> 假装打字。</p>
-  <figure class="excerpt" data-file="tests/test_agent.py" data-start="50" data-highlight="60,62">
+  <figure class="excerpt" data-file="tests/test_agent.py" data-start="60" data-highlight="70,72">
     <script type="text/x-python">
 def test_tool_call_loops_back_to_model_without_asking_user(tmp_path, capsys):
     secret = tmp_path / "secret.txt"
@@ -163,7 +163,7 @@ def test_tool_call_loops_back_to_model_without_asking_user(tmp_path, capsys):
     assert "a horse" in capsys.readouterr().out
     </script>
     <figcaption>
-      <p>运行<strong>真正的</strong>循环，再检查：用户只说了一次话，模型却被问了两次（第 62 行），这正是 agent 的标志。</p>
+      <p>运行<strong>真正的</strong>循环，再检查：用户只说了一次话，模型却被问了两次（第 72 行），这正是 agent 的标志。</p>
     </figcaption>
   </figure>
   <aside class="callout analogy">
@@ -182,7 +182,7 @@ def test_tool_call_loops_back_to_model_without_asking_user(tmp_path, capsys):
   </div>
   <details class="more">
     <summary>多了解一点：三行代码的假键盘</summary>
-    <figure class="excerpt" data-file="tests/test_agent.py" data-start="45">
+    <figure class="excerpt" data-file="tests/test_agent.py" data-start="55">
     <script type="text/x-python">
 def scripted(*inputs):
     it = iter(inputs)
@@ -528,7 +528,7 @@ git checkout main                        <span class="tok-com"># ……再回来
           <tr><td>08 函数</td><td>每个工具的 <code>run</code>、<code>slash_command</code></td></tr>
           <tr><td>09 错误与异常</td><td><code>ToolError</code>：失败交回给 AI</td></tr>
           <tr><td>10 文件与外部世界</td><td><code>read_file</code>、<code>run_bash</code>、记忆笔记</td></tr>
-          <tr><td>11 模块与包</td><td>七个互相导入的文件，<code>openai</code> 和 <code>rich</code></td></tr>
+          <tr><td>11 模块与包</td><td>八个互相导入的文件，<code>openai</code> 和 <code>rich</code></td></tr>
           <tr><td>12 类与对象</td><td><code>Tool</code>、<code>ConsoleApprover</code>、可替换的 <code>Provider</code></td></tr>
           <tr><td>13 大循环</td><td><code>Agent.run</code></td></tr>
           <tr><td>14 测试</td><td>206 个测试、<code>FakeProvider</code>、CI</td></tr>
