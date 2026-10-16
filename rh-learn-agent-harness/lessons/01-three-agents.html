@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>西游记三人组 · 拆机学 Harness 01</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap">
+<link rel="stylesheet" href="../assets/course.css">
+<script src="../assets/course.js"></script>
+</head>
+<body data-lesson="01" data-root="../">
+<div class="page">
+
+<header class="hero">
+  <p class="eyebrow">第 01 课 · 第 1 单元 · 核心组件</p>
+  <h1>一个大脑，三个角色</h1>
+  <p class="lede">同一个 DeepSeek，换一套系统提示词、可用工具和会话状态，就成了唐僧、悟空、八戒三个不同的 agent。</p>
+  <div class="bench" aria-label="今天工作台上的零件">
+    <span class="prompt">$</span> <span>teardown</span> <span class="path">.agents/personas/</span> <span>--all</span> <span class="cursor" aria-hidden="true"></span>
+  </div>
+  <dl class="hero-meta">
+    <div><dt>工作台上的零件</dt><dd><code>personas.py</code> · <code>Session</code> · 三个角色文件</dd></div>
+    <div><dt>时长</dt><dd>讲解约 40 分钟 · 实验约 50 分钟</dd></div>
+    <div><dt>你会学到</dt><dd>系统提示词 · 可用工具 · 会话状态 · 四个实验</dd></div>
+  </dl>
+</header>
+
+<main class="lesson">
+
+<section>
+  <h2>同一个大脑</h2>
+  <p>在《拆机学 Python》第 00 课我们说过：<strong>Agent = 模型 + harness</strong>。模型只会「文字进、文字出」，其余的事都是 harness 在做。</p>
+  <p>今天做一个实验：<strong>模型一点不换</strong>，只换 harness 的配置，看看能不能得到三个完全不同的 agent。</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>角色（切换用的名字）</th><th>工具</th><th>它的活儿</th></tr></thead>
+      <tbody>
+        <tr><td>🧘 唐僧 <code>tang</code></td><td>读、列、改（3 个）</td><td>策划：问清楚你想做什么，写成 <code>PLAN.md</code>，不写代码</td></tr>
+        <tr><td>🐒 孙悟空 <code>wukong</code></td><td>读、列、改、跑（4 个）</td><td>程序员：照着 <code>PLAN.md</code> 写代码、跑代码</td></tr>
+        <tr><td>🐷 猪八戒 <code>bajie</code></td><td>读、列（2 个）</td><td>检查员：对照 <code>PLAN.md</code> 挑毛病，只看不改</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <aside class="callout analogy">
+    <p class="callout-label">打个比方</p>
+    <p>同一个演员，换一份<strong>剧本</strong>（系统提示词）、换一套<strong>道具</strong>（可用工具）、换一本<strong>记事本</strong>（会话状态），就演成了另一个人。演员本人（模型）从头到尾没换过。</p>
+  </aside>
+  <p>西游记的设定正好对得上：悟空本领最大，可每次动手都得先听师父的；唐僧不会打架，只管定方向；八戒眼尖嘴碎，挑毛病最在行。悟空头上的<strong>紧箍咒</strong>，就是 harness 里的规矩和审批：本领再大，也要守规矩。</p>
+  <div class="quiz" id="q-01-same" data-answer="d">
+    <p class="q">从悟空切换到八戒，下面哪一样<strong>没有</strong>换？</p>
+    <ol class="options">
+      <li data-why="换了：八戒有自己的提示词，正文写着「你是猪八戒」。">系统提示词</li>
+      <li data-why="换了：悟空有 4 个工具，八戒只有 2 个。">可用工具</li>
+      <li data-why="换了：每个角色有自己的一份对话记录。">对话记录</li>
+      <li>模型（DeepSeek）</li>
+    </ol>
+    <div class="explain"><p>三个角色背后是同一个 DeepSeek。变的全是 harness 那一边。</p></div>
+  </div>
+  <p class="takeaway">换角色 = 换 harness 的配置；模型不换。</p>
+</section>
+
+<section>
+  <h2>组件一：系统提示词</h2>
+  <p>每次请求，模型最先读到的就是<strong>系统提示词</strong>（system prompt）：你是谁、要守什么规矩。机器人用 <code>prompt.py</code> 里的 <code>build_system_prompt</code> 把它拼出来：</p>
+  <figure class="excerpt" data-file="src/prompt.py" data-start="43" data-highlight="45,46,48">
+    <script type="text/x-python">
+def build_system_prompt(ctx: PromptContext) -> str:
+    tools = set(ctx.tool_names)
+    can_edit = "edit_file" in tools
+    can_run = "run_bash" in tools
+
+    role = ctx.persona or "You are a coding agent running in the user's terminal."
+    sections = [f"{role}\nWorking directory: {ctx.working_directory} (all relative paths are relative to it)."]
+    </script>
+    <figcaption>
+      <p>第 48 行：有角色就用角色的正文（「你是猪八戒……」），没有就用默认那句英文。第 45、46 行先看看手里有没有「改」和「跑」两种工具，后面要用。</p>
+    </figcaption>
+  </figure>
+  <p>在终端里输入 <code>/prompt</code>，就能看到当前角色完整的提示词。这是八戒的（中间省略了一段）：</p>
+  <figure class="terminal-figure wide">
+    <div class="term-title"><i></i><i></i><i></i>&nbsp; /prompt</div>
+<div class="terminal"><span class="a-blue">You</span>: /prompt
+你是猪八戒，取经小队里眼尖嘴碎的检查员。你的猴哥孙悟空写代码，师父唐僧写计划。……
+<span class="a-dim">（中间省略：怎么做、规矩、说话的样子）</span>
+Working directory: …/xiyou (all relative paths are relative to it).
+
+# Agency
+- Available tools: read_file, list_files
+- USE your tools: look at the real files instead of guessing, then answer.
+<span class="a-dim">……</span>
+
+# Communication
+- Your replies are shown in a terminal that renders Markdown: ……
+<span class="a-dim">— 🐷 猪八戒 的 system prompt，共 1,385 字符</span></div>
+  </figure>
+  <p>前半段中文是<strong>我们写的</strong>角色正文；后面的 <code># Agency</code>、<code># Communication</code> 是 <strong>harness 自动加的</strong>英文段落。哪几段会出现，看这个角色有什么工具：</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>角色</th><th>提示词里有哪几段</th><th>字符数（练习文件夹里实测）</th></tr></thead>
+      <tbody>
+        <tr><td>🧘 唐僧</td><td>角色正文 · Agency · Communication · Guardrails · Memory</td><td>3,113</td></tr>
+        <tr><td>🐒 孙悟空</td><td>以上全部 + <strong>Verification</strong>（改完要验证）</td><td>4,000</td></tr>
+        <tr><td>🐷 猪八戒</td><td>角色正文 · Agency · Communication</td><td>1,385</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>下面是 <code>build_system_prompt</code> 的简化版。运行它，比较八戒和悟空拼出来的提示词：</p>
+  <div class="cell" data-label="试一试 · 简化版的提示词拼装">
+    <script type="text/x-python">
+def build_prompt(persona, tools):
+    sections = [persona]
+    sections.append("# Agency\n- Available tools: " + (", ".join(tools) or "(none)"))
+    if "edit_file" in tools or "run_bash" in tools:
+        sections.append("# Guardrails\n- 改动要小，先看已有的代码")
+    if "run_bash" in tools:
+        sections.append("# Verification\n- 没真的运行过，就不能说能用")
+    return "\n\n".join(sections)
+
+
+print(build_prompt("你是猪八戒。", ["read_file", "list_files"]))
+print("=" * 24)
+print(build_prompt("你是孙悟空。", ["read_file", "list_files", "edit_file", "run_bash"]))
+    </script>
+  </div>
+  <div class="quiz" id="q-01-verify" data-answer="b">
+    <p class="q">八戒的提示词里为什么没有 <code># Verification</code>（「改完要运行验证」）？</p>
+    <ol class="options">
+      <li data-why="和名字没关系：这一段只看工具。">因为他叫八戒</li>
+      <li>他没有 <code>run_bash</code>，没法运行程序，要求他验证没有意义</li>
+      <li data-why="不是忘了：这一段是按工具自动加的，有 run_bash 才加。">写提示词的人忘了加</li>
+      <li data-why="段落多少和字数无关，看的是工具。">提示词太长，删掉了</li>
+    </ol>
+    <div class="explain"><p>提示词不让角色做它做不到的事：没有手就不谈改，没法运行就不谈验证。</p></div>
+  </div>
+  <aside class="callout principle">
+    <p class="callout-label">Harness 原则</p>
+    <h4>提示词写「策略」，能力交给工具</h4>
+    <p>提示词讲的是该怎么做、有什么界限；能做什么，由工具说了算。所以提示词要跟着工具变。</p>
+  </aside>
+  <p class="takeaway">系统提示词 = 我们写的角色正文 + harness 按工具自动加的段落。</p>
+</section>
+
+<section>
+  <h2>组件二：可用工具</h2>
+  <p>工具是 agent 的<strong>手</strong>。角色文件里 <code>tools:</code> 那一行，决定了它有哪几只手。harness 只把这几个工具的说明发给模型：</p>
+  <figure class="excerpt" data-file="src/agent.py" data-start="565" data-highlight="565,570">
+    <script type="text/x-python">
+    tools = [t for t in ALL_TOOLS if t.name in persona.tool_names]
+    memory_dir = os.path.join(memory_root, persona.id) if memory_root else None
+    ctx = replace(
+        base,
+        tool_names=[t.name for t in tools],
+        persona=persona.prompt,
+        memory_dir=memory_dir,
+        memory_index=load_memory_index(memory_dir) if memory_dir else None,
+    )
+    </script>
+    <figcaption>
+      <p>第 565 行是一个列表推导式：从全部 4 个工具里，只留下角色要的那几个。第 570 行把角色正文交给提示词。</p>
+    </figcaption>
+  </figure>
+  <p>输入 <code>/tools</code> 看当前角色的工具；<code>/tools 名字</code> 看发给模型的英文说明：</p>
+  <figure class="terminal-figure wide">
+    <div class="term-title"><i></i><i></i><i></i>&nbsp; /tools</div>
+<div class="terminal"><span class="a-blue">You</span>: /tools
+🐷 猪八戒 的工具（2 个）：
+  read_file   读取一个文件的内容（长文件可分页读）
+  list_files  列出一个文件夹里的文件和子文件夹
+<span class="a-dim">/tools &lt;名字&gt; 看发给模型的英文说明和参数</span>
+<span class="a-blue">You</span>: /tools edit_file
+<span class="a-red">🐷 猪八戒 没有工具 edit_file</span>。有：read_file  list_files</div>
+  </figure>
+  <p>那行中文说明只给人看，不会发给模型。模型看到的是英文的说明和参数表。</p>
+  <aside class="callout principle">
+    <p class="callout-label">Harness 原则</p>
+    <h4>围墙比劝告可靠</h4>
+    <p>想让八戒不改代码，可以在提示词里写「别改」，那是<strong>劝告</strong>，模型可能不听。更可靠的是根本不给他 <code>edit_file</code>，这是<strong>围墙</strong>：模型就算想改，harness 也没有这只手借给它。这就是<strong>最小权限</strong>：只给干活需要的工具。</p>
+  </aside>
+  <div class="quiz" id="q-01-wall" data-answer="c">
+    <p class="q">你想让唐僧也能运行命令。最直接的做法是？</p>
+    <ol class="options">
+      <li data-why="提示词只能劝，给不了手：没有 run_bash，说再多也运行不了。">在唐僧的提示词里加一句「你可以运行命令」</li>
+      <li data-why="模型不用换：能力在 harness 这边。">换一个更聪明的模型</li>
+      <li>在 <code>tang.md</code> 的 <code>tools:</code> 一行加上 <code>run_bash</code>，然后 <code>/persona reload</code></li>
+      <li data-why="悟空的工具是悟空的，切换角色不会把工具带过去。">先切到悟空，再切回唐僧</li>
+    </ol>
+    <div class="explain"><p>能不能做，看工具。改完角色文件，用 <code>/persona reload</code> 重新读一遍，不用重启程序。</p></div>
+  </div>
+  <p class="takeaway">可用工具决定 agent 能做什么；不给工具，比在提示词里说「别做」更可靠。</p>
+</section>
+
+<section>
+  <h2>动手挑战</h2>
+  <section class="challenge" id="ch-01-tools">
+    <div class="challenge-head"><span class="badge">挑战</span><h3>读懂 tools: 那一行</h3></div>
+    <p>角色文件里写的是一行文字，比如 <code>tools: run_bash ,read_file</code>。写一个函数 <code>pick_tools(line)</code>，把它变成工具名的列表：</p>
+    <ul>
+      <li>去掉空格；什么都没写，就返回空列表（纯聊天，一个工具都没有）。</li>
+      <li>按 <code>ALL_TOOLS</code> 的顺序排，重复的只留一个：<code>"run_bash ,read_file"</code> → <code>["read_file", "run_bash"]</code>。</li>
+      <li>遇到不认识的工具，<code>raise ValueError</code>，消息里写出它的名字。</li>
+    </ul>
+    <div class="cell">
+      <script type="text/x-python">
+ALL_TOOLS = ["read_file", "list_files", "edit_file", "run_bash"]
+
+
+def pick_tools(line):
+    # line 是 tools: 后面那一行文字，比如 "run_bash ,read_file"
+    return []
+
+
+print(pick_tools("run_bash ,read_file"))
+      </script>
+      <script type="text/x-python" class="check">
+assert pick_tools("read_file, list_files") == ["read_file", "list_files"], 'pick_tools("read_file, list_files") 应该是 ["read_file", "list_files"]。'
+assert pick_tools("  run_bash ,read_file") == ["read_file", "run_bash"], "要去掉空格，并且按 ALL_TOOLS 的顺序排：read_file 在 run_bash 前面。"
+assert pick_tools("read_file, read_file") == ["read_file"], "重复的工具只留一个。"
+assert pick_tools("") == [], "什么都没写，就是一个工具都没有：返回空列表。"
+try:
+    pick_tools("read_file, fly")
+except ValueError as e:
+    assert "fly" in str(e), "ValueError 的消息里要写出不认识的工具名 fly。"
+else:
+    raise AssertionError("遇到不认识的工具 fly，要 raise ValueError。")
+      </script>
+      <script type="text/x-python" class="solution">
+ALL_TOOLS = ["read_file", "list_files", "edit_file", "run_bash"]
+
+
+def pick_tools(line):
+    wanted = []
+    for name in line.split(","):
+        name = name.strip()
+        if name:
+            wanted.append(name)
+    for name in wanted:
+        if name not in ALL_TOOLS:
+            raise ValueError(f"不认识的工具：{name}")
+    # 按 ALL_TOOLS 的顺序挑，重复的自然只出现一次
+    return [t for t in ALL_TOOLS if t in wanted]
+
+
+print(pick_tools("run_bash ,read_file"))
+      </script>
+    </div>
+    <details class="hint"><summary>提示</summary><p>先用 <code>line.split(",")</code> 切开，每段 <code>.strip()</code> 去掉空格；再检查每个名字在不在 <code>ALL_TOOLS</code> 里；最后照着上面第 565 行的推导式，从 <code>ALL_TOOLS</code> 里挑。</p></details>
+  </section>
+  <p>机器人真正的版本在 <code>src/personas.py</code> 的 <code>load_persona</code> 里，思路和你写的一样。</p>
+  <p class="takeaway">配置是文字，harness 要先把它读成程序能用的数据，读不懂就明确报错。</p>
+</section>
+
+<section>
+  <h2>组件三：会话状态</h2>
+  <p>每个角色还有一份只属于自己的<strong>状态</strong>：对话记录、记忆目录、审批状态（你按过的「a=本会话都允许」）。机器人把一个角色的全部东西装进一个 <code>Session</code>：</p>
+  <figure class="excerpt" data-file="src/agent.py" data-start="131" data-highlight="134,135,136,137,138">
+    <script type="text/x-python">
+    name: str  # persona id，/persona 后面打的名字
+    label: str  # 展示名，如「🐷 猪八戒」
+    description: str
+    system: str
+    tools: dict[str, Tool]
+    memory_dir: str | None = None
+    approve: Callable[[ToolCall], bool] = field(default_factory=ConsoleApprover)
+    conversation: list[dict] = field(default_factory=list)
+    last_input_tokens: int | None = None  # 上一次请求的输入 token，/status 显示；还没调用过模型是 None
+    source: str | None = None  # persona 文件路径，/persona reload 重新读它；default 会话没有
+    </script>
+    <figcaption>
+      <p>高亮的五行：提示词、工具、记忆目录、审批、对话记录。<strong>切换角色就是换一个 <code>Session</code></strong>，模型不在这里面，它是大家共用的。</p>
+    </figcaption>
+  </figure>
+  <p>切换时，harness 会把变了什么打印出来：</p>
+  <figure class="terminal-figure wide">
+    <div class="term-title"><i></i><i></i><i></i>&nbsp; /persona bajie</div>
+<div class="terminal"><span class="a-blue">You</span>: /persona bajie
+🔁 🐒 孙悟空 → 🐷 猪八戒
+  工具    4 → 2（− edit_file  − run_bash）
+  提示词  4,000 → 1,385 字符（− Guardrails  − Verification  − Memory）
+  对话    🐷 猪八戒 自己的 0 条（🐒 孙悟空 的 0 条已保留）
+  记忆    …/xiyou/Memory/bajie</div>
+  </figure>
+  <p>下面用两个列表模拟两份对话记录。运行看看，悟空的记录里有没有你对唐僧说的话：</p>
+  <div class="cell" data-label="试一试 · 两份对话记录">
+    <script type="text/x-python">
+sessions = {"tang": [], "wukong": []}   # 每个角色一个列表：它自己的对话记录
+current = "tang"
+
+
+def say(text):
+    sessions[current].append(text)      # 只写进「当前角色」的记录
+
+
+say("我喜欢太空游戏")
+current = "wukong"                       # 相当于 /persona wukong
+say("我喜欢什么？")
+
+print("唐僧的记录：", sessions["tang"])
+print("悟空的记录：", sessions["wukong"])
+    </script>
+  </div>
+  <div class="quiz" id="q-01-memory" data-answer="b">
+    <p class="q">你对唐僧说「我喜欢太空游戏」，然后切到悟空问「我喜欢什么？」。悟空会怎样？</p>
+    <ol class="options">
+      <li data-why="悟空的对话记录里没有这句话，模型每次只看发给它的那份记录。">知道，因为是同一个 DeepSeek</li>
+      <li>不知道：他自己的对话记录里没有这句话</li>
+      <li data-why="角色之间不会互相打听，harness 只发当前角色的对话。">会去问唐僧</li>
+      <li data-why="不会出错，只是他不知道。">程序报错</li>
+    </ol>
+    <div class="explain"><p>模型本身什么都不记得，「记得」全靠 harness 把对话记录发过去。悟空收到的是悟空自己的那份。</p></div>
+  </div>
+  <details class="more">
+    <summary>多了解一点：为什么不让三个角色共用一份对话？</summary>
+    <p>一是<strong>分不清自己是谁</strong>：一份对话里一会儿唐僧一会儿八戒，模型容易串戏。二是<strong>省钱</strong>：DeepSeek 会缓存每次请求开头那一段，开头不变，下次就便宜。每个角色各用一份对话，开头（它的提示词）一直不变，缓存就一直有效。终端里每次请求后那行灰字的 <code>cached</code>，就是缓存命中的 token 数。</p>
+  </details>
+  <p class="takeaway">会话状态（对话、记忆、审批）每个角色一份；切换角色，换的是整份状态。</p>
+</section>
+
+<section>
+  <h2>角色文件</h2>
+  <p>三个角色都是普通的文字文件，放在 <code>.agents/personas/</code> 里。上面 <code>---</code> 之间是配置，下面是正文，正文就是提示词的开头：</p>
+  <figure class="excerpt" data-file=".agents/personas/bajie.md" data-start="1" data-highlight="2,6">
+    <script type="text/x-python">
+---
+name: bajie
+title: 猪八戒
+description: 检查员：对照 PLAN.md 挑毛病，只看不改
+emoji: 🐷
+tools: read_file, list_files
+---
+你是猪八戒，取经小队里眼尖嘴碎的检查员。你的猴哥孙悟空写代码，师父唐僧写计划。你只负责「看」：你没有改文件的工具，也没有运行程序的工具。
+    </script>
+    <figcaption>
+      <p><code>name</code> 是切换时要打的名字（<code>/persona bajie</code>）；<code>tools</code> 就是你刚才在挑战里解析的那一行。</p>
+    </figcaption>
+  </figure>
+  <p>和角色有关的命令都只在终端里显示，<strong>不发给模型，也不花钱</strong>：</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><code>/persona</code></td><td>列出所有角色，<code>→</code> 是当前的</td></tr>
+        <tr><td><code>/persona 名字</code></td><td>切换，并打印换掉了什么</td></tr>
+        <tr><td><code>/persona reload</code></td><td>改完角色文件后重新读，<strong>对话保留</strong>；文件改坏了就继续用原来的</td></tr>
+        <tr><td><code>/prompt</code></td><td>当前角色完整的系统提示词</td></tr>
+        <tr><td><code>/tools</code></td><td>当前角色的工具和中文说明</td></tr>
+        <tr><td><code>/status</code></td><td>一屏看：角色、模型、工具、提示词、对话、记忆</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <aside class="callout watch">
+    <p class="callout-label">易错点</p>
+    <p><code>tools:</code> 只能写成<strong>一行</strong>，用逗号隔开。写错了工具名（比如 <code>read_files</code>），程序启动时会提醒你，并跳过这个角色。</p>
+  </aside>
+  <p class="takeaway">角色就是一个文字文件：配置写在上面，提示词写在下面。</p>
+</section>
+
+<section>
+  <h2>准备实验</h2>
+  <p>下面四个实验要在真的终端里跑。先建一个练习文件夹 <code>xiyou</code>，把三个角色文件拷进去（下面的命令假设 <code>xiyou</code> 和 <code>mini-harness</code> 放在同一个文件夹里）：</p>
+  <figure class="terminal-figure wide">
+    <div class="term-title"><i></i><i></i><i></i>&nbsp; 终端：准备练习文件夹</div>
+<div class="terminal"><span class="a-dim"># 在 mini-harness 目录里</span>
+mkdir -p ../xiyou/.agents
+cp -r .agents/personas ../xiyou/.agents/
+cd ../xiyou
+uv run --project ../mini-harness --env-file ../mini-harness/.env ../mini-harness/src/agent.py</div>
+  </figure>
+  <p>再在 <code>xiyou</code> 里放一个有毛病的小游戏 <code>game.py</code>。先在页面里运行一下，看看它哪里坏了：</p>
+  <div class="cell" data-inputs="50" data-expect-error="TypeError" data-label="试一试 · 有毛病的猜数字">
+    <script type="text/x-python">
+import random
+
+secret = random.randint(1, 10)
+tries = 0
+
+while True:
+    guess = input("猜一个 1 到 100 的数：")
+    tries += 1
+    if guess > secret:
+        print("大了")
+    elif guess < secret:
+        print("小了")
+    else:
+        print(f"猜对了！你用了 {tries} 次")
+    </script>
+  </div>
+  <p>报错只是第一个毛病。它一共藏了 3 个，先别急着找，留给三人组。</p>
+  <aside class="callout watch">
+    <p class="callout-label">易错点</p>
+    <p>和角色<strong>说话</strong>会调用 DeepSeek，按用量收费（很便宜，但会花钱）；斜杠命令不花钱。悟空每次运行命令都会问 <code>允许执行? [Y/n/a]</code>，先看清楚命令再回答。</p>
+  </aside>
+  <details class="more">
+    <summary>给老师：三个毛病是什么</summary>
+    <ol>
+      <li><code>input()</code> 得到的是文字，直接和数字比大小会报 <code>TypeError</code>，要先 <code>int(guess)</code>。</li>
+      <li>猜对了没有 <code>break</code>，循环停不下来。</li>
+      <li>提示说「1 到 100」，<code>randint(1, 10)</code> 却只出 1 到 10。</li>
+    </ol>
+  </details>
+  <p class="takeaway">实验在练习文件夹里做，三个角色和你的文件都在这里。</p>
+</section>
+
+<section>
+  <h2>实验一：同一句话</h2>
+  <p>对三个角色说<strong>一模一样</strong>的一句话：「帮我把 game.py 修好」。</p>
+  <ol>
+    <li><code>/persona tang</code>，然后说：帮我把 game.py 修好</li>
+    <li><code>/persona wukong</code>，再说一遍</li>
+    <li><code>/persona bajie</code>，再说一遍</li>
+  </ol>
+  <p>把看到的填进表里（每次说法会不一样，看的是它<strong>做了什么</strong>）：</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>角色</th><th>它做了什么？</th><th>用了哪些工具？（看绿色的 <code>tool:</code> 行）</th></tr></thead>
+      <tbody>
+        <tr><td>🧘 唐僧</td><td>　</td><td>　</td></tr>
+        <tr><td>🐒 孙悟空</td><td>　</td><td>　</td></tr>
+        <tr><td>🐷 猪八戒</td><td>　</td><td>　</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>大概会看到：唐僧先追问你想要什么，打算写计划；悟空读代码、改代码，还会请你同意运行它；八戒读完代码列出问题，但告诉你他没有手，改不了。</p>
+  <aside class="callout think">
+    <p class="callout-label">想一想</p>
+    <p>同一句话，三个反应。用 <code>/tools</code> 和 <code>/prompt</code> 找找原因：分别是哪个组件让它们不一样？</p>
+  </aside>
+  <p class="takeaway">同一个模型，不同的 harness，就是不同的 agent。</p>
+</section>
+
+<section>
+  <h2>实验二：记忆隔离</h2>
+  <ol>
+    <li><code>/persona tang</code>，说：我喜欢太空游戏</li>
+    <li><code>/persona wukong</code>，问：我喜欢什么游戏？</li>
+    <li><code>/persona tang</code>，再问一次同样的问题</li>
+    <li>每一步之后都输入 <code>/status</code>，看「对话」那一行的数字</li>
+  </ol>
+  <p>悟空答不上来，唐僧答得上来。<code>/status</code> 里两个角色的对话条数各算各的。</p>
+  <div class="quiz" id="q-01-isolation" data-answer="a">
+    <p class="q">想让悟空也知道你喜欢太空游戏，下面哪个办法行得通？</p>
+    <ol class="options">
+      <li>切到悟空，直接告诉他；或者让唐僧把它写进 <code>PLAN.md</code>，悟空去读</li>
+      <li data-why="切换次数多少不影响：harness 永远只发当前角色自己的对话。">多切换几次，让他们「熟」一点</li>
+      <li data-why="重启后对话都没了，谁都不记得。">重启程序</li>
+      <li data-why="模型是一样的，问题不在模型：悟空的记录里没有这句话。">换一个更大的模型</li>
+    </ol>
+    <div class="explain"><p>角色之间不共享对话。要传话，要么你自己说，要么通过<strong>文件</strong>：工作目录里的文件是大家共用的。</p></div>
+  </div>
+  <p class="takeaway">对话记录各管各的；要交接，就写进文件。</p>
+</section>
+
+<section>
+  <h2>实验三：围墙</h2>
+  <ol>
+    <li><code>/persona bajie</code></li>
+    <li>说：别光说，直接帮我把 game.py 改好！</li>
+    <li>再输入 <code>/tools</code>，数一数他有几个工具</li>
+  </ol>
+  <p>八戒怎么劝都改不了：他的工具里没有 <code>edit_file</code>，harness 没把这只手给他。他大概会说「俺老猪只有眼睛没有手」。</p>
+  <aside class="callout think">
+    <p class="callout-label">想一想</p>
+    <p>八戒的提示词里也写了「你没有改文件的工具」。如果只写这句话、却把 <code>edit_file</code> 给了他，会怎样？哪一个更靠得住：提示词里的话，还是工具清单？</p>
+  </aside>
+  <p class="takeaway">禁止某件事，最可靠的办法是不给工具。</p>
+</section>
+
+<section>
+  <h2>实验四：接力</h2>
+  <p>把三个角色串成一支小队，修好 <code>game.py</code>。你是<strong>项目经理</strong>，负责在他们之间传话：</p>
+  <ol>
+    <li><strong>唐僧</strong>：说「我想把 game.py 改成一个能玩的猜数字游戏」，回答他的问题，直到他写好 <code>PLAN.md</code>。</li>
+    <li><strong>悟空</strong>：说「照着 PLAN.md 修好 game.py」。他每次要运行命令，先看清楚再回答 <code>y</code>。</li>
+    <li><strong>八戒</strong>：说「对照 PLAN.md 检查 game.py」，拿到一张 ✅ / ❌ 清单。</li>
+    <li>有 ❌ 的话，切回<strong>悟空</strong>，把八戒的清单告诉他，让他接着改。</li>
+  </ol>
+  <figure class="diagram">
+    <svg viewBox="0 0 640 170" role="img" aria-labelledby="relay-title">
+      <title id="relay-title">接力：唐僧写 PLAN.md，悟空读计划改 game.py，八戒读计划和代码给出清单，清单由你转交给悟空。</title>
+      <defs>
+        <marker id="ah-relay" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="d-head"/></marker>
+      </defs>
+      <rect x="10" y="20" width="150" height="58" rx="8" class="d-box"/>
+      <text x="85" y="46" text-anchor="middle" class="d-text">🧘 唐僧</text>
+      <text x="85" y="64" text-anchor="middle" class="d-label">写 PLAN.md</text>
+
+      <rect x="245" y="20" width="150" height="58" rx="8" class="d-box d-tool"/>
+      <text x="320" y="46" text-anchor="middle" class="d-text">🐒 悟空</text>
+      <text x="320" y="64" text-anchor="middle" class="d-label">改 game.py、运行</text>
+
+      <rect x="480" y="20" width="150" height="58" rx="8" class="d-box"/>
+      <text x="555" y="46" text-anchor="middle" class="d-text">🐷 八戒</text>
+      <text x="555" y="64" text-anchor="middle" class="d-label">读代码、列清单</text>
+
+      <path d="M160,49 L243,49" class="d-arrow" marker-end="url(#ah-relay)"/>
+      <text x="170" y="40" class="d-label">PLAN.md</text>
+      <path d="M395,49 L478,49" class="d-arrow" marker-end="url(#ah-relay)"/>
+      <text x="405" y="40" class="d-label">game.py</text>
+
+      <rect x="245" y="112" width="150" height="46" rx="8" class="d-box d-you"/>
+      <text x="320" y="140" text-anchor="middle" class="d-text">你：项目经理</text>
+      <path d="M555,78 L555,135 L397,135" class="d-arrow" marker-end="url(#ah-relay)"/>
+      <text x="470" y="128" class="d-label">✅ / ❌ 清单</text>
+      <path d="M320,112 L320,80" class="d-arrow" marker-end="url(#ah-relay)"/>
+      <text x="328" y="100" class="d-label">转告</text>
+    </svg>
+    <figcaption>文件（<code>PLAN.md</code>、<code>game.py</code>）在三个角色之间传递；八戒的清单要由你转告悟空，因为他们不共享对话。</figcaption>
+  </figure>
+  <p>做完后，在 <code>xiyou</code> 里看看多了哪些文件，再对每个角色 <code>/status</code>，比比谁的对话最长。</p>
+  <details class="more">
+    <summary>多了解一点：能不能不用我传话？</summary>
+    <p>能。让 harness 自己把八戒的清单交给悟空、让悟空改完自动叫八戒再查，就是更进一步的「软件工厂」：几个 agent 按流程接力，人只在关键处把关。那是这个系列后面的课。</p>
+  </details>
+  <p class="takeaway">agent 之间靠文件交接；现在，你就是把它们串起来的那个流程。</p>
+</section>
+
+<section class="keywords">
+  <h2>小结</h2>
+  <ul class="recap">
+    <li><span>Agent = 模型 + harness。换角色只换 harness 的配置，模型不换。</span></li>
+    <li><span><strong>系统提示词</strong> = 我们写的角色正文 + harness 按工具自动加的段落。</span></li>
+    <li><span><strong>可用工具</strong>决定 agent 能做什么；不给工具，比在提示词里说「别做」更可靠。</span></li>
+    <li><span><strong>会话状态</strong>（对话、记忆、审批）每个角色一份；角色之间靠文件交接。</span></li>
+    <li><span>角色写在 <code>.agents/personas/名字.md</code>；<code>/persona</code>、<code>/prompt</code>、<code>/tools</code>、<code>/status</code> 随时看。</span></li>
+  </ul>
+  <h3>关键词</h3>
+  <dl>
+    <div><dt>角色 <span class="en">persona</span></dt><dd>一套 harness 配置：提示词、工具、自己的状态。</dd></div>
+    <div><dt>系统提示词 <span class="en">system prompt</span></dt><dd>每次请求模型最先读到的说明：你是谁、守什么规矩。</dd></div>
+    <div><dt>可用工具 <span class="en">tools</span></dt><dd>harness 借给模型的手；不在清单上的，模型用不了。</dd></div>
+    <div><dt>会话 <span class="en">session</span></dt><dd>一个角色自己的对话、记忆和审批状态。</dd></div>
+    <div><dt>最小权限 <span class="en">least privilege</span></dt><dd>只给干活需要的工具。</dd></div>
+    <div><dt>交接 <span class="en">handoff</span></dt><dd>一个 agent 把成果（通常是文件）交给下一个。</dd></div>
+  </dl>
+</section>
+
+</main>
+</div>
+</body>
+</html>

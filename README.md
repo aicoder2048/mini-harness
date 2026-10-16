@@ -108,6 +108,8 @@ CLAUDE.md         只有一行 `@AGENTS.md`：Claude Code 读 CLAUDE.md，靠这
 .agents/skills/   项目级 skill（通用约定的位置，不绑定某个 agent），自带示例 run-checks
 .agents/personas/ 角色：唐僧 tang（策划）、孙悟空 wukong（程序员）、猪八戒 bajie（只读检查员）
 Memory/           跨会话记忆：普通 Markdown 笔记，启动时列成索引（已在 .gitignore，只留本地）
+rh-learn-python/  《拆机学 Python》：用这台机器人学 Python 的 15 节互动课（浏览器打开 index.html）
+rh-learn-agent-harness/  《拆机学 Harness》：Harness 工程系列（规划中），目前第 01 课「西游记三人组」
 ```
 
 ## 准备

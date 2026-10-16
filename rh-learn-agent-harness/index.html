@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>拆机学 Harness</title>
+<meta name="description" content="拆开一台真正的 AI 编程 agent 来学 Harness 工程：给中学生的互动课。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap">
+<link rel="stylesheet" href="assets/course.css">
+<script src="assets/course.js"></script>
+<style>
+  [data-page="home"] .topbar-inner {
+    max-width: 64rem;
+  }
+  .home {
+    max-width: 64rem;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2.4rem;
+  }
+  .home-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: 2rem;
+    align-items: center;
+    padding-block: 3rem 0.5rem;
+  }
+  .home-hero h1 {
+    font-size: clamp(2.8rem, 8vw, 5rem);
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    line-height: 1.05;
+  }
+  .home-hero .brand-en {
+    font: 700 0.95rem/1 var(--mono);
+    color: var(--ink-3);
+    letter-spacing: 0.08em;
+    margin-top: 0.6rem;
+  }
+  .home-hero h1 .mark {
+    background: linear-gradient(transparent 62%, color-mix(in srgb, var(--signal) 70%, transparent) 62%);
+    padding-inline: 0.05em;
+  }
+  .home-hero .lede {
+    font-size: 1.2rem;
+    color: var(--ink-2);
+    margin-top: 1rem;
+    max-width: 34rem;
+  }
+  .hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.7rem;
+    align-items: center;
+    margin-top: 1.4rem;
+  }
+  .btn.big {
+    font-size: 1rem;
+    padding: 0.8rem 1.15rem;
+    text-decoration: none;
+  }
+  .progress-summary {
+    font: 600 0.88rem/1.4 var(--mono);
+    color: var(--ink-3);
+  }
+  .hero-term {
+    background: var(--term-bg);
+    color: var(--term-fg);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    min-width: 0;
+  }
+  .hero-term .term-title {
+    background: #1a2133;
+    color: var(--term-dim);
+    font: 600 0.78rem/1 var(--mono);
+    padding: 0.55rem 0.9rem;
+    display: flex;
+    gap: 0.45rem;
+    align-items: center;
+  }
+  .hero-term .term-title i {
+    width: 0.65rem;
+    height: 0.65rem;
+    border-radius: 50%;
+    background: #3a445a;
+    display: inline-block;
+  }
+  .hero-term pre {
+    margin: 0;
+    padding: 1rem 1.1rem 1.2rem;
+    font: 0.86rem/1.6 var(--mono);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .how {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+  }
+  .how > div {
+    border-top: 4px solid var(--line);
+    padding-top: 0.8rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  .how .k {
+    font: 700 0.72rem/1.3 var(--mono);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+  .how .read { border-color: var(--tool); }
+  .how .read .k { color: var(--tool); }
+  .how .run { border-color: var(--you); }
+  .how .run .k { color: var(--you); }
+  .how .think { border-color: var(--model); }
+  .how .think .k { color: var(--model); }
+  .how p { color: var(--ink-2); }
+  .unit {
+    display: grid;
+    grid-template-columns: 13rem minmax(0, 1fr);
+    gap: 1.2rem 2rem;
+    padding-top: 1.4rem;
+    border-top: 1px solid var(--line);
+  }
+  .unit-head {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  .unit-head .eyebrow { margin: 0; }
+  .unit-head h2 { font-size: 1.6rem; }
+  .unit-head p { color: var(--ink-2); font-size: 0.98rem; }
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(15.5rem, 1fr));
+    gap: 0.9rem;
+  }
+  .card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    padding: 1rem 1.05rem 0.9rem;
+    border-radius: 12px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    text-decoration: none;
+    min-width: 0;
+    transition: border-color 0.15s, transform 0.15s;
+  }
+  .card:hover {
+    border-color: var(--you);
+    transform: translateY(-2px);
+  }
+  .card .num {
+    font: 700 0.8rem/1 var(--mono);
+    color: var(--ink-3);
+    letter-spacing: 0.06em;
+  }
+  .card h3 { font-size: 1.2rem; }
+  .card p { color: var(--ink-2); font-size: 0.95rem; flex: 1; }
+  .card .foot {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.4rem;
+    align-items: center;
+    padding-top: 0.5rem;
+    border-top: 1px dashed var(--line);
+  }
+  .card .part {
+    font: 600 0.75rem/1.3 var(--mono);
+    color: var(--tool);
+    overflow-wrap: anywhere;
+  }
+  .status {
+    font: 700 0.7rem/1 var(--mono);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 0.32rem 0.5rem;
+    border-radius: 999px;
+    background: var(--tint);
+    color: var(--ink-3);
+    white-space: nowrap;
+  }
+  .status[data-s="started"] { background: var(--model-tint); color: var(--model); }
+  .status[data-s="complete"] { background: var(--tool-tint); color: var(--tool); }
+  .card[data-s="complete"] { border-color: color-mix(in srgb, var(--tool) 45%, var(--line)); }
+  .notes {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+  }
+  .notes .callout h3 { font-size: 1.15rem; }
+  .reset-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    align-items: center;
+    font-size: 0.9rem;
+    color: var(--ink-3);
+  }
+  @media (max-width: 780px) {
+    .home-hero { grid-template-columns: 1fr; padding-top: 2rem; }
+    .unit { grid-template-columns: 1fr; }
+    .how, .notes { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body data-root="" data-page="home">
+<div class="page">
+<div class="home">
+
+  <header class="home-hero">
+    <div>
+      <p class="eyebrow">给中学生的 Harness 工程课 · 系列规划中</p>
+      <h1>拆机学 <span class="mark">Harness</span></h1>
+      <p class="brand-en">HARNESS ENGINEERING</p>
+      <p class="lede">模型是大脑，harness 是手脚和规矩。这门课拆开 mini-harness，一个组件一个组件地看：同一个大脑，配上不同的 harness，怎样变成不同的 agent。</p>
+      <div class="hero-actions">
+        <a class="btn run big" id="continue" href="lessons/01-three-agents.html">从第 01 课开始</a>
+        <a class="btn big ghost" href="../rh-learn-python/index.html">先学 Python</a>
+      </div>
+      <p class="progress-summary" id="summary">目前 1 节课 · 讲解加实验约 90 分钟</p>
+    </div>
+    <figure class="hero-term" aria-label="在终端里切换角色">
+      <div class="term-title"><i></i><i></i><i></i>&nbsp; /persona bajie</div>
+<pre><span class="a-blue">You</span>: /persona bajie
+🔁 🐒 孙悟空 → 🐷 猪八戒
+  工具    4 → 2
+  提示词  4,000 → 1,385 字符
+  对话    🐷 猪八戒 自己的 0 条
+<span class="a-blue">You</span>: 帮我把 game.py 改好
+<span class="a-yellow">🐷 猪八戒 · DeepSeek</span>:
+俺老猪只有眼睛没有手，这活儿得找猴哥。 <span class="a-dim">▌</span></pre>
+    </figure>
+  </header>
+
+  <section class="how" aria-label="每节课怎么学">
+    <div class="read"><span class="k">读真代码</span><h3>拆自机器人</h3><p>每个组件都打开 <code>src/</code> 里的真实代码，看 harness 到底做了什么。</p></div>
+    <div class="run"><span class="k">动手跑</span><h3>页面里的 Python + 真终端</h3><p>页面里用简化版代码动手试；再到终端里和真的 agent 做实验。</p></div>
+    <div class="think"><span class="k">自我检查</span><h3>小测验和挑战</h3><p>随堂小测验，加上自动判分的编程挑战。学习进度保存在这台电脑上。</p></div>
+  </section>
+
+  <section class="unit" aria-labelledby="u1">
+    <div class="unit-head">
+      <p class="eyebrow">第 1 单元 · 第 01 课</p>
+      <h2 id="u1">核心组件</h2>
+      <p>系统提示词、可用工具、会话状态：换掉它们，agent 就换了一个人。</p>
+    </div>
+    <div class="cards">
+      <a class="card" data-lesson="01" href="lessons/01-three-agents.html"><span class="num">01</span><h3>西游记三人组</h3><p>一个大脑，三个角色：唐僧策划、悟空动手、八戒检查，外加四个实验。</p><span class="foot"><span class="part">personas.py · Session</span><span class="status">未开始</span></span></a>
+    </div>
+  </section>
+
+  <section class="notes">
+    <aside class="callout analogy">
+      <p class="callout-label">开始之前</p>
+      <h3>你需要准备什么</h3>
+      <p>最好先学完《<a href="../rh-learn-python/index.html">拆机学 Python</a>》，至少到第 08 课（函数）。页面里的代码格第一次运行时会从 <code>cdn.jsdelivr.net</code> 下载 Python（约 15 MB）。实验部分要在终端里运行 mini-harness，需要 DeepSeek API key（按用量收费）。</p>
+    </aside>
+    <aside class="callout principle">
+      <p class="callout-label">给老师和家长</p>
+      <h3>这个系列还在规划</h3>
+      <p>目前只有第 01 课。后面打算讲的组件（循环、上下文、记忆、多个 agent 接力的「软件工厂」……）还没定，课程地图会随着新课一起更新。</p>
+    </aside>
+  </section>
+
+  <div class="reset-row">
+    <span id="saved-note">学习进度只保存在这个浏览器里。</span>
+    <button class="btn ghost" type="button" id="reset">清空我的进度</button>
+  </div>
+
+</div>
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const T = window.AgentTeardown;
+    const progress = T.loadProgress();
+    let complete = 0;
+    let next = null;
+    for (const lesson of T.LESSONS) {
+      const card = document.querySelector(`.card[data-lesson="${lesson.id}"]`);
+      const r = progress[lesson.id];
+      const status = card && card.querySelector(".status");
+      const doneCount = r && r.done ? Object.keys(r.done).length : 0;
+      let state = "new";
+      if (r && r.complete) state = "complete";
+      else if (doneCount > 0) state = "started";
+      if (state === "complete") complete++;
+      else if (!next) next = lesson;
+      if (!status) continue;
+      status.dataset.s = state;
+      card.dataset.s = state;
+      if (state === "complete") status.textContent = "✓ 已学完";
+      else if (state === "started") status.textContent = r.total ? `已完成 ${doneCount} / ${r.total}` : `已完成 ${doneCount}`;
+    }
+    const summary = document.getElementById("summary");
+    const cont = document.getElementById("continue");
+    if (complete > 0 || Object.keys(progress).length > 0) {
+      summary.textContent = `已学完 ${complete} / ${T.LESSONS.length} 课`;
+      if (next) {
+        cont.href = "lessons/" + next.file;
+        cont.textContent = `继续：第 ${next.id} 课`;
+      } else {
+        cont.textContent = "全部学完！回顾第 01 课";
+        cont.href = "lessons/01-three-agents.html";
+      }
+    }
+    const reset = document.getElementById("reset");
+    let armed = false;
+    reset.addEventListener("click", () => {
+      if (!armed) {
+        armed = true;
+        reset.textContent = "再点一次，清空全部进度";
+        setTimeout(() => {
+          armed = false;
+          reset.textContent = "清空我的进度";
+        }, 4000);
+        return;
+      }
+      T.saveProgress({});
+      location.reload();
+    });
+  });
+</script>
+</body>
+</html>
