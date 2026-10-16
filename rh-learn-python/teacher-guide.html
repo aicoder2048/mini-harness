@@ -89,9 +89,9 @@
   <table>
     <thead><tr><th>时机</th><th>命令</th><th>让孩子看什么</th></tr></thead>
     <tbody>
-      <tr><td>00 课</td><td><code>uv run src/agent.py</code></td><td>问它「input/math.txt 里写了什么？解出来」，看绿色 <code>tool:</code> 行出现在回答之前。</td></tr>
-      <tr><td>01/02 课</td><td><code>uv run src/step1_chat.py</code></td><td>最朴素的聊天循环；先告诉它名字，再问"我叫什么"，然后讨论记忆在哪里。</td></tr>
-      <tr><td>04/05 课</td><td><code>uv run src/agent.py --step 2</code> → <code>--step 3</code></td><td>只有 <code>read_file</code> 时它不会列目录；加上 <code>list_files</code> 后能自己找文件。对应 <code>ALL_TOOLS[: step - 1]</code>。</td></tr>
+      <tr><td>00 课</td><td><code>uv run --env-file .env src/agent.py</code></td><td>问它「input/math.txt 里写了什么？解出来」，看绿色 <code>tool:</code> 行出现在回答之前。</td></tr>
+      <tr><td>01/02 课</td><td><code>uv run --env-file .env src/step1_chat.py</code></td><td>最朴素的聊天循环；先告诉它名字，再问"我叫什么"，然后讨论记忆在哪里。</td></tr>
+      <tr><td>04/05 课</td><td><code>uv run --env-file .env src/agent.py --step 2</code> → <code>--step 3</code></td><td>只有 <code>read_file</code> 时它不会列目录；加上 <code>list_files</code> 后能自己找文件。对应 <code>ALL_TOOLS[: step - 1]</code>。</td></tr>
       <tr><td>05 课</td><td>任意多轮对话</td><td>灰色 <code>· in 4,210 (cached 3,800)</code> 行：输入 token 随轮数增长，因为整个列表每次重发。</td></tr>
       <tr><td>09 课</td><td>让它读一个不存在的文件</td><td>红色 <code>→ error</code>，但程序不崩，模型读到错误后自己换个做法。</td></tr>
       <tr><td>10 课</td><td><code>--step 5</code>，让它「跑一下测试」</td><td>紫色授权提示 <code>[Y/n/a]</code>：按 n 拒绝，看它如何反应。</td></tr>

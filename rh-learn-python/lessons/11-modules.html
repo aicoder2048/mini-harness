@@ -202,7 +202,7 @@ dependencies = [
   <pre class="code"><span class="tok-com"># 在终端里，进入项目文件夹之后：</span>
 uv sync              <span class="tok-com"># 安装清单里的所有包</span>
 uv add requests      <span class="tok-com"># 加一个新包，并写进清单</span>
-uv run src/agent.py  <span class="tok-com"># 在装好包的环境里运行</span></pre>
+uv run --env-file .env src/agent.py  <span class="tok-com"># 在装好包的环境里运行</span></pre>
   <p>这个页面里的 Python 只有标准库，所以 <code>import openai</code> 在这里会报错。</p>
   <p class="takeaway">包写进 <code>pyproject.toml</code>，用 <code>uv</code> 安装和运行。</p>
 </section>

@@ -503,7 +503,7 @@ print("测试跑完了，没有失败")
     <li>在项目文件夹运行 <code>uv run pytest</code>，读读 <code>tests/test_tools.py</code> 里的测试名。</li>
     <li>运行 <code>git log</code>：每次改动只加一样东西，还写了为什么。</li>
     <li>先写测试，给机器人加一个新工具，比如 <code>count_lines</code>。</li>
-    <li>请老师陪你运行真机器人 <code>uv run src/agent.py</code>，现在每行输出你都懂了。</li>
+    <li>请老师陪你运行真机器人 <code>uv run --env-file .env src/agent.py</code>，现在每行输出你都懂了。</li>
   </ol>
   <pre class="code"><span class="tok-com"># 在终端里，进入项目文件夹</span>
 uv run pytest                            <span class="tok-com"># 所有快速测试：免费，大约 2 秒</span>
