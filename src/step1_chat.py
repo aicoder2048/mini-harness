@@ -1,6 +1,6 @@
 """第 1 步：一个会记住上下文的终端聊天循环。
 
-    uv run src/step1_chat.py
+    uv run --env-file .env src/step1_chat.py
 
 对应原文 "Let's dive right in" 一节。这一步还不是 agent——它只有循环，没有工具。
 要点：模型服务端是无状态的，它只看到你这次发过去的 messages 列表，
