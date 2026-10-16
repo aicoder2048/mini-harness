@@ -13,6 +13,12 @@ def test_all_tools_are_in_tutorial_order():
     assert [t.name for t in ALL_TOOLS] == ["read_file", "list_files", "edit_file", "run_bash"]
 
 
+def test_every_tool_has_a_chinese_summary_for_display():
+    for t in ALL_TOOLS:
+        assert any("\u4e00" <= ch <= "\u9fff" for ch in t.summary_zh), t.name
+        assert "\n" not in t.summary_zh, t.name  # 一行说明
+
+
 # --- read_file ---------------------------------------------------------------
 
 

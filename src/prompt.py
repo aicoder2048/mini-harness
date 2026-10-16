@@ -37,6 +37,7 @@ class PromptContext:
     memory_dir: str | None = None  # 笔记目录；给出且能编辑文件时，告诉模型怎么写笔记
     today: str | None = None  # YYYY-MM-DD，写进笔记里；模型自己不知道今天几号
     skills_index: str | None = None  # 可用 skill 的索引（skills.skills_index 的结果）
+    persona: str | None = None  # persona 正文（personas.Persona.prompt）：替换下面那句默认的角色说明
 
 
 def build_system_prompt(ctx: PromptContext) -> str:
@@ -44,19 +45,15 @@ def build_system_prompt(ctx: PromptContext) -> str:
     can_edit = "edit_file" in tools
     can_run = "run_bash" in tools
 
-    sections = [
-        (
-            "You are a coding agent running in the user's terminal.\n"
-            f"Working directory: {ctx.working_directory} (all relative paths are relative to it)."
-        )
-    ]
+    role = ctx.persona or "You are a coding agent running in the user's terminal."
+    sections = [f"{role}\nWorking directory: {ctx.working_directory} (all relative paths are relative to it)."]
     if ctx.git_branch:
         # 只在启动时读一次；agent 自己用 run_bash 切了分支，这行就过期了，所以写明 at startup。
         sections.append(f"Git branch at startup: {ctx.git_branch}")
 
     agency = [
         "# Agency",
-        f"- Available tools: {', '.join(ctx.tool_names)}",
+        f"- Available tools: {', '.join(ctx.tool_names) or '(none)'}",
         "- USE your tools: look at the real files instead of guessing, then answer.",
         "- Do NOT explain what you WOULD do. Actually do it.",
         "- If a tool returns an error, read the message and retry with a corrected call instead of giving up.",

@@ -28,6 +28,9 @@ Clarity beats features: keep changes small and easy to read.
   without PyYAML, builds the `# Skills` index. Project skills live in `.agents/skills/` (the agent-neutral
   convention; not `.claude/skills`). Shared ones are committed; personal ones are excluded via `.git/info/exclude`.
   Inside a SKILL.md, reference the skill's own files with paths relative to the skill folder (`scripts/x.py`).
+- `src/personas.py` — discovers personas (`.agents/personas/<id>.md`: frontmatter + body). The body replaces the
+  default role line of the system prompt; `tools:` selects from `ALL_TOOLS`. `agent.py` turns each persona into a
+  `Session` with its own conversation, approver and memory dir (`<memory root>/<id>/`); the provider is shared.
 - `src/agent.py` — the loop. Depends on the modules above (and `cli_input.py`); nothing depends on it.
 - `src/` is on the pytest path, so tests import `agent`, `tools`, ... (not `src.agent`).
 
@@ -35,6 +38,9 @@ Clarity beats features: keep changes small and easy to read.
 
 - Code comments, docstrings, README and commit messages are in Chinese; identifiers, tool descriptions and
   text sent to the model are in English.
+- Exception: persona files (`.agents/personas/*.md`) are user content, like `AGENTS.md` and `SKILL.md`, and are
+  written in Chinese so young learners can read and edit them. The harness's built-in prompt sections and tool
+  descriptions stay English. `Tool.summary_zh` is a Chinese one-liner for display (`/tools`) and is never sent.
 - Tests use fakes (`FakeProvider`, `FakeOpenAI`, `tmp_path`) and test behavior through public interfaces.
 - Write the test first, see it fail, then implement.
 - Checks against the real API go into `tests/test_live.py` as `@pytest.mark.live` tests with behavior

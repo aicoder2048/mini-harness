@@ -269,3 +269,31 @@ def test_python_runs_through_uv_with_inline_dependencies():
 
 def test_no_python_running_rule_without_run_bash():
     assert "PEP 723" not in _prompt(STEP4)
+
+
+# --- persona -----------------------------------------------------------------
+
+
+def test_without_persona_the_default_role_line_is_first():
+    first = _prompt(STEP5).split("\n\n")[0]
+    assert first.startswith("You are a coding agent running in the user's terminal.\n")
+    assert "Working directory: /some/project" in first
+
+
+def test_persona_replaces_role_line_but_keeps_working_directory():
+    p = _prompt(STEP2, persona="你是猪八戒。\n只看不改。")
+    assert p.startswith("你是猪八戒。\n只看不改。\nWorking directory: /some/project")
+    assert "You are a coding agent" not in p
+
+
+def test_persona_does_not_change_tool_driven_sections():
+    # 只读角色：提示词里本来就不该出现 Guardrails / Verification，换了 persona 也一样
+    read_only = _prompt(STEP2, persona="你是猪八戒。")
+    assert "# Guardrails" not in read_only and "# Verification" not in read_only
+    full = _prompt(STEP5, persona="你是孙悟空。")
+    assert "# Guardrails" in full and "# Verification" in full
+
+
+def test_persona_with_no_tools_says_so():
+    p = _prompt([], persona="你是唐僧。")
+    assert "Available tools: (none)" in p

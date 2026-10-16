@@ -1,19 +1,27 @@
 """Agent 循环测试：注入 fake provider 和脚本化输入，只看循环的形状。"""
 
+import os
+
 import pytest
 
 from agent import (
     MAX_TOOL_ROUNDS,
     Agent,
     ConsoleApprover,
+    Session,
     _memory,
     _skills,
+    command_argument,
     parse_args,
+    persona_session,
     slash_command,
+    switch_summary,
     tools_for_step,
 )
+from personas import Persona, discover_personas, load_persona
+from prompt import PromptContext
 from providers import Reply, ToolCall, ToolResult, Usage
-from tools import Tool, read_file
+from tools import ALL_TOOLS, Tool, read_file
 
 
 class FakeProvider:
@@ -23,12 +31,14 @@ class FakeProvider:
         self.replies = list(replies)
         self.chats: list[list[dict]] = []  # 每次 chat 收到的 conversation 快照
         self.systems: list[str] = []
+        self.tool_names: list[list[str]] = []  # 每次 chat 收到的工具名
         self.results: list[list[ToolResult]] = []
         self.prunes: list[int] = []  # 每次 prune_tool_results 收到的 keep_last
 
     def chat(self, conversation, tools, system=""):
         self.chats.append(list(conversation))
         self.systems.append(system)
+        self.tool_names.append([t.name for t in tools])
         reply = self.replies.pop(0)
         conversation.append({"role": "assistant", "content": reply.texts})
         return reply
@@ -500,3 +510,388 @@ def test_unreadable_skill_md_is_reported_not_sent(tmp_path, capsys):
     Agent(provider, [], scripted("/gone", "hello"), skills=skills).run()
     assert provider.chats[0] == [{"role": "user", "content": "hello"}]
     assert "gone" in capsys.readouterr().out
+
+
+# --- persona：独立会话与切换 ------------------------------------------------------
+
+
+def _session(name, tools=(), system=None, label=None, **kw):
+    return Session(
+        name=name,
+        label=label or name,
+        description=f"desc of {name}",
+        system=system or f"SYS-{name}",
+        tools={t.name: t for t in tools},
+        **kw,
+    )
+
+
+def test_switching_persona_changes_system_and_tools_sent_to_model():
+    provider = FakeProvider([Reply(texts=["a"]), Reply(texts=["b"])])
+    sessions = [_session("wukong", [read_file], "SYS-W"), _session("bajie", [], "SYS-B")]
+    Agent(provider, [], scripted("hi", "/persona bajie", "hi"), system="SYS-D", sessions=sessions, start="wukong").run()
+    assert provider.systems == ["SYS-W", "SYS-B"]
+    assert provider.tool_names == [["read_file"], []]
+
+
+def test_each_persona_keeps_its_own_conversation_and_resumes_it():
+    provider = FakeProvider([Reply(texts=["1"]), Reply(texts=["2"]), Reply(texts=["3"])])
+    sessions = [_session("a"), _session("b")]
+    inputs = scripted("我喜欢太空游戏", "/persona b", "我喜欢什么？", "/persona a", "还记得吗？")
+    Agent(provider, [], inputs, sessions=sessions, start="a").run()
+
+    b_first = provider.chats[1]
+    assert b_first == [{"role": "user", "content": "我喜欢什么？"}]  # b 看不到 a 说过的话
+    a_again = provider.chats[2]
+    assert a_again[0] == {"role": "user", "content": "我喜欢太空游戏"}  # 切回 a，接着原来的对话
+    assert a_again[-1] == {"role": "user", "content": "还记得吗？"}
+
+
+def test_persona_command_is_not_sent_to_model():
+    provider = FakeProvider([Reply(texts=["ok"])])
+    Agent(provider, [], scripted("/persona b", "hello"), sessions=[_session("b")]).run()
+    assert provider.chats == [[{"role": "user", "content": "hello"}]]
+
+
+def test_always_allow_in_one_persona_does_not_carry_over_to_another():
+    ran = []
+    danger = _dangerous_tool(ran)
+    read_a, prompts_a = _answers("a")
+    read_b, prompts_b = _answers("n")
+    provider = FakeProvider(
+        [
+            Reply(tool_calls=[ToolCall("c1", "danger", {})]),
+            Reply(texts=["done"]),
+            Reply(tool_calls=[ToolCall("c2", "danger", {})]),
+            Reply(texts=["denied"]),
+        ]
+    )
+    sessions = [
+        _session("a", [danger], approve=ConsoleApprover(read_a)),
+        _session("b", [danger], approve=ConsoleApprover(read_b)),
+    ]
+    Agent(provider, [], scripted("go", "/persona b", "go"), sessions=sessions, start="a").run()
+    assert len(prompts_a) == 1 and len(prompts_b) == 1  # b 自己又问了一次
+    assert ran == [{}]  # 只有 a 那次真的执行了
+
+
+def test_persona_list_marks_current_and_includes_default(capsys):
+    agent = Agent(FakeProvider([]), [], scripted("/persona"), sessions=[_session("bajie", label="🐷 猪八戒")])
+    agent.run()
+    out = capsys.readouterr().out
+    assert "default" in out and "bajie" in out and "🐷 猪八戒" in out
+    current = next(line for line in out.splitlines() if "default" in line)
+    assert "→" in current
+
+
+def test_without_personas_only_default_is_listed(capsys):
+    Agent(FakeProvider([]), [], scripted("/persona")).run()
+    out = capsys.readouterr().out
+    assert "default" in out
+    assert "→" in out
+
+
+def test_unknown_persona_is_reported_with_available_names(capsys):
+    provider = FakeProvider([Reply(texts=["ok"])])
+    Agent(provider, [], scripted("/persona nobody", "hi"), system="SYS-D", sessions=[_session("bajie")]).run()
+    out = capsys.readouterr().out
+    assert "nobody" in out and "bajie" in out and "default" in out
+    assert provider.systems == ["SYS-D"]  # 没切走
+
+
+def test_switching_to_current_persona_says_so(capsys):
+    Agent(FakeProvider([]), [], scripted("/persona default")).run()
+    assert "已经是" in capsys.readouterr().out
+
+
+def test_switch_prints_summary(capsys):
+    sessions = [_session("wukong", ALL_TOOLS, label="🐒 孙悟空"), _session("bajie", [read_file], label="🐷 猪八戒")]
+    Agent(FakeProvider([]), [], scripted("/persona bajie"), sessions=sessions, start="wukong").run()
+    out = capsys.readouterr().out
+    assert "🐒 孙悟空 → 🐷 猪八戒" in out
+    assert "− run_bash" in out
+
+
+def test_start_must_be_a_known_session():
+    with pytest.raises(ValueError, match="nobody"):
+        Agent(FakeProvider([]), [], scripted(), start="nobody")
+
+
+def test_persona_named_default_cannot_replace_builtin_session():
+    with pytest.raises(ValueError, match="default"):
+        Agent(FakeProvider([]), [], scripted(), sessions=[_session("default")])
+
+
+def test_agent_properties_follow_current_session():
+    agent = Agent(FakeProvider([]), [read_file], scripted(), system="SYS-D", sessions=[_session("b")])
+    assert agent.system == "SYS-D" and list(agent.tools) == ["read_file"]
+    agent.switch("b")
+    assert agent.system == "SYS-b" and agent.tools == {}
+
+
+# --- switch_summary：切换时打印的对比 ---------------------------------------------
+
+
+def test_switch_summary_shows_tool_and_section_changes_and_conversation_sizes(tmp_path):
+    old = _session("wukong", ALL_TOOLS, "role\n\n# Agency\nx\n\n# Guardrails\ny\n\n# Verification\nz", "🐒 孙悟空")
+    old.conversation.extend([{"role": "user", "content": "x"}] * 14)
+    new = _session("bajie", ALL_TOOLS[:2], "role\n\n# Agency\nx", "🐷 猪八戒", memory_dir=str(tmp_path / "bajie"))
+
+    text = switch_summary(old, new)
+
+    assert "🐒 孙悟空 → 🐷 猪八戒" in text
+    assert "4 → 2" in text and "− edit_file" in text and "− run_bash" in text
+    assert "− Guardrails" in text and "− Verification" in text
+    assert "0 条" in text and "14 条" in text
+    assert str(tmp_path / "bajie") in text
+
+
+def test_switch_summary_shows_added_tools():
+    text = switch_summary(_session("a", [read_file]), _session("b", ALL_TOOLS[:2]))
+    assert "1 → 2" in text and "+ list_files" in text
+
+
+def test_switch_summary_without_memory_says_none():
+    assert "记忆" in switch_summary(_session("a"), _session("b"))
+
+
+# --- persona_session：persona → 会话 ----------------------------------------------
+
+
+def _persona(pid="bajie", tools=("read_file", "list_files"), prompt="你是猪八戒。"):
+    return Persona(id=pid, title="猪八戒", description="只看不改", tool_names=tools, prompt=prompt, emoji="🐷")
+
+
+def test_persona_session_uses_persona_prompt_tools_and_own_memory_dir(tmp_path):
+    base = PromptContext(working_directory="/proj", tool_names=["read_file", "list_files", "edit_file", "run_bash"])
+    (tmp_path / "bajie").mkdir()
+    (tmp_path / "bajie" / "n.md").write_text("# 小明喜欢太空游戏", encoding="utf-8")
+    (tmp_path / "root-note.md").write_text("# 根目录的笔记", encoding="utf-8")
+
+    s = persona_session(_persona(), base, str(tmp_path))
+
+    assert (s.name, s.label, s.description) == ("bajie", "🐷 猪八戒", "只看不改")
+    assert list(s.tools) == ["read_file", "list_files"]
+    assert s.system.startswith("你是猪八戒。\nWorking directory: /proj")
+    assert "Available tools: read_file, list_files" in s.system
+    assert "# Verification" not in s.system
+    assert s.memory_dir == str(tmp_path / "bajie")
+    assert "小明喜欢太空游戏" in s.system and "根目录的笔记" not in s.system
+
+
+def test_persona_session_without_memory_root_has_no_memory(tmp_path):
+    base = PromptContext(working_directory="/proj", tool_names=[], memory_dir="/x", memory_index="- old")
+    s = persona_session(_persona(), base, None)
+    assert s.memory_dir is None and "# Memory" not in s.system
+
+
+def test_each_persona_session_gets_its_own_approver():
+    base = PromptContext(working_directory="/proj", tool_names=[])
+    assert persona_session(_persona("a"), base, None).approve is not persona_session(_persona("b"), base, None).approve
+
+
+# --- 斜杠命令的参数 ---------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "text,expected",
+    [("/persona bajie", "bajie"), ("/persona   bajie  ", "bajie"), ("/persona", ""), ("/tools a b", "a b")],
+)
+def test_command_argument(text, expected):
+    assert command_argument(text) == expected
+
+
+def test_cli_persona_option():
+    assert parse_args([]).persona is None
+    assert parse_args(["--persona", "wukong"]).persona == "wukong"
+
+
+# --- 查看命令：/prompt /tools /status ---------------------------------------------
+
+
+def _run_and_capture(capsys, inputs, **kw):
+    provider = FakeProvider(kw.pop("replies", []))
+    agent = Agent(provider, kw.pop("tools", []), scripted(*inputs), **kw)
+    agent.run()
+    return agent, provider, capsys.readouterr().out
+
+
+def test_prompt_command_prints_current_system_prompt_and_size(capsys):
+    _, _, out = _run_and_capture(capsys, ["/prompt"], system="你是测试用的提示词")
+    assert "你是测试用的提示词" in out
+    assert "9 字符" in out
+
+
+def test_prompt_command_follows_persona_switch(capsys):
+    sessions = [_session("bajie", system="八戒的提示词")]
+    _, _, out = _run_and_capture(capsys, ["/persona bajie", "/prompt"], system="默认提示词", sessions=sessions)
+    after = out.split("🔁")[1]
+    assert "八戒的提示词" in after and "默认提示词" not in after
+
+
+def test_tools_command_lists_chinese_summary_and_approval(capsys):
+    _, _, out = _run_and_capture(capsys, ["/tools"], tools=ALL_TOOLS)
+    assert "读取一个文件的内容" in out  # summary_zh
+    bash_line = next(line for line in out.splitlines() if "run_bash" in line)
+    assert "需审批" in bash_line
+    read_line = next(line for line in out.splitlines() if line.strip().startswith("read_file"))
+    assert "需审批" not in read_line
+
+
+def test_tools_command_for_read_only_persona_has_no_edit_file(capsys):
+    sessions = [_session("bajie", ALL_TOOLS[:2])]
+    _, _, out = _run_and_capture(capsys, ["/persona bajie", "/tools"], tools=ALL_TOOLS, sessions=sessions)
+    after = out.split("🔁")[1].split("\n", 6)[-1]  # 跳过切换对比那几行（里面会提到 − edit_file）
+    assert "read_file" in after and "edit_file" not in after
+
+
+def test_tools_command_with_name_shows_english_description_and_schema(capsys):
+    _, _, out = _run_and_capture(capsys, ["/tools read_file"], tools=[read_file])
+    assert read_file.description in out
+    assert '"required"' in out and '"path"' in out
+
+
+def test_tools_command_with_unknown_name_is_reported(capsys):
+    _, _, out = _run_and_capture(capsys, ["/tools nope"], tools=[read_file])
+    assert "nope" in out and "read_file" in out
+
+
+def test_tools_command_with_no_tools(capsys):
+    _, _, out = _run_and_capture(capsys, ["/tools"])
+    assert "没有工具" in out
+
+
+def test_status_command_before_any_model_call(capsys, tmp_path):
+    (tmp_path / "bajie").mkdir()
+    (tmp_path / "bajie" / "n.md").write_text("# 笔记")
+    sessions = [_session("bajie", ALL_TOOLS[:2], label="🐷 猪八戒", memory_dir=str(tmp_path / "bajie"))]
+    _, _, out = _run_and_capture(capsys, ["/status"], sessions=sessions, start="bajie")
+    assert "🐷 猪八戒" in out and "Fake" in out
+    assert "2 个" in out and "read_file, list_files" in out
+    assert "0 条" in out
+    assert "—" in out  # 还没调用过模型
+    assert str(tmp_path / "bajie") in out and "1 条笔记" in out
+
+
+def test_status_command_shows_last_input_tokens(capsys):
+    _, _, out = _run_and_capture(capsys, ["hi", "/status"], replies=[Reply(texts=["ok"], usage=Usage(4210, 10, 3800))])
+    status = out.split("角色    ")[-1]  # /status 的第一行起
+    assert "4,210" in status and "2 条" in status
+
+
+def test_status_command_without_memory(capsys):
+    _, _, out = _run_and_capture(capsys, ["/status"])
+    assert "（无）" in out
+
+
+@pytest.mark.parametrize("command", ["/prompt", "/tools", "/tools read_file", "/status", "/persona"])
+def test_inspection_commands_never_reach_the_model(capsys, command):
+    agent, provider, _ = _run_and_capture(capsys, [command], tools=[read_file])
+    assert provider.chats == []
+    assert agent.current.conversation == []
+
+
+def test_inspection_commands_join_the_completion_menu():
+    agent = Agent(FakeProvider([]), [], scripted())
+    assert {"persona", "prompt", "tools", "status"} <= set(agent.commands)
+
+
+# --- /persona reload：改完 persona 文件不用重启 -------------------------------------
+
+
+def _reloadable(tmp_path, tools="read_file", body="你是猪八戒。"):
+    """一个从文件读出来的 bajie 会话，加上 main() 里同样的 reload 函数。"""
+    path = tmp_path / "bajie.md"
+
+    def write(tools, body):
+        path.write_text(f"---\nname: bajie\ndescription: d\ntools: {tools}\n---\n{body}\n", encoding="utf-8")
+
+    write(tools, body)
+    base = PromptContext(working_directory="/proj", tool_names=[])
+    known = [t.name for t in ALL_TOOLS]
+    session = persona_session(load_persona(str(path), known), base, None)
+
+    def reload(s):
+        return persona_session(load_persona(s.source, known), base, None)
+
+    return session, reload, write
+
+
+def test_reload_picks_up_new_tools_and_prompt_but_keeps_conversation(tmp_path, capsys):
+    session, reload, write = _reloadable(tmp_path)
+    provider = FakeProvider([Reply(texts=["1"]), Reply(texts=["2"])])
+
+    def inputs():
+        yield "第一句"
+        write("read_file, edit_file", "你是改过的猪八戒。")
+        yield "/persona reload"
+        yield "第二句"
+
+    it = inputs()
+    Agent(provider, [], lambda: next(it, None), sessions=[session], start="bajie", reload=reload).run()
+
+    assert provider.tool_names == [["read_file"], ["read_file", "edit_file"]]
+    assert "你是改过的猪八戒。" in provider.systems[1]
+    assert provider.chats[1][0] == {"role": "user", "content": "第一句"}  # 对话保留
+    out = capsys.readouterr().out
+    assert "+ edit_file" in out and "缓存" in out
+
+
+def test_reload_with_broken_file_keeps_old_config(tmp_path, capsys):
+    session, reload, write = _reloadable(tmp_path)
+    provider = FakeProvider([Reply(texts=["ok"])])
+
+    def inputs():
+        write("read_file, fly", "x")  # 不存在的工具
+        yield "/persona reload"
+        yield "hi"
+
+    it = inputs()
+    Agent(provider, [], lambda: next(it, None), sessions=[session], start="bajie", reload=reload).run()
+    assert provider.tool_names == [["read_file"]]
+    out = capsys.readouterr().out
+    assert "fly" in out and "原来的配置" in out
+
+
+def test_reload_with_deleted_file_keeps_old_config(tmp_path, capsys):
+    session, reload, _ = _reloadable(tmp_path)
+    (tmp_path / "bajie.md").unlink()
+    Agent(FakeProvider([]), [], scripted("/persona reload"), sessions=[session], start="bajie", reload=reload).run()
+    assert "原来的配置" in capsys.readouterr().out
+
+
+def test_reload_rejects_renamed_persona(tmp_path, capsys):
+    session, reload, _ = _reloadable(tmp_path)
+    path = tmp_path / "bajie.md"
+    path.write_text(path.read_text(encoding="utf-8").replace("name: bajie", "name: zhubajie"), encoding="utf-8")
+    agent = Agent(FakeProvider([]), [], scripted("/persona reload"), sessions=[session], start="bajie", reload=reload)
+    agent.run()
+    assert agent.current.name == "bajie"
+    assert "zhubajie" in capsys.readouterr().out
+
+
+def test_reload_unchanged_file_says_so(tmp_path, capsys):
+    session, reload, _ = _reloadable(tmp_path)
+    Agent(FakeProvider([]), [], scripted("/persona reload"), sessions=[session], start="bajie", reload=reload).run()
+    out = capsys.readouterr().out
+    assert "没有变化" in out and "缓存" not in out
+
+
+def test_reload_on_default_session_explains(capsys):
+    Agent(FakeProvider([]), [], scripted("/persona reload")).run()
+    assert "default" in capsys.readouterr().out
+
+
+# --- 仓库里的三个西游记角色 ---------------------------------------------------------
+
+
+def test_journey_to_the_west_personas_load_cleanly():
+    root = os.path.join(os.path.dirname(__file__), "..", ".agents", "personas")
+    personas, warnings = discover_personas(root, [t.name for t in ALL_TOOLS])
+    assert warnings == []
+    by_id = {p.id: p for p in personas}
+    assert by_id["tang"].tool_names == ("read_file", "list_files", "edit_file")
+    assert by_id["wukong"].tool_names == ("read_file", "list_files", "edit_file", "run_bash")
+    assert by_id["bajie"].tool_names == ("read_file", "list_files")
+    for p in personas:
+        assert any("一" <= ch <= "鿿" for ch in p.prompt), p.id  # 正文是中文

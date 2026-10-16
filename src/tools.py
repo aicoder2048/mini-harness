@@ -28,6 +28,8 @@ class Tool:
     input_schema: dict[str, Any]
     run: Callable[[dict[str, Any]], str]
     needs_approval: bool = False  # True → agent 执行前先问用户（run_bash 这类能动整台机器的工具）
+    # 一行中文说明，只给人看（/tools 之类的显示用），不会发给模型：providers 只取 name / description / schema
+    summary_zh: str = ""
 
 
 class ToolError(Exception):
@@ -102,6 +104,7 @@ read_file = Tool(
         "required": ["path"],
     },
     run=_read_file,
+    summary_zh="读取一个文件的内容（长文件可分页读）",
 )
 
 
@@ -151,6 +154,7 @@ list_files = Tool(
         "required": [],
     },
     run=_list_files,
+    summary_zh="列出一个文件夹里的文件和子文件夹",
 )
 
 
@@ -209,6 +213,7 @@ edit_file = Tool(
         "required": ["path", "old_str", "new_str"],
     },
     run=_edit_file,
+    summary_zh="修改文件：把一段旧文字换成新文字；旧文字留空就是新建文件",
 )
 
 
@@ -263,6 +268,7 @@ run_bash = Tool(
     },
     run=_run_bash,
     needs_approval=True,
+    summary_zh="在终端运行一条命令（每次都要你点头同意，30 秒超时）",
 )
 
 

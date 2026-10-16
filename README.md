@@ -5,7 +5,7 @@
 跟学 Thorsten Ball《How to Build an Agent》的 Python 复现（对应 `docs/Thorsten-Ball-构建Agent-Python跟学版.pdf`），
 模型 Provider 用 **DeepSeek**（OpenAI 兼容协议）。
 
-`src/` 约 1400 行（一半是注释）、四个工具、一个循环：一个能读、能找、能改你代码、能跑命令的 agent。
+`src/` 约 1800 行（一半是注释）、四个工具、一个循环：一个能读、能找、能改你代码、能跑命令的 agent。
 前三个工具与原文一致，`run_bash` 是额外加的第 5 步。
 
 ## 致谢 / Credits
@@ -100,11 +100,13 @@ src/
   agent.py        第 2–5 步：agent 循环 + 危险工具确认，--step 控制工具集
   cli_input.py    终端输入：多行编辑、方向键、历史、斜杠命令补全（prompt_toolkit）
   skills.py       Skill：发现 SKILL.md、解析 frontmatter、生成索引（Agent Skills 标准）
+  personas.py     Persona：读 .agents/personas/<名字>.md（frontmatter + 中文正文），一个角色一套提示词和工具
 tests/            pytest：快速测试全用 fake；test_live.py 打真实 API（默认跳过，-m live 运行）
 AGENTS.md         给 agent 看的项目说明（命令、架构、约定、踩过的坑）
 CLAUDE.md         只有一行 `@AGENTS.md`：Claude Code 读 CLAUDE.md，靠这个 import 读到同一份说明
 .env.example      环境变量示例；复制成 .env 再填 key（.env 已在 .gitignore，不会提交）
 .agents/skills/   项目级 skill（通用约定的位置，不绑定某个 agent），自带示例 run-checks
+.agents/personas/ 角色：唐僧 tang（策划）、孙悟空 wukong（程序员）、猪八戒 bajie（只读检查员）
 Memory/           跨会话记忆：普通 Markdown 笔记，启动时列成索引（已在 .gitignore，只留本地）
 ```
 
@@ -141,6 +143,7 @@ Ctrl-D 退出。工具调用会以绿色 `tool:` 行打印，失败以红色 `�
 | Ctrl+C / Ctrl+D | 清空这一行 / 空行时退出 |
 | `/exit`、`/quit` | 退出本会话和程序 |
 | `/skill名 [参数]` | 主动调用一个 skill（把它的 SKILL.md 和参数一起发给模型） |
+| `/persona [名字]`、`/prompt`、`/tools`、`/status` | 角色和查看命令，见下面「角色（persona）」 |
 | 输入 `/` | 弹出命令菜单（带说明），继续输入按前缀筛选；Tab 或 ↑↓ 选中，Enter 发送 |
 
 很多终端默认让 Shift+Enter 和 Enter 发一样的字符，程序分不出来。能分出来的终端（kitty、WezTerm、Ghostty，
@@ -150,6 +153,39 @@ iTerm2 开了「Report modifiers using CSI u」）会发转义序列，`cli_inpu
 `run_bash` 每条命令执行前都会问 `允许执行? [Y/n/a]`：**回车或 `y` 允许这一次**，`n` 拒绝（作为错误回灌给模型），
 `a` 本会话内不再询问 `run_bash`；Ctrl-D 视为拒绝，输错会再问一次。
 命令 30 秒超时（连子进程一起杀），输出超过 10000 字符截断。
+
+## 角色（persona）
+
+同一个模型，换一套 harness 配置，就是另一个 agent。角色放在 `.agents/personas/<名字>.md`：
+
+```markdown
+---
+name: bajie                      # 名字：/persona bajie 用它（小写字母、数字、连字符）
+title: 猪八戒                    # 展示名，可选
+description: 检查员：对照 PLAN.md 挑毛病，只看不改
+emoji: 🐷                        # 可选
+tools: read_file, list_files     # 逗号分隔一行；不写就是纯聊天
+---
+你是猪八戒……（中文正文：替换 system prompt 的第一句，其余段落仍按工具自动拼出来）
+```
+
+```bash
+uv run --env-file .env src/agent.py                   # 从内置的 default 开始，进去后 /persona wukong 切换
+uv run --env-file .env src/agent.py --persona tang    # 直接从唐僧开始
+```
+
+| 命令 | 作用 |
+|---|---|
+| `/persona` | 列出所有角色，`→` 是当前的 |
+| `/persona <名字>` | 切换，并打印换掉了什么（工具增减、提示词长度和段落、对话条数、记忆目录） |
+| `/persona reload` | 改完 `.md` 后重新读，换掉提示词和工具，**保留对话**；文件改坏时继续用原来的配置 |
+| `/prompt` | 当前角色完整的 system prompt |
+| `/tools` | 当前角色的工具和一行中文说明；`/tools <名字>` 看发给模型的英文说明和参数 |
+| `/status` | 一屏看：角色、模型（所有角色共用）、工具、提示词、对话、上一次输入 token、记忆 |
+
+切换角色时会换的：system prompt、工具、对话、审批状态（「a=本会话都允许」不带过去）、记忆目录（`<记忆目录>/<名字>/`，默认 `Memory/<名字>/`）。
+不换的：模型，以及工作目录里的文件——角色之间靠文件交接（比如唐僧写的 `PLAN.md`）。
+设计和教学场景见 [`docs/persona-design.md`](docs/persona-design.md)。
 
 ## 环境变量
 

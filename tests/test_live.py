@@ -14,7 +14,8 @@ from pathlib import Path
 
 import pytest
 
-from agent import Agent, tools_for_step
+from agent import Agent, persona_session, tools_for_step
+from personas import DEFAULT_PERSONAS_DIR, load_persona
 from prompt import PromptContext, build_system_prompt, load_memory_index, load_project_context
 from providers import DeepSeekProvider, Reply, ToolCall, ToolResult
 from skills import discover_skills, skills_index
@@ -277,3 +278,54 @@ def test_model_picks_skill_from_index_reads_skill_md_then_runs_its_script(live_a
     assert expected in run.answer
     # disable-model-invocation 的 skill 不在索引里，模型不会去用它
     assert not any("zorb-legacy" in str(c.input) for c in run.calls)
+
+
+# --- persona：中文角色正文 + 英文内置段落 ---------------------------------------------
+
+KNOWN_TOOLS = ["read_file", "list_files", "edit_file", "run_bash"]
+
+
+def _persona_agent(provider, inputs, persona_path, reload=None):
+    base = PromptContext(str(REPO_ROOT), [], today="2026-10-16")
+    session = persona_session(load_persona(str(persona_path), KNOWN_TOOLS), base, None)
+    it = iter(inputs)
+    return Agent(provider, [], lambda: next(it, None), sessions=[session], start=session.name, reload=reload)
+
+
+def test_chinese_persona_still_uses_tools_and_replies_in_chinese(math_file):
+    # 中英混合的提示词：八戒的正文是中文，Agency 等段落是英文。模型仍要先读文件再回答
+    provider = RecordingProvider(DeepSeekProvider())
+    bajie = REPO_ROOT / DEFAULT_PERSONAS_DIR / "bajie.md"
+    _persona_agent(provider, [f"{math_file} 里写了什么？"], bajie).run()
+
+    calls = [c for r in provider.replies for c in r.tool_calls]
+    assert any(c.name == "read_file" for c in calls)
+    answer = [t for r in provider.replies for t in r.texts][-1]
+    assert "92" in answer
+    assert any("\u4e00" <= ch <= "\u9fff" for ch in answer)
+
+
+def test_history_with_calls_to_a_removed_tool_is_accepted_after_reload(math_file, tmp_path):
+    # /persona reload 去掉了 read_file，但对话里还留着它的调用记录：DeepSeek 要接受这样的请求
+    persona = tmp_path / "reader.md"
+    persona.write_text(
+        "---\nname: reader\ndescription: d\ntools: read_file\n---\n你是一个读文件的助手。\n", encoding="utf-8"
+    )
+    base = PromptContext(str(REPO_ROOT), [], today="2026-10-16")
+
+    def reload(s):
+        return persona_session(load_persona(s.source, KNOWN_TOOLS), base, None)
+
+    def inputs():
+        yield f"读一下 {math_file}，告诉我里面的方程。"
+        persona.write_text("---\nname: reader\ndescription: d\n---\n你是一个只会聊天的助手。\n", encoding="utf-8")
+        yield "/persona reload"
+        yield "刚才那个方程里，等号右边是几？"
+
+    provider = RecordingProvider(DeepSeekProvider())
+    it = inputs()
+    session = persona_session(load_persona(str(persona), KNOWN_TOOLS), base, None)
+    Agent(provider, [], lambda: next(it, None), sessions=[session], start="reader", reload=reload).run()
+
+    assert any(c.name == "read_file" for r in provider.replies for c in r.tool_calls)
+    assert "92" in [t for r in provider.replies for t in r.texts][-1]

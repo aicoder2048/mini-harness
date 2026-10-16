@@ -20,12 +20,14 @@ import os
 import re
 import sys
 from collections.abc import Callable
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 
 from rich.console import Console
 from rich.markdown import Markdown
 
 from cli_input import make_default_reader
+from personas import DEFAULT_PERSONAS_DIR, Persona, discover_personas, load_persona
 from prompt import (
     AGENTS_FILE,
     PromptContext,
@@ -55,6 +57,10 @@ console = Console()  # 只用来把模型回复渲染成 Markdown；其余输出
 SLASH_COMMANDS = {
     "exit": "退出本会话和程序",
     "quit": "同 /exit",
+    "persona": "列出角色；/persona <名字> 切换角色",
+    "prompt": "显示当前角色的完整 system prompt",
+    "tools": "列出当前角色的工具；/tools <名字> 看发给模型的说明和参数",
+    "status": "一屏看当前角色的 harness 组件：模型、工具、提示词、对话、记忆",
 }
 _SLASH_COMMAND = re.compile(r"/([A-Za-z][\w-]*)")
 
@@ -63,13 +69,19 @@ def slash_command(text: str) -> str | None:
     """输入是斜杠命令就返回命令名（小写），否则 None。
 
     只看第一个词，而且整个词必须是 /字母...：这样 `/Users/szou/a.py 看看这个` 这种以路径开头的消息
-    不会被当成命令吞掉，照常发给模型。命令后面的参数目前不用。
+    不会被当成命令吞掉，照常发给模型。命令后面的参数用 command_argument 取。
     """
     words = text.split()
     if not words:
         return None
     m = _SLASH_COMMAND.fullmatch(words[0])
     return m.group(1).lower() if m else None
+
+
+def command_argument(text: str) -> str:
+    """斜杠命令后面的参数（去掉首尾空格）；没有参数返回空字符串。`/persona bajie` → `bajie`。"""
+    parts = text.strip().split(maxsplit=1)
+    return parts[1].strip() if len(parts) > 1 else ""
 
 
 class ConsoleApprover:
@@ -105,6 +117,58 @@ class ConsoleApprover:
             # 拼错（比如 yse）既不当允许也不当拒绝，再问一次
 
 
+DEFAULT_SESSION = "default"  # 没有 persona 时的内置会话：工具由 --step 决定，提示词就是原来那份
+
+
+@dataclass
+class Session:
+    """一个角色的全部状态。切换角色 = 换一个 Session；模型（provider）不换。
+
+    system / tools 决定「它是谁、能做什么」；conversation / approve / memory_dir 是它自己的，
+    所以切走再切回来能接着聊，「a=本会话都允许」也不会带到别的角色。
+    """
+
+    name: str  # persona id，/persona 后面打的名字
+    label: str  # 展示名，如「🐷 猪八戒」
+    description: str
+    system: str
+    tools: dict[str, Tool]
+    memory_dir: str | None = None
+    approve: Callable[[ToolCall], bool] = field(default_factory=ConsoleApprover)
+    conversation: list[dict] = field(default_factory=list)
+    last_input_tokens: int | None = None  # 上一次请求的输入 token，/status 显示；还没调用过模型是 None
+    source: str | None = None  # persona 文件路径，/persona reload 重新读它；default 会话没有
+
+
+def _sections(system: str) -> list[str]:
+    """提示词里的一级标题（# Agency、# Guardrails ...），切换时用来对比少了哪段、多了哪段。"""
+    return re.findall(r"^# (.+)$", system, re.MULTILINE)
+
+
+def _diff(old: list[str], new: list[str]) -> str:
+    changes = [f"− {x}" for x in old if x not in new] + [f"+ {x}" for x in new if x not in old]
+    return f"（{'  '.join(changes)}）" if changes else ""
+
+
+def _tools_and_prompt_lines(old: Session, new: Session) -> list[str]:
+    return [
+        f"  工具    {len(old.tools)} → {len(new.tools)}{_diff(list(old.tools), list(new.tools))}",
+        f"  提示词  {len(old.system):,} → {len(new.system):,} 字符{_diff(_sections(old.system), _sections(new.system))}",
+    ]
+
+
+def switch_summary(old: Session, new: Session) -> str:
+    """切换角色时打印的对比：哪些 harness 组件变了。模型不变，所以不用列。"""
+    return "\n".join(
+        [
+            f"🔁 {old.label} → {new.label}",
+            *_tools_and_prompt_lines(old, new),
+            f"  对话    {new.label} 自己的 {len(new.conversation)} 条（{old.label} 的 {len(old.conversation)} 条已保留）",
+            f"  记忆    {new.memory_dir or '（无）'}",
+        ]
+    )
+
+
 class Agent:
     def __init__(
         self,
@@ -117,11 +181,31 @@ class Agent:
         context_budget: int = CONTEXT_BUDGET,
         keep_tool_results: int = KEEP_TOOL_RESULTS,
         skills: list[Skill] | None = None,
+        sessions: list[Session] | None = None,
+        start: str = DEFAULT_SESSION,
+        reload: Callable[[Session], Session] | None = None,
     ) -> None:
         if max_tool_rounds < 1:
             raise ValueError(f"max_tool_rounds must be >= 1, got {max_tool_rounds}")
         self.provider = provider
-        self.tools = {t.name: t for t in tools}
+        # tools / system / approve 这几个参数描述的是内置的 default 会话；sessions 是另外的角色（persona）
+        default = Session(
+            name=DEFAULT_SESSION,
+            label=DEFAULT_SESSION,
+            description="内置 coding agent，工具由 --step 决定",
+            system=system,
+            tools={t.name: t for t in tools},
+            approve=approve or ConsoleApprover(),  # 每个 Agent 一个新会话，不共享「a」的状态
+        )
+        self.sessions: dict[str, Session] = {DEFAULT_SESSION: default}
+        for session in sessions or []:
+            if session.name in self.sessions:
+                raise ValueError(f"session name {session.name!r} is already taken")
+            self.sessions[session.name] = session
+        if start not in self.sessions:
+            raise ValueError(f"unknown start session {start!r}; available: {', '.join(self.sessions)}")
+        self.current = self.sessions[start]
+        self.reload = reload  # 按 session.source 重新读 persona 文件，返回新会话；读不了就抛 OSError / ValueError
         # 用户能用 /名字 调用的 skill：user-invocable: false 的只给模型用；和内置命令重名的被内置命令遮住
         self.skills: dict[str, Skill] = {}
         for skill in skills or []:
@@ -135,11 +219,129 @@ class Agent:
         self.commands = {**SLASH_COMMANDS, **{name: s.description for name, s in self.skills.items()}}
         # 默认读终端（多行、方向键、历史），每个 Agent 一个，历史不跨会话；测试里注入脚本化输入
         self.get_user_input = get_user_input or make_default_reader(self.commands)
-        self.system = system
-        self.approve = approve or ConsoleApprover()  # 每个 Agent 一个新会话，不共享「a」的状态
         self.max_tool_rounds = max_tool_rounds
+        # 只在终端显示、不发给模型的命令：参数是命令后面的文字
+        self._local_commands: dict[str, Callable[[str], None]] = {
+            "persona": self._persona_command,
+            "prompt": self._show_prompt,
+            "tools": self._show_tools,
+            "status": self._show_status,
+        }
         self.context_budget = context_budget
         self.keep_tool_results = keep_tool_results
+
+    # 下面三个都跟着当前角色走：切换角色后，发给模型的提示词、工具和审批都换成那个角色的
+    @property
+    def tools(self) -> dict[str, Tool]:
+        return self.current.tools
+
+    @property
+    def system(self) -> str:
+        return self.current.system
+
+    @property
+    def approve(self) -> Callable[[ToolCall], bool]:
+        return self.current.approve
+
+    def switch(self, name: str) -> None:
+        self.current = self.sessions[name]
+
+    def _persona_command(self, arg: str) -> None:
+        """/persona：列出角色；/persona <名字>：切换并打印对比。只在终端显示，不发给模型。"""
+        if arg.lower() == "reload":
+            self._reload_persona()
+            return
+        if not arg:
+            print("角色（/persona <名字> 切换，/persona reload 重新读当前角色的文件）：")
+            for s in self.sessions.values():
+                mark = "→" if s is self.current else " "
+                who = f"{s.label}：" if s.label != s.name else ""
+                print(f"  {mark} {s.name:<10} {who}{s.description}（{len(s.tools)} 个工具）")
+            return
+        target = self.sessions.get(arg.lower())
+        if target is None:
+            print(f"\033[91m未知角色 {arg}\033[0m。可用：{'  '.join(self.sessions)}")
+            return
+        if target is self.current:
+            print(f"已经是 {target.label} 了")
+            return
+        print(switch_summary(self.current, target))
+        self.switch(target.name)
+
+    def _reload_persona(self) -> None:
+        """/persona reload：重新读当前角色的文件，换掉提示词和工具，保留对话、审批状态。
+
+        文件被删、改坏、改了 name：都保留原来的配置并说明原因——改错一个字不该让正在上的课中断。
+        """
+        old = self.current
+        if old.source is None or self.reload is None:
+            print(f"{old.label} 不是从 persona 文件读出来的，没有可以重新加载的。先 /persona <名字> 切到一个角色。")
+            return
+        try:
+            fresh = self.reload(old)
+        except (OSError, ValueError) as e:
+            print(f"\033[91m重新加载失败，继续用原来的配置\033[0m：{e}")
+            return
+        if fresh.name != old.name:
+            print(f"\033[91m文件里的 name 改成了 {fresh.name}，继续用原来的配置\033[0m：改名要重启程序。")
+            return
+        # 换的是「它是谁、能做什么」，「它经历过什么」留着
+        fresh.conversation = old.conversation
+        fresh.approve = old.approve
+        fresh.last_input_tokens = old.last_input_tokens
+        self.sessions[old.name] = fresh
+        self.current = fresh
+        if (fresh.system, list(fresh.tools)) == (old.system, list(old.tools)):
+            print(f"♻️ {fresh.label} 的文件没有变化")
+            return
+        print(f"♻️ 重新加载 {fresh.label}")
+        print("\n".join(_tools_and_prompt_lines(old, fresh)))
+        print(f"  对话    保留 {len(fresh.conversation)} 条")
+        if fresh.system != old.system:
+            print("\033[2m  提示词变了：下一次请求，DeepSeek 的缓存要从头算一次（看 cached 那个数字）\033[0m")
+
+    def _show_prompt(self, arg: str) -> None:
+        """/prompt：原样打印当前角色的 system prompt。学生能看到「角色正文 + 按工具拼出来的段落」。"""
+        print(self.system or "（空）")
+        print(f"\033[2m— {self.current.label} 的 system prompt，共 {len(self.system):,} 字符\033[0m")
+
+    def _show_tools(self, arg: str) -> None:
+        """/tools：中文一行说明（只给人看）；/tools <名字>：真正发给模型的英文 description 和参数 schema。"""
+        if not self.tools:
+            print(f"{self.current.label} 没有工具：只能聊天，不能动手。")
+            return
+        if arg:
+            tool = self.tools.get(arg)
+            if tool is None:
+                print(f"\033[91m{self.current.label} 没有工具 {arg}\033[0m。有：{'  '.join(self.tools)}")
+                return
+            print(f"{tool.name}（发给模型的说明）：\n{tool.description}\n\n参数 schema：")
+            print(json.dumps(tool.input_schema, ensure_ascii=False, indent=2))
+            return
+        print(f"{self.current.label} 的工具（{len(self.tools)} 个）：")
+        for tool in self.tools.values():
+            approval = "  \033[95m[需审批]\033[0m" if tool.needs_approval else ""
+            print(f"  {tool.name:<11} {tool.summary_zh}{approval}")
+        print("\033[2m/tools <名字> 看发给模型的英文说明和参数\033[0m")
+
+    def _show_status(self, arg: str) -> None:
+        """/status：一屏看 harness 的几个组件。模型那一行提醒：所有角色共用同一颗大脑。"""
+        s = self.current
+        tokens = f"{s.last_input_tokens:,} token" if s.last_input_tokens is not None else "—（还没调用过模型）"
+        memory = f"{s.memory_dir}（{_count_notes(s.memory_dir)} 条笔记）" if s.memory_dir else "（无）"
+        print(
+            "\n".join(
+                [
+                    f"角色    {s.label}（{s.name}）",
+                    f"模型    {self.provider.label}（所有角色共用）",
+                    f"工具    {len(s.tools)} 个：{', '.join(s.tools) or '（无）'}",
+                    f"提示词  {len(s.system):,} 字符（/prompt 查看）",
+                    f"对话    {len(s.conversation)} 条消息",
+                    f"上下文  上次请求输入 {tokens}",
+                    f"记忆    {memory}",
+                ]
+            )
+        )
 
     def _execute(self, call: ToolCall) -> ToolResult:
         """执行一次工具调用。失败也返回结果，交给模型自己纠错。"""
@@ -188,13 +390,14 @@ class Agent:
         print(f"\033[2m{line}\033[0m", file=sys.stderr)
 
     def run(self) -> None:
-        conversation: list[dict] = []
-        tools = list(self.tools.values())
-        print(f"Chat with {self.provider.label} — {len(tools)} 个工具可用（/exit、/quit 或 Ctrl-D 退出）")
+        print(f"Chat with {self.provider.label} — {len(self.tools)} 个工具可用（/exit、/quit 或 Ctrl-D 退出）")
+        if self.current.name != DEFAULT_SESSION:
+            print(f"当前角色：{self.current.label}（/persona 查看全部角色）")
 
         need_user_input = True
         tool_rounds = 0  # 自上次用户输入以来连续的工具轮数
         while True:
+            conversation = self.current.conversation  # 每轮重新取：/persona 切换后就是另一个角色的对话
             if need_user_input:
                 user_input = self.get_user_input()
                 if user_input is None:
@@ -204,6 +407,9 @@ class Agent:
                 command = slash_command(user_input)
                 if command in ("exit", "quit"):
                     break
+                if command in self._local_commands:
+                    self._local_commands[command](command_argument(user_input))
+                    continue
                 if command in self.skills:
                     message = self._skill_message(self.skills[command], user_input)
                     if message is None:
@@ -218,10 +424,11 @@ class Agent:
                 tool_rounds = 0
 
             # provider.chat 会把 assistant 回复按本家格式 append 进 conversation。
-            reply = self.provider.chat(conversation, tools, self.system)
+            reply = self.provider.chat(conversation, list(self.tools.values()), self.system)
 
             if reply.usage:
                 self._log_usage(reply.usage)
+                self.current.last_input_tokens = reply.usage.input_tokens
                 if reply.usage.input_tokens > self.context_budget:
                     pruned = self.provider.prune_tool_results(conversation, self.keep_tool_results)
                     if pruned:
@@ -229,8 +436,12 @@ class Agent:
                             f"\033[2m· 上下文超过 {self.context_budget:,} token 预算，清理了 {pruned} 个旧工具结果\033[0m",
                             file=sys.stderr,
                         )
+            # 有角色时标签写成「🐒 孙悟空 · DeepSeek」：换的是角色，大脑还是同一个
+            speaker = self.provider.label
+            if self.current.name != DEFAULT_SESSION:
+                speaker = f"{self.current.label} · {speaker}"
             for text in reply.texts:
-                print(f"\033[93m{self.provider.label}\033[0m:")
+                print(f"\033[93m{speaker}\033[0m:")
                 console.print(Markdown(text))  # Markdown 按块渲染，所以标签单独一行
             results = [self._execute(call) for call in reply.tool_calls]
 
@@ -246,6 +457,15 @@ class Agent:
                 need_user_input = True
                 continue
             need_user_input = False  # 有工具调用 → 不等用户，直接再问模型
+
+
+def _count_notes(memory_dir: str) -> int:
+    """记忆目录里有几篇笔记（.md，含子目录，跳过隐藏目录）；目录还不存在就是 0。和 load_memory_index 的口径一致。"""
+    count = 0
+    for _, dirnames, filenames in os.walk(memory_dir):
+        dirnames[:] = [d for d in dirnames if not d.startswith(".")]
+        count += sum(f.endswith(".md") for f in filenames)
+    return count
 
 
 def tools_for_step(step: int) -> list[Tool]:
@@ -268,6 +488,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         choices=[2, 3, 4, 5],
         default=5,
         help="2=read_file, 3=+list_files, 4=+edit_file, 5=+run_bash",
+    )
+    p.add_argument(
+        "--persona",
+        help=f"启动时使用的角色（{DEFAULT_PERSONAS_DIR}/<名字>.md）；不写就是内置的 {DEFAULT_SESSION}",
     )
     p.add_argument(
         "--max-rounds",
@@ -324,6 +548,40 @@ def _skills(cwd: str) -> list[Skill]:
     return skills
 
 
+def _personas(cwd: str) -> list[Persona]:
+    """只扫 <cwd>/.agents/personas。坏文件跳过并提醒；没有这个目录就是没有角色，和以前一样。"""
+    personas, warnings = discover_personas(os.path.join(cwd, DEFAULT_PERSONAS_DIR), [t.name for t in ALL_TOOLS])
+    for w in warnings:
+        print(f"\033[93m{w}\033[0m")
+    if personas:
+        print(f"已加载 {len(personas)} 个角色：{'、'.join(p.label for p in personas)}（/persona 切换）")
+    return personas
+
+
+def persona_session(persona: Persona, base: PromptContext, memory_root: str | None) -> Session:
+    """persona → 会话。base 是 default 会话的 PromptContext（工作目录、git、AGENTS.md、skills 都共用），
+    换掉的是：角色正文、工具、记忆（<记忆根目录>/<id>/，各记各的）。
+    """
+    tools = [t for t in ALL_TOOLS if t.name in persona.tool_names]
+    memory_dir = os.path.join(memory_root, persona.id) if memory_root else None
+    ctx = replace(
+        base,
+        tool_names=[t.name for t in tools],
+        persona=persona.prompt,
+        memory_dir=memory_dir,
+        memory_index=load_memory_index(memory_dir) if memory_dir else None,
+    )
+    return Session(
+        name=persona.id,
+        label=persona.label,
+        description=persona.description,
+        system=build_system_prompt(ctx),
+        tools={t.name: t for t in tools},
+        memory_dir=memory_dir,
+        source=persona.path,
+    )
+
+
 def main() -> None:
     args = parse_args()
 
@@ -344,8 +602,20 @@ def main() -> None:
         today=datetime.now(UTC).astimezone().date().isoformat(),  # 本机时区的今天
         skills_index=skills_index(skills),
     )
+    personas = _personas(cwd)
+    if args.persona and args.persona not in {p.id for p in personas} | {DEFAULT_SESSION}:
+        available = ", ".join([DEFAULT_SESSION, *(p.id for p in personas)])
+        sys.exit(f"没有角色 {args.persona}（可用：{available}）")
+    known_tools = [t.name for t in ALL_TOOLS]
     Agent(
-        DeepSeekProvider(), tools, system=build_system_prompt(ctx), max_tool_rounds=args.max_rounds, skills=skills
+        DeepSeekProvider(),
+        tools,
+        system=build_system_prompt(ctx),
+        max_tool_rounds=args.max_rounds,
+        skills=skills,
+        sessions=[persona_session(p, ctx, memory_dir) for p in personas],
+        start=args.persona or DEFAULT_SESSION,
+        reload=lambda s: persona_session(load_persona(s.source, known_tools), ctx, memory_dir),
     ).run()
 
 
