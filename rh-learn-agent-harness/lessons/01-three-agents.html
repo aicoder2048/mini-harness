@@ -9,6 +9,40 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap">
 <link rel="stylesheet" href="../assets/course.css">
 <script src="../assets/course.js"></script>
+<style>
+  /* 本课专用：把提示词按来源分块显示（我们写的 / harness 填的 / harness 按工具加的） */
+  .pblocks { display: grid; gap: 0.6rem; margin: 1rem 0; }
+  .pblock { border: 1px solid var(--line); border-left: 6px solid var(--line); border-radius: 10px; background: var(--card); overflow: hidden; }
+  .pblock .ph { display: flex; flex-wrap: wrap; gap: 0.4rem 0.8rem; align-items: baseline; padding: 0.45rem 0.8rem; font-size: 0.85rem; background: var(--tint); }
+  .pblock .ph b { font-family: var(--mono); }
+  .pblock .ph .why { color: var(--muted, #5b6680); }
+  .pblock pre { margin: 0; padding: 0.6rem 0.8rem; white-space: pre-wrap; word-break: break-word; font-family: var(--mono); font-size: 0.82rem; line-height: 1.55; color: var(--code-fg); background: var(--code-bg); }
+  .pblock details summary { cursor: pointer; padding: 0.6rem 0.8rem; font-family: var(--mono); font-size: 0.82rem; color: var(--code-fg); background: var(--code-bg); }
+  .pblock details[open] summary { padding-bottom: 0; }
+  .pblock.ours { border-left-color: var(--you); }
+  .pblock.ours .ph { background: var(--you-tint); }
+  .pblock.env { border-left-color: var(--model); }
+  .pblock.env .ph { background: var(--model-tint); }
+  .pblock.auto { border-left-color: var(--tool); }
+  .pblock.auto .ph { background: var(--tool-tint); }
+  .pblock.cond { border-left-color: var(--ask); }
+  .pblock.cond .ph { background: var(--ask-tint); }
+  .legend { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; font-size: 0.85rem; margin: 0.5rem 0; }
+  .legend span::before { content: ""; display: inline-block; width: 0.8rem; height: 0.8rem; border-radius: 3px; margin-right: 0.35rem; vertical-align: -0.1rem; }
+  .legend .l-ours::before { background: var(--you); }
+  .legend .l-env::before { background: var(--model); }
+  .legend .l-auto::before { background: var(--tool); }
+  .legend .l-cond::before { background: var(--ask); }
+  .assembler { border: 1px solid var(--line); border-radius: 14px; padding: 1rem; background: var(--tint); margin: 1rem 0; }
+  .assembler fieldset { border: 0; padding: 0; margin: 0 0 0.6rem; display: flex; flex-wrap: wrap; gap: 0.4rem 0.6rem; align-items: center; }
+  .assembler legend { font-weight: 700; margin-right: 0.4rem; float: left; }
+  .assembler label { display: inline-flex; gap: 0.35rem; align-items: center; padding: 0.3rem 0.7rem; border: 1px solid var(--line); border-radius: 999px; background: var(--card); cursor: pointer; font-size: 0.9rem; }
+  .assembler label:has(input:checked) { border-color: var(--you); background: var(--you-tint); }
+  .assembler .meter { font-family: var(--mono); font-size: 0.9rem; margin: 0.4rem 0 0; }
+  .assembler .meter strong { font-size: 1.1rem; }
+  .assembler .delta { color: var(--ask); }
+  .assembler .btn { margin-left: auto; }
+</style>
 </head>
 <body data-lesson="01" data-root="../">
 <div class="page">
@@ -16,14 +50,14 @@
 <header class="hero">
   <p class="eyebrow">第 01 课 · 第 1 单元 · 核心组件</p>
   <h1>一个大脑，三个角色</h1>
-  <p class="lede">同一个 DeepSeek，换一套系统提示词、可用工具和会话状态，就成了唐僧、悟空、八戒三个不同的 agent。</p>
+  <p class="lede">同一个 DeepSeek，读到不同的提示词、拿到不同的工具，就成了唐僧、悟空、八戒三个不同的 agent。今天把提示词这一层看清楚。</p>
   <div class="bench" aria-label="今天工作台上的零件">
-    <span class="prompt">$</span> <span>teardown</span> <span class="path">.agents/personas/</span> <span>--all</span> <span class="cursor" aria-hidden="true"></span>
+    <span class="prompt">$</span> <span>teardown</span> <span class="path">.agents/personas/</span> <span>--prompts</span> <span class="cursor" aria-hidden="true"></span>
   </div>
   <dl class="hero-meta">
-    <div><dt>工作台上的零件</dt><dd><code>personas.py</code> · <code>Session</code> · 三个角色文件</dd></div>
-    <div><dt>时长</dt><dd>讲解约 40 分钟 · 实验约 50 分钟</dd></div>
-    <div><dt>你会学到</dt><dd>系统提示词 · 可用工具 · 会话状态 · 四个实验</dd></div>
+    <div><dt>工作台上的零件</dt><dd>三个角色文件 · 它们的系统提示词</dd></div>
+    <div><dt>时长</dt><dd>讲解约 45 分钟 · 实验约 50 分钟</dd></div>
+    <div><dt>你会学到</dt><dd>看懂提示词 · 提示词怎么装配 · 写好角色提示词 · 动态加载 · 四个实验</dd></div>
   </dl>
 </header>
 
@@ -45,13 +79,13 @@
   </div>
   <aside class="callout analogy">
     <p class="callout-label">打个比方</p>
-    <p>同一个演员，换一份<strong>剧本</strong>（系统提示词）、换一套<strong>道具</strong>（可用工具）、换一本<strong>记事本</strong>（会话状态），就演成了另一个人。演员本人（模型）从头到尾没换过。</p>
+    <p>同一个演员，换一份<strong>剧本</strong>（提示词）、换一套<strong>道具</strong>（工具）、换一本<strong>记事本</strong>（对话记录），就演成了另一个人。演员本人（模型）从头到尾没换过。</p>
   </aside>
   <p>西游记的设定正好对得上：悟空本领最大，可每次动手都得先听师父的；唐僧不会打架，只管定方向；八戒眼尖嘴碎，挑毛病最在行。悟空头上的<strong>紧箍咒</strong>，就是 harness 里的规矩和审批：本领再大，也要守规矩。</p>
   <div class="quiz" id="q-01-same" data-answer="d">
     <p class="q">从悟空切换到八戒，下面哪一样<strong>没有</strong>换？</p>
     <ol class="options">
-      <li data-why="换了：八戒有自己的提示词，正文写着「你是猪八戒」。">系统提示词</li>
+      <li data-why="换了：八戒有自己的提示词，开头写着「你是猪八戒」。">系统提示词</li>
       <li data-why="换了：悟空有 4 个工具，八戒只有 2 个。">可用工具</li>
       <li data-why="换了：每个角色有自己的一份对话记录。">对话记录</li>
       <li>模型（DeepSeek）</li>
@@ -62,264 +96,313 @@
 </section>
 
 <section>
-  <h2>组件一：系统提示词</h2>
-  <p>每次请求，模型最先读到的就是<strong>系统提示词</strong>（system prompt）：你是谁、要守什么规矩。机器人用 <code>prompt.py</code> 里的 <code>build_system_prompt</code> 把它拼出来：</p>
-  <figure class="excerpt" data-file="src/prompt.py" data-start="43" data-highlight="45,46,48">
-    <script type="text/x-python">
-def build_system_prompt(ctx: PromptContext) -> str:
-    tools = set(ctx.tool_names)
-    can_edit = "edit_file" in tools
-    can_run = "run_bash" in tools
+  <h2>模型每次读到什么</h2>
+  <p>你每说一句话，harness 就给模型寄一个「包裹」。模型看不见你的电脑，也不记得上一次，<strong>它知道的一切都在这个包裹里</strong>，而包裹里装的全是文字：</p>
+  <figure class="diagram">
+    <svg viewBox="0 0 680 300" role="img" aria-labelledby="pkg-title">
+      <title id="pkg-title">每次请求的包裹：系统提示词、工具说明书、对话记录、你刚说的话，一起寄给模型；模型回一段文字，或者说要用某个工具。</title>
+      <defs>
+        <marker id="ah-pkg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="d-head"/></marker>
+      </defs>
+      <rect x="10" y="10" width="420" height="280" rx="12" class="d-box" stroke-dasharray="6 4"/>
+      <text x="24" y="34" class="d-label">每次请求的包裹（全是文字）</text>
 
-    role = ctx.persona or "You are a coding agent running in the user's terminal."
-    sections = [f"{role}\nWorking directory: {ctx.working_directory} (all relative paths are relative to it)."]
-    </script>
-    <figcaption>
-      <p>第 48 行：有角色就用角色的正文（「你是猪八戒……」），没有就用默认那句英文。第 45、46 行先看看手里有没有「改」和「跑」两种工具，后面要用。</p>
-    </figcaption>
+      <rect x="30" y="48" width="380" height="54" rx="8" class="d-box d-you"/>
+      <text x="220" y="72" text-anchor="middle" class="d-text">① 系统提示词</text>
+      <text x="220" y="90" text-anchor="middle" class="d-label">你是谁、守什么规矩（每个角色一份）</text>
+
+      <rect x="30" y="112" width="380" height="54" rx="8" class="d-box d-tool"/>
+      <text x="220" y="136" text-anchor="middle" class="d-text">② 工具说明书</text>
+      <text x="220" y="154" text-anchor="middle" class="d-label">每个可用工具一段说明：叫什么、干什么、要什么参数</text>
+
+      <rect x="30" y="176" width="380" height="54" rx="8" class="d-box"/>
+      <text x="220" y="200" text-anchor="middle" class="d-text">③ 对话记录</text>
+      <text x="220" y="218" text-anchor="middle" class="d-label">你说过的、它答过的、工具的结果</text>
+
+      <rect x="30" y="240" width="380" height="40" rx="8" class="d-box d-you"/>
+      <text x="220" y="265" text-anchor="middle" class="d-text">④ 你刚说的这句话</text>
+
+      <rect x="530" y="110" width="140" height="70" rx="10" class="d-box d-model"/>
+      <text x="600" y="140" text-anchor="middle" class="d-text">DeepSeek</text>
+      <text x="600" y="160" text-anchor="middle" class="d-label">只读这个包裹</text>
+      <path d="M430,130 L528,130" class="d-arrow" marker-end="url(#ah-pkg)"/>
+      <text x="446" y="122" class="d-label">寄出</text>
+      <path d="M528,165 L432,165" class="d-arrow" marker-end="url(#ah-pkg)"/>
+      <text x="440" y="186" class="d-label">回：一段话</text>
+      <text x="440" y="202" class="d-label">或「我要用工具」</text>
+    </svg>
+    <figcaption>每一轮，整个包裹都重新寄一遍：模型自己什么都不留。</figcaption>
   </figure>
-  <p>在终端里输入 <code>/prompt</code>，就能看到当前角色完整的提示词。这是八戒的（中间省略了一段）：</p>
-  <figure class="terminal-figure wide">
-    <div class="term-title"><i></i><i></i><i></i>&nbsp; /prompt</div>
-<div class="terminal"><span class="a-blue">You</span>: /prompt
-你是猪八戒，取经小队里眼尖嘴碎的检查员。你的猴哥孙悟空写代码，师父唐僧写计划。……
-<span class="a-dim">（中间省略：怎么做、规矩、说话的样子）</span>
-Working directory: …/xiyou (all relative paths are relative to it).
+  <p>所以 harness 做的很多事，最后都落到同一个地方：<strong>往包裹里放什么文字</strong>。切换角色，就是换掉 ①，换掉 ② 里的工具，换一份 ③。</p>
+  <aside class="callout principle">
+    <p class="callout-label">Harness 原则</p>
+    <h4>提示词是 Agentic Engineering 的原子单位</h4>
+    <p>模型只读文字。想让 agent 换个身份、多一条规矩、少一种能力，最终都要变成提示词里的一段文字。会看、会写、会装配提示词，是搭 agent 的基本功。</p>
+  </aside>
+  <div class="quiz" id="q-01-know" data-answer="c">
+    <p class="q">你一句话都没说，八戒就知道自己叫八戒、只能看不能改。他是从哪儿知道的？</p>
+    <ol class="options">
+      <li data-why="模型本身不记得任何角色，每次请求它都是「新的」。">DeepSeek 自己记得</li>
+      <li data-why="八戒和悟空不共享对话，他看不到悟空说过的话。">悟空告诉他的</li>
+      <li>每次请求的包裹里，第一段就是八戒的系统提示词</li>
+      <li data-why="模型看不到你的电脑，它只读包裹里的文字。">他自己去电脑上查了</li>
+    </ol>
+    <div class="explain"><p>系统提示词每次都在包裹的最前面。模型「是谁」，全看这段文字写了什么。</p></div>
+  </div>
+  <p class="takeaway">模型知道的一切，都在每次请求的包裹里；包裹里全是文字。</p>
+</section>
 
-# Agency
-- Available tools: read_file, list_files
-- USE your tools: look at the real files instead of guessing, then answer.
-<span class="a-dim">……</span>
+<section>
+  <h2>看懂一份系统提示词</h2>
+  <p>输入 <code>/prompt</code>，就能看到当前角色包裹里的 ①。这是八戒完整的系统提示词，按<strong>来源</strong>涂了颜色（下面的例子假设练习文件夹在 <code>/Users/xiaoming/xiyou</code>）：</p>
+  <div class="legend"><span class="l-ours">我们写的（角色文件）</span><span class="l-env">harness 填的（运行环境）</span><span class="l-auto">harness 加的（每个角色都有）</span><span class="l-cond">harness 按工具加的（有的角色才有）</span></div>
+  <div class="pblocks" id="bajie-static" data-persona="bajie" data-open="1"></div>
+  <p>读的时候问三个问题：</p>
+  <ol>
+    <li><strong>它是谁？</strong>看蓝色那段：身份、任务、做法、规矩、语气。这是我们写的，最能决定角色的样子。</li>
+    <li><strong>它在哪儿干活？</strong>看黄色那行：工作目录。harness 启动时填进去，模型才知道「当前文件夹」指哪儿。</li>
+    <li><strong>它有什么规矩？</strong>看绿色的段落：harness 给每个角色都会加的通用规矩，比如「先用工具看真文件，别猜」。</li>
+  </ol>
+  <aside class="callout think">
+    <p class="callout-label">想一想</p>
+    <p>蓝色那段是中文，绿色那几段是英文。模型两种都读得懂。为什么角色正文用中文？（提示：谁要读、谁要改这段文字？）</p>
+  </aside>
+  <div class="quiz" id="q-01-source" data-answer="b">
+    <p class="q">「<code>Available tools: read_file, list_files</code>」这一行是谁写的？</p>
+    <ol class="options">
+      <li data-why="八戒的角色文件里只有中文正文，没有这一行。">我们在 <code>bajie.md</code> 里写的</li>
+      <li>harness 按八戒实际拿到的工具自动写的</li>
+      <li data-why="模型只读提示词，不写提示词。">DeepSeek 写的</li>
+      <li data-why="提示词是启动时拼好的，不是你在对话里打的。">你在对话里打的</li>
+    </ol>
+    <div class="explain"><p>工具清单是 harness 照着 <code>tools:</code> 那一行自动填的：工具变了，这一行跟着变，不用人去改提示词。</p></div>
+  </div>
+  <p class="takeaway">看提示词，先分清每一段是谁写的、为什么在这里。</p>
+</section>
 
-# Communication
-- Your replies are shown in a terminal that renders Markdown: ……
-<span class="a-dim">— 🐷 猪八戒 的 system prompt，共 1,385 字符</span></div>
-  </figure>
-  <p>前半段中文是<strong>我们写的</strong>角色正文；后面的 <code># Agency</code>、<code># Communication</code> 是 <strong>harness 自动加的</strong>英文段落。哪几段会出现，看这个角色有什么工具：</p>
+<section>
+  <h2>提示词是装配出来的</h2>
+  <p>系统提示词不是一整段写死的文字，而是 harness <strong>每次按配置拼出来的</strong>。下面这台「装配台」里的每一个字，都是 harness 在这个配置下真的会拼出来的。选一个角色，再开关它的工具，看看哪几段出现、哪几段消失：</p>
+  <div class="assembler" id="assembler">
+    <fieldset class="who"><legend>角色</legend></fieldset>
+    <fieldset class="tools"><legend>工具</legend></fieldset>
+    <p class="meter"></p>
+    <div class="legend"><span class="l-ours">我们写的</span><span class="l-env">harness 填的</span><span class="l-auto">每个角色都有</span><span class="l-cond">按工具加的</span></div>
+    <div class="pblocks"></div>
+  </div>
+  <p>把规律整理成表：</p>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>角色</th><th>提示词里有哪几段</th><th>字符数（练习文件夹里实测）</th></tr></thead>
+      <thead><tr><th>段落</th><th>谁写的</th><th>什么时候出现</th></tr></thead>
       <tbody>
-        <tr><td>🧘 唐僧</td><td>角色正文 · Agency · Communication · Guardrails · Memory</td><td>3,113</td></tr>
-        <tr><td>🐒 孙悟空</td><td>以上全部 + <strong>Verification</strong>（改完要验证）</td><td>4,000</td></tr>
-        <tr><td>🐷 猪八戒</td><td>角色正文 · Agency · Communication</td><td>1,385</td></tr>
+        <tr><td>角色正文</td><td>我们（角色文件的正文）</td><td>总是在最前面</td></tr>
+        <tr><td>Working directory</td><td>harness</td><td>总是：启动时填当前文件夹</td></tr>
+        <tr><td><code style="white-space:nowrap"># Agency</code></td><td>harness</td><td>总是：列出可用工具，要求「真去做，别只说」。工具越多，这段的规矩越多：有 <code>edit_file</code> 就加「先读后改」，有 <code>run_bash</code> 就加「被拒绝了别重试」</td></tr>
+        <tr><td><code style="white-space:nowrap"># Communication</code></td><td>harness</td><td>总是：终端能显示 Markdown，回复要短</td></tr>
+        <tr><td><code style="white-space:nowrap"># Guardrails</code></td><td>harness</td><td>有 <code>edit_file</code> 或 <code>run_bash</code>：改动要小，别乱动</td></tr>
+        <tr><td><code style="white-space:nowrap"># Verification</code></td><td>harness</td><td>有 <code>run_bash</code>：改完要运行验证，如实报告</td></tr>
+        <tr><td><code style="white-space:nowrap"># Memory</code></td><td>harness</td><td>有记忆目录、又能改文件：教它怎么记笔记</td></tr>
       </tbody>
     </table>
-  </div>
-  <p>下面是 <code>build_system_prompt</code> 的简化版。运行它，比较八戒和悟空拼出来的提示词：</p>
-  <div class="cell" data-label="试一试 · 简化版的提示词拼装">
-    <script type="text/x-python">
-def build_prompt(persona, tools):
-    sections = [persona]
-    sections.append("# Agency\n- Available tools: " + (", ".join(tools) or "(none)"))
-    if "edit_file" in tools or "run_bash" in tools:
-        sections.append("# Guardrails\n- 改动要小，先看已有的代码")
-    if "run_bash" in tools:
-        sections.append("# Verification\n- 没真的运行过，就不能说能用")
-    return "\n\n".join(sections)
-
-
-print(build_prompt("你是猪八戒。", ["read_file", "list_files"]))
-print("=" * 24)
-print(build_prompt("你是孙悟空。", ["read_file", "list_files", "edit_file", "run_bash"]))
-    </script>
-  </div>
-  <div class="quiz" id="q-01-verify" data-answer="b">
-    <p class="q">八戒的提示词里为什么没有 <code># Verification</code>（「改完要运行验证」）？</p>
-    <ol class="options">
-      <li data-why="和名字没关系：这一段只看工具。">因为他叫八戒</li>
-      <li>他没有 <code>run_bash</code>，没法运行程序，要求他验证没有意义</li>
-      <li data-why="不是忘了：这一段是按工具自动加的，有 run_bash 才加。">写提示词的人忘了加</li>
-      <li data-why="段落多少和字数无关，看的是工具。">提示词太长，删掉了</li>
-    </ol>
-    <div class="explain"><p>提示词不让角色做它做不到的事：没有手就不谈改，没法运行就不谈验证。</p></div>
   </div>
   <aside class="callout principle">
     <p class="callout-label">Harness 原则</p>
     <h4>提示词写「策略」，能力交给工具</h4>
-    <p>提示词讲的是该怎么做、有什么界限；能做什么，由工具说了算。所以提示词要跟着工具变。</p>
+    <p>提示词讲该怎么做、有什么界限；能做什么，由工具说了算。所以 harness 让提示词<strong>跟着工具变</strong>：没有手就不谈「改动要小」，没法运行就不谈「改完要验证」。</p>
   </aside>
-  <p class="takeaway">系统提示词 = 我们写的角色正文 + harness 按工具自动加的段落。</p>
+  <div class="quiz" id="q-01-verify" data-answer="b">
+    <p class="q">在装配台里给八戒打开 <code>run_bash</code>，多出了 <code>Guardrails</code> 和 <code>Verification</code> 两段。为什么一开始没有 <code>Verification</code>（「改完要运行验证」）？</p>
+    <ol class="options">
+      <li data-why="和名字没关系：这一段只看工具。">因为他叫八戒</li>
+      <li>他没有 <code>run_bash</code>，没法运行程序，要求他验证没有意义</li>
+      <li data-why="不是忘了：这一段是按工具自动加的。">写提示词的人忘了加</li>
+      <li data-why="段落多少看的是工具，不是字数。">提示词太长，删掉了</li>
+    </ol>
+    <div class="explain"><p>提示词不该要求角色做它做不到的事。规矩跟着能力走。</p></div>
+  </div>
+  <p class="takeaway">系统提示词 = 我们写的角色正文 + harness 按配置自动装配的段落。</p>
 </section>
 
 <section>
-  <h2>组件二：可用工具</h2>
-  <p>工具是 agent 的<strong>手</strong>。角色文件里 <code>tools:</code> 那一行，决定了它有哪几只手。harness 只把这几个工具的说明发给模型：</p>
-  <figure class="excerpt" data-file="src/agent.py" data-start="565" data-highlight="565,570">
-    <script type="text/x-python">
-    tools = [t for t in ALL_TOOLS if t.name in persona.tool_names]
-    memory_dir = os.path.join(memory_root, persona.id) if memory_root else None
-    ctx = replace(
-        base,
-        tool_names=[t.name for t in tools],
-        persona=persona.prompt,
-        memory_dir=memory_dir,
-        memory_index=load_memory_index(memory_dir) if memory_dir else None,
-    )
-    </script>
-    <figcaption>
-      <p>第 565 行是一个列表推导式：从全部 4 个工具里，只留下角色要的那几个。第 570 行把角色正文交给提示词。</p>
-    </figcaption>
+  <h2>写好角色提示词</h2>
+  <p>蓝色那段是我们写的，也是最值得花心思的地方。这是八戒角色文件的正文（也就是上一节蓝色那段）：</p>
+  <div class="pblocks" id="bajie-body"></div>
+  <p>三个角色的文件都是同一个结构。读完再看下面的表：每一招都能在原文里找到。</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>招数</th><th>为什么有用</th><th>八戒原文里的例子</th></tr></thead>
+      <tbody>
+        <tr><td>① 身份和团队</td><td>模型知道自己是谁、和谁配合</td><td>「你是猪八戒……猴哥写代码，师父写计划」</td></tr>
+        <tr><td>② 一句话任务</td><td>目标清楚，不跑题</td><td>「对照 PLAN.md，检查悟空写的代码」</td></tr>
+        <tr><td>③ 分步骤</td><td>复杂的活儿拆成小步，不漏步</td><td>「1. 先读 PLAN.md……2. 一条一条检查」</td></tr>
+        <tr><td>④ 说清楚输出长什么样</td><td>结果整齐、好用、能比较</td><td>「每条写成一行：✅ 做到了 / ❌ 没做到」</td></tr>
+        <tr><td>⑤ 写明做不到的事</td><td>不假装、不硬来</td><td>「你没有改文件的工具」「结论都是读代码看出来的」</td></tr>
+        <tr><td>⑥ 排好优先级</td><td>两件事冲突时知道听哪个</td><td>「规矩（比搞笑更重要）」</td></tr>
+        <tr><td>⑦ 交接</td><td>知道活儿干完交给谁</td><td>「告诉用户：输入 /persona wukong……」</td></tr>
+        <tr><td>⑧ 语气放最后</td><td>有个性，但不抢正事</td><td>「好笑的话只放在开头或结尾，别混进清单里」</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>这八招可以归进四个固定的段。专业的 agent 提示词常用这个结构，换一个领域也一样用：</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>段</th><th>管什么</th><th>对应的招数</th><th>八戒原文</th></tr></thead>
+      <tbody>
+        <tr><td>目的 <span class="en">Purpose</span></td><td>你是谁、要干什么</td><td>① ②</td><td>开头两段</td></tr>
+        <tr><td>步骤 <span class="en">Workflow</span></td><td>先做什么、后做什么</td><td>③</td><td>「怎么做」1–4</td></tr>
+        <tr><td>规矩 <span class="en">Instructions</span></td><td>边界和优先级</td><td>⑤ ⑥</td><td>「规矩（比搞笑更重要）」</td></tr>
+        <tr><td>汇报 <span class="en">Report</span></td><td>结果长什么样、交给谁</td><td>④ ⑦</td><td>✅ / ❌ 清单，「交给猴哥」</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>悟空的第一步还多了一招<strong>守卫</strong>：「先读 PLAN.md。如果没有 PLAN.md，先问用户要做什么」。缺了必需的东西就先停下来问，而且放在最前面，免得干到一半才发现白干。</p>
+  <details class="more">
+    <summary>多了解一点：提示词的 1–4 级</summary>
+    <p>把提示词按「用到的最高能力」分级，每升一级多一种能力：</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>级</th><th>多了什么能力</th><th>本课的例子</th></tr></thead>
+        <tbody>
+          <tr><td>1 · 一段话</td><td>存起来，反复用</td><td>「你是检查员，帮我看看代码。」</td></tr>
+          <tr><td>2 · 工作流</td><td>有任务、有步骤、有汇报格式</td><td>八戒</td></tr>
+          <tr><td>3 · 控制流</td><td>会判断（「如果……就……」）、会循环</td><td>悟空：「如果没有 PLAN.md，先问用户」</td></tr>
+          <tr><td>4 · 委派</td><td>把活儿派给别的 agent</td><td>后面的课：软件工厂</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>原则：<strong>能用低一级解决的，就别写高一级</strong>。级别越高，能出错的地方越多。</p>
+  </details>
+  <p>对比一个「差」的版本：</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>差的提示词</th><th>缺了什么</th></tr></thead>
+      <tbody>
+        <tr><td>「你是检查员，帮我看看代码。」</td><td>看哪些代码？对照什么检查？结果写成什么样？看完交给谁？不确定时怎么办？模型只好自己猜。</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="quiz" id="q-01-technique" data-answer="a">
+    <p class="q">八戒的提示词里写了「宁可说『不确定』，也不要瞎编」。这主要用的是哪一招？</p>
+    <ol class="options">
+      <li>⑤ 写明做不到的事：他没法运行程序，不能假装确定</li>
+      <li data-why="分步骤讲的是先做什么、后做什么。">③ 分步骤</li>
+      <li data-why="交接讲的是干完交给谁。">⑦ 交接</li>
+      <li data-why="这句不是在说语气，而是在管结论的可靠性。">⑧ 语气</li>
+    </ol>
+    <div class="explain"><p>模型很愿意「给个答案」。明确允许它说不确定，它才不会为了好看编一个。</p></div>
+  </div>
+  <p class="takeaway">好的角色提示词：身份、任务、步骤、输出格式、边界、优先级、交接，最后才是语气。</p>
+</section>
+
+<section>
+  <h2>工具和对话也是提示词</h2>
+  <p>包裹里的 ② 和 ③ 也全是文字。先看 ②：模型怎么知道有 <code>read_file</code> 这个工具？靠 harness 附上的一段<strong>工具说明书</strong>。输入 <code>/tools 名字</code> 能看到它：</p>
+  <figure class="terminal-figure wide">
+    <div class="term-title"><i></i><i></i><i></i>&nbsp; /tools read_file</div>
+<div class="terminal"><span class="a-blue">You</span>: /tools read_file
+read_file（发给模型的说明）：
+Read the contents of a given relative file path. Use this when you want to see what's inside a file. Do not use this with directory names. Returns at most 500 lines per call; page through longer files with offset and limit.
+
+参数 schema：
+{
+  "type": "object",
+  "properties": {
+    "path": {
+      "type": "string",
+      "description": "The relative path of a file in the working directory."
+    },
+    "offset": {
+      "type": "integer",
+      "description": "Optional 1-based line number to start from. Default 1."
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Optional max lines to return (&lt;= 500)."
+    }
+  },
+  "required": [
+    "path"
+  ]
+}</div>
   </figure>
-  <p>输入 <code>/tools</code> 看当前角色的工具；<code>/tools 名字</code> 看发给模型的英文说明：</p>
+  <p>模型就是读着这段英文，决定什么时候用这个工具、怎么填参数。写工具说明书，也是在写提示词。</p>
+  <p>八戒的包裹里，② 只有两份说明书：</p>
   <figure class="terminal-figure wide">
     <div class="term-title"><i></i><i></i><i></i>&nbsp; /tools</div>
 <div class="terminal"><span class="a-blue">You</span>: /tools
 🐷 猪八戒 的工具（2 个）：
   read_file   读取一个文件的内容（长文件可分页读）
   list_files  列出一个文件夹里的文件和子文件夹
-<span class="a-dim">/tools &lt;名字&gt; 看发给模型的英文说明和参数</span>
-<span class="a-blue">You</span>: /tools edit_file
-<span class="a-red">🐷 猪八戒 没有工具 edit_file</span>。有：read_file  list_files</div>
+<span class="a-dim">/tools &lt;名字&gt; 看发给模型的英文说明和参数</span></div>
   </figure>
-  <p>那行中文说明只给人看，不会发给模型。模型看到的是英文的说明和参数表。</p>
   <aside class="callout principle">
     <p class="callout-label">Harness 原则</p>
     <h4>围墙比劝告可靠</h4>
-    <p>想让八戒不改代码，可以在提示词里写「别改」，那是<strong>劝告</strong>，模型可能不听。更可靠的是根本不给他 <code>edit_file</code>，这是<strong>围墙</strong>：模型就算想改，harness 也没有这只手借给它。这就是<strong>最小权限</strong>：只给干活需要的工具。</p>
+    <p>想让八戒不改代码，可以在提示词里写「别改」，那是<strong>劝告</strong>，模型可能不听。更可靠的是包裹里根本没有 <code>edit_file</code> 的说明书，harness 也不替他执行，这是<strong>围墙</strong>。只给干活需要的工具，叫<strong>最小权限</strong>。</p>
   </aside>
-  <div class="quiz" id="q-01-wall" data-answer="c">
-    <p class="q">你想让唐僧也能运行命令。最直接的做法是？</p>
-    <ol class="options">
-      <li data-why="提示词只能劝，给不了手：没有 run_bash，说再多也运行不了。">在唐僧的提示词里加一句「你可以运行命令」</li>
-      <li data-why="模型不用换：能力在 harness 这边。">换一个更聪明的模型</li>
-      <li>在 <code>tang.md</code> 的 <code>tools:</code> 一行加上 <code>run_bash</code>，然后 <code>/persona reload</code></li>
-      <li data-why="悟空的工具是悟空的，切换角色不会把工具带过去。">先切到悟空，再切回唐僧</li>
-    </ol>
-    <div class="explain"><p>能不能做，看工具。改完角色文件，用 <code>/persona reload</code> 重新读一遍，不用重启程序。</p></div>
-  </div>
-  <p class="takeaway">可用工具决定 agent 能做什么；不给工具，比在提示词里说「别做」更可靠。</p>
-</section>
-
-<section>
-  <h2>动手挑战</h2>
-  <section class="challenge" id="ch-01-tools">
-    <div class="challenge-head"><span class="badge">挑战</span><h3>读懂 tools: 那一行</h3></div>
-    <p>角色文件里写的是一行文字，比如 <code>tools: run_bash ,read_file</code>。写一个函数 <code>pick_tools(line)</code>，把它变成工具名的列表：</p>
-    <ul>
-      <li>去掉空格；什么都没写，就返回空列表（纯聊天，一个工具都没有）。</li>
-      <li>按 <code>ALL_TOOLS</code> 的顺序排，重复的只留一个：<code>"run_bash ,read_file"</code> → <code>["read_file", "run_bash"]</code>。</li>
-      <li>遇到不认识的工具，<code>raise ValueError</code>，消息里写出它的名字。</li>
-    </ul>
-    <div class="cell">
-      <script type="text/x-python">
-ALL_TOOLS = ["read_file", "list_files", "edit_file", "run_bash"]
-
-
-def pick_tools(line):
-    # line 是 tools: 后面那一行文字，比如 "run_bash ,read_file"
-    return []
-
-
-print(pick_tools("run_bash ,read_file"))
-      </script>
-      <script type="text/x-python" class="check">
-assert pick_tools("read_file, list_files") == ["read_file", "list_files"], 'pick_tools("read_file, list_files") 应该是 ["read_file", "list_files"]。'
-assert pick_tools("  run_bash ,read_file") == ["read_file", "run_bash"], "要去掉空格，并且按 ALL_TOOLS 的顺序排：read_file 在 run_bash 前面。"
-assert pick_tools("read_file, read_file") == ["read_file"], "重复的工具只留一个。"
-assert pick_tools("") == [], "什么都没写，就是一个工具都没有：返回空列表。"
-try:
-    pick_tools("read_file, fly")
-except ValueError as e:
-    assert "fly" in str(e), "ValueError 的消息里要写出不认识的工具名 fly。"
-else:
-    raise AssertionError("遇到不认识的工具 fly，要 raise ValueError。")
-      </script>
-      <script type="text/x-python" class="solution">
-ALL_TOOLS = ["read_file", "list_files", "edit_file", "run_bash"]
-
-
-def pick_tools(line):
-    wanted = []
-    for name in line.split(","):
-        name = name.strip()
-        if name:
-            wanted.append(name)
-    for name in wanted:
-        if name not in ALL_TOOLS:
-            raise ValueError(f"不认识的工具：{name}")
-    # 按 ALL_TOOLS 的顺序挑，重复的自然只出现一次
-    return [t for t in ALL_TOOLS if t in wanted]
-
-
-print(pick_tools("run_bash ,read_file"))
-      </script>
-    </div>
-    <details class="hint"><summary>提示</summary><p>先用 <code>line.split(",")</code> 切开，每段 <code>.strip()</code> 去掉空格；再检查每个名字在不在 <code>ALL_TOOLS</code> 里；最后照着上面第 565 行的推导式，从 <code>ALL_TOOLS</code> 里挑。</p></details>
-  </section>
-  <p>机器人真正的版本在 <code>src/personas.py</code> 的 <code>load_persona</code> 里，思路和你写的一样。</p>
-  <p class="takeaway">配置是文字，harness 要先把它读成程序能用的数据，读不懂就明确报错。</p>
-</section>
-
-<section>
-  <h2>组件三：会话状态</h2>
-  <p>每个角色还有一份只属于自己的<strong>状态</strong>：对话记录、记忆目录、审批状态（你按过的「a=本会话都允许」）。机器人把一个角色的全部东西装进一个 <code>Session</code>：</p>
-  <figure class="excerpt" data-file="src/agent.py" data-start="131" data-highlight="134,135,136,137,138">
-    <script type="text/x-python">
-    name: str  # persona id，/persona 后面打的名字
-    label: str  # 展示名，如「🐷 猪八戒」
-    description: str
-    system: str
-    tools: dict[str, Tool]
-    memory_dir: str | None = None
-    approve: Callable[[ToolCall], bool] = field(default_factory=ConsoleApprover)
-    conversation: list[dict] = field(default_factory=list)
-    last_input_tokens: int | None = None  # 上一次请求的输入 token，/status 显示；还没调用过模型是 None
-    source: str | None = None  # persona 文件路径，/persona reload 重新读它；default 会话没有
-    </script>
-    <figcaption>
-      <p>高亮的五行：提示词、工具、记忆目录、审批、对话记录。<strong>切换角色就是换一个 <code>Session</code></strong>，模型不在这里面，它是大家共用的。</p>
-    </figcaption>
-  </figure>
-  <p>切换时，harness 会把变了什么打印出来：</p>
+  <p>再看 ③：对话记录每一轮都整份重寄。每个角色<strong>各有一份</strong>，切换角色就换一份。切换时 harness 会告诉你换掉了什么：</p>
   <figure class="terminal-figure wide">
     <div class="term-title"><i></i><i></i><i></i>&nbsp; /persona bajie</div>
 <div class="terminal"><span class="a-blue">You</span>: /persona bajie
 🔁 🐒 孙悟空 → 🐷 猪八戒
   工具    4 → 2（− edit_file  − run_bash）
-  提示词  4,000 → 1,385 字符（− Guardrails  − Verification  − Memory）
+  提示词  3,634 → 1,263 字符（− Guardrails  − Verification  − Memory）
   对话    🐷 猪八戒 自己的 0 条（🐒 孙悟空 的 0 条已保留）
-  记忆    …/xiyou/Memory/bajie</div>
+  记忆    /Users/xiaoming/xiyou/Memory/bajie</div>
   </figure>
-  <p>下面用两个列表模拟两份对话记录。运行看看，悟空的记录里有没有你对唐僧说的话：</p>
-  <div class="cell" data-label="试一试 · 两份对话记录">
-    <script type="text/x-python">
-sessions = {"tang": [], "wukong": []}   # 每个角色一个列表：它自己的对话记录
-current = "tang"
-
-
-def say(text):
-    sessions[current].append(text)      # 只写进「当前角色」的记录
-
-
-say("我喜欢太空游戏")
-current = "wukong"                       # 相当于 /persona wukong
-say("我喜欢什么？")
-
-print("唐僧的记录：", sessions["tang"])
-print("悟空的记录：", sessions["wukong"])
-    </script>
-  </div>
   <div class="quiz" id="q-01-memory" data-answer="b">
     <p class="q">你对唐僧说「我喜欢太空游戏」，然后切到悟空问「我喜欢什么？」。悟空会怎样？</p>
     <ol class="options">
-      <li data-why="悟空的对话记录里没有这句话，模型每次只看发给它的那份记录。">知道，因为是同一个 DeepSeek</li>
-      <li>不知道：他自己的对话记录里没有这句话</li>
-      <li data-why="角色之间不会互相打听，harness 只发当前角色的对话。">会去问唐僧</li>
+      <li data-why="悟空的包裹里装的是悟空自己的对话记录，没有这句话。">知道，因为是同一个 DeepSeek</li>
+      <li>不知道：他的包裹里没有这句话</li>
+      <li data-why="角色之间不会互相打听，harness 只寄当前角色的对话。">会去问唐僧</li>
       <li data-why="不会出错，只是他不知道。">程序报错</li>
     </ol>
-    <div class="explain"><p>模型本身什么都不记得，「记得」全靠 harness 把对话记录发过去。悟空收到的是悟空自己的那份。</p></div>
+    <div class="explain"><p>「记得」只是因为 harness 把对话记录放进了包裹。悟空的包裹里是悟空自己的那份。</p></div>
   </div>
   <details class="more">
     <summary>多了解一点：为什么不让三个角色共用一份对话？</summary>
-    <p>一是<strong>分不清自己是谁</strong>：一份对话里一会儿唐僧一会儿八戒，模型容易串戏。二是<strong>省钱</strong>：DeepSeek 会缓存每次请求开头那一段，开头不变，下次就便宜。每个角色各用一份对话，开头（它的提示词）一直不变，缓存就一直有效。终端里每次请求后那行灰字的 <code>cached</code>，就是缓存命中的 token 数。</p>
+    <p>一是<strong>分不清自己是谁</strong>：一份对话里一会儿唐僧一会儿八戒，模型容易串戏。二是<strong>省钱</strong>：DeepSeek 会缓存包裹开头那一段，开头不变，下次就便宜。每个角色各用一份对话，开头（它的系统提示词）一直不变，缓存就一直有效。终端里每次请求后那行灰字的 <code>cached</code>，就是缓存命中的 token 数。</p>
   </details>
-  <p class="takeaway">会话状态（对话、记忆、审批）每个角色一份；切换角色，换的是整份状态。</p>
+  <p class="takeaway">工具说明书和对话记录也是提示词；角色换了，它们跟着换。</p>
 </section>
 
 <section>
-  <h2>角色文件</h2>
-  <p>三个角色都是普通的文字文件，放在 <code>.agents/personas/</code> 里。上面 <code>---</code> 之间是配置，下面是正文，正文就是提示词的开头：</p>
+  <h2>动态加载与修剪</h2>
+  <p>包裹不是一成不变的。harness 会按情况<strong>往里加</strong>东西，也会在太长时<strong>往外拿</strong>东西：</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>什么</th><th>怎么进包裹</th><th>为什么这样做</th></tr></thead>
+      <tbody>
+        <tr><td>项目说明 <code>AGENTS.md</code></td><td>工作目录里有这个文件，启动时整份加进系统提示词（最多 2 万字符）</td><td>项目自己的命令、约定、踩过的坑，每个角色都该知道</td></tr>
+        <tr><td>记忆笔记</td><td>只放一张<strong>目录</strong>：每篇笔记一行标题；正文要用时再读</td><td>十几篇笔记全文放进去，还没干活就占满了。agent 自己记下的经验，下次就成了它的提示词：越用越在行</td></tr>
+        <tr><td>技能（skill）</td><td>也只放目录：每个技能一行说明；用到才读它的 <code>SKILL.md</code></td><td>同上：先知道「有什么」，用时再看「怎么做」</td></tr>
+        <tr><td>换角色 / <code>/persona reload</code></td><td>整份系统提示词换掉；reload 时对话保留</td><td>改了角色文件，马上就能看到效果</td></tr>
+        <tr><td>修剪旧的工具结果</td><td>包裹超过 6 万 token 时，把最近 5 个之外的工具结果换成一句「已省略」</td><td>读过的长文件越积越多，会挤爆包裹</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>「先放目录，用时再读全文」有个名字，叫<strong>渐进式披露</strong>：包裹里放最少但够用的东西。</p>
+  <aside class="callout watch">
+    <p class="callout-label">易错点</p>
+    <p>修剪不是每轮都做，而是超过预算时才一次性做。因为包裹开头一变，缓存就失效了：天天修剪，反而更贵。</p>
+  </aside>
+  <div class="quiz" id="q-01-disclose" data-answer="c">
+    <p class="q">记忆为什么只把笔记的<strong>标题</strong>放进系统提示词？</p>
+    <ol class="options">
+      <li data-why="笔记正文随时可以用 read_file 读，不是保密。">正文是秘密，不能给模型看</li>
+      <li data-why="模型读得懂正文，问题在于放不下、也用不着全放。">模型读不懂正文</li>
+      <li>包裹的空间有限：先告诉它有什么，用到哪篇再读哪篇</li>
+      <li data-why="标题和正文都能写中文。">标题是英文的</li>
+    </ol>
+    <div class="explain"><p>包裹越大越贵，模型也越容易分心。渐进式披露让每样东西在需要时才进来。上下文怎么管，是这个系列后面的课。</p></div>
+  </div>
+  <p class="takeaway">harness 动态决定往包裹里放什么、什么时候拿走：这就是上下文管理的起点。</p>
+</section>
+
+<section>
+  <h2>自定义一个角色</h2>
+  <p>三个角色都是 <code>.agents/personas/</code> 里的文字文件。想要一个新角色，不用改程序，写一个新文件就行：</p>
   <figure class="excerpt" data-file=".agents/personas/bajie.md" data-start="1" data-highlight="2,6">
     <script type="text/x-python">
 ---
@@ -329,31 +412,51 @@ description: 检查员：对照 PLAN.md 挑毛病，只看不改
 emoji: 🐷
 tools: read_file, list_files
 ---
-你是猪八戒，取经小队里眼尖嘴碎的检查员。你的猴哥孙悟空写代码，师父唐僧写计划。你只负责「看」：你没有改文件的工具，也没有运行程序的工具。
     </script>
     <figcaption>
-      <p><code>name</code> 是切换时要打的名字（<code>/persona bajie</code>）；<code>tools</code> 就是你刚才在挑战里解析的那一行。</p>
+      <p>两条 <code>---</code> 之间是配置，下面就是上一节的角色正文。</p>
     </figcaption>
   </figure>
-  <p>和角色有关的命令都只在终端里显示，<strong>不发给模型，也不花钱</strong>：</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>配置</th><th>管什么</th></tr></thead>
+      <tbody>
+        <tr><td><code>name</code></td><td>切换时打的名字：<code>/persona bajie</code>。小写字母、数字、连字符</td></tr>
+        <tr><td><code>title</code>、<code>emoji</code></td><td>终端里显示的名字和图标</td></tr>
+        <tr><td><code style="white-space:nowrap">description</code></td><td><code>/persona</code> 列表里的一句话介绍</td></tr>
+        <tr><td><code>tools</code></td><td>包裹里放哪几份工具说明书，harness 替它执行哪几种工具。写在一行，逗号隔开；不写就是纯聊天</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>和角色有关的命令都只在终端显示，<strong>不进包裹，也不花钱</strong>：</p>
   <div class="table-wrap">
     <table>
       <thead><tr><th>命令</th><th>作用</th></tr></thead>
       <tbody>
         <tr><td><code>/persona</code></td><td>列出所有角色，<code>→</code> 是当前的</td></tr>
         <tr><td><code>/persona 名字</code></td><td>切换，并打印换掉了什么</td></tr>
-        <tr><td><code>/persona reload</code></td><td>改完角色文件后重新读，<strong>对话保留</strong>；文件改坏了就继续用原来的</td></tr>
+        <tr><td><code>/persona reload</code></td><td>改完<strong>当前</strong>角色的文件后重新读，对话保留；文件改坏了就继续用原来的</td></tr>
         <tr><td><code>/prompt</code></td><td>当前角色完整的系统提示词</td></tr>
-        <tr><td><code>/tools</code></td><td>当前角色的工具和中文说明</td></tr>
-        <tr><td><code>/status</code></td><td>一屏看：角色、模型、工具、提示词、对话、记忆</td></tr>
+        <tr><td><code>/tools</code></td><td>当前角色的工具；<code>/tools 名字</code> 看那份工具说明书</td></tr>
+        <tr><td><code>/status</code></td><td>一屏看：角色、模型、工具、提示词长度、对话条数、记忆</td></tr>
       </tbody>
     </table>
   </div>
   <aside class="callout watch">
     <p class="callout-label">易错点</p>
-    <p><code>tools:</code> 只能写成<strong>一行</strong>，用逗号隔开。写错了工具名（比如 <code>read_files</code>），程序启动时会提醒你，并跳过这个角色。</p>
+    <p><strong>新建</strong>的角色文件要重启程序才会被发现；<code>/persona reload</code> 只重新读当前角色。<code>tools</code> 写错了名字（比如 <code>read_files</code>），启动时会提醒，并跳过这个角色。</p>
   </aside>
-  <p class="takeaway">角色就是一个文字文件：配置写在上面，提示词写在下面。</p>
+  <section class="challenge"><!-- 课后挑战：在终端里做，没有自动判分，所以不带 id、不计入进度 -->
+    <div class="challenge-head"><span class="badge">课后挑战</span><h3>请沙僧入队</h3></div>
+    <p>取经小队还差一个人。设计 🧔 <strong>沙僧</strong>：小队的<strong>记录员</strong>，把每次实验的结果记进 <code>LOG.md</code>。</p>
+    <ol>
+      <li>新建 <code>.agents/personas/shaseng.md</code>。想一想：他需要哪几个工具？（要读、要写 <code>LOG.md</code>，要不要运行命令？）</li>
+      <li>用上一节的八招写他的正文：身份和团队、一句话任务、步骤、<code>LOG.md</code> 每条记录长什么样、他不做什么、优先级、交接、语气（「大师兄，师父说得对」）。</li>
+      <li>重启程序，<code>/persona shaseng</code>，再用 <code>/prompt</code> 和 <code>/tools</code> 检查：提示词里有哪几段？工具对不对？</li>
+      <li>让他把今天四个实验记下来，看看 <code>LOG.md</code> 写得合不合你的格式。</li>
+    </ol>
+  </section>
+  <p class="takeaway">自定义角色 = 写一个文件：配置管工具，正文就是提示词。</p>
 </section>
 
 <section>
@@ -367,9 +470,8 @@ cp -r .agents/personas ../xiyou/.agents/
 cd ../xiyou
 uv run --project ../mini-harness --env-file ../mini-harness/.env ../mini-harness/src/agent.py</div>
   </figure>
-  <p>再在 <code>xiyou</code> 里放一个有毛病的小游戏 <code>game.py</code>。先在页面里运行一下，看看它哪里坏了：</p>
-  <div class="cell" data-inputs="50" data-expect-error="TypeError" data-label="试一试 · 有毛病的猜数字">
-    <script type="text/x-python">
+  <p>再在 <code>xiyou</code> 里新建一个有毛病的小游戏 <code>game.py</code>，内容如下。它藏了 3 个毛病，先别急着找，留给三人组：</p>
+  <div class="snippet"><script type="text/x-python">
 import random
 
 secret = random.randint(1, 10)
@@ -384,9 +486,7 @@ while True:
         print("小了")
     else:
         print(f"猜对了！你用了 {tries} 次")
-    </script>
-  </div>
-  <p>报错只是第一个毛病。它一共藏了 3 个，先别急着找，留给三人组。</p>
+  </script></div>
   <aside class="callout watch">
     <p class="callout-label">易错点</p>
     <p>和角色<strong>说话</strong>会调用 DeepSeek，按用量收费（很便宜，但会花钱）；斜杠命令不花钱。悟空每次运行命令都会问 <code>允许执行? [Y/n/a]</code>，先看清楚命令再回答。</p>
@@ -410,10 +510,10 @@ while True:
     <li><code>/persona wukong</code>，再说一遍</li>
     <li><code>/persona bajie</code>，再说一遍</li>
   </ol>
-  <p>把看到的填进表里（每次说法会不一样，看的是它<strong>做了什么</strong>）：</p>
+  <p>每个角色说完，都输入 <code>/prompt</code>，在它的提示词里找出<strong>是哪一句话</strong>让它这样做。填进表里（模型每次说法不一样，看的是它做了什么）：</p>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>角色</th><th>它做了什么？</th><th>用了哪些工具？（看绿色的 <code>tool:</code> 行）</th></tr></thead>
+      <thead><tr><th>角色</th><th>它做了什么？</th><th>提示词里的哪句话导致的？</th></tr></thead>
       <tbody>
         <tr><td>🧘 唐僧</td><td>　</td><td>　</td></tr>
         <tr><td>🐒 孙悟空</td><td>　</td><td>　</td></tr>
@@ -421,12 +521,8 @@ while True:
       </tbody>
     </table>
   </div>
-  <p>大概会看到：唐僧先追问你想要什么，打算写计划；悟空读代码、改代码，还会请你同意运行它；八戒读完代码列出问题，但告诉你他没有手，改不了。</p>
-  <aside class="callout think">
-    <p class="callout-label">想一想</p>
-    <p>同一句话，三个反应。用 <code>/tools</code> 和 <code>/prompt</code> 找找原因：分别是哪个组件让它们不一样？</p>
-  </aside>
-  <p class="takeaway">同一个模型，不同的 harness，就是不同的 agent。</p>
+  <p>大概会看到：唐僧先追问你想要什么，打算写计划（「你只写计划，不写 .py 程序」）；悟空读代码、改代码，还会请你同意运行它；八戒列出问题，但告诉你他没有手（「俺老猪只有眼睛没有手」）。</p>
+  <p class="takeaway">同一句话，三份提示词，三种做法。</p>
 </section>
 
 <section>
@@ -442,11 +538,11 @@ while True:
     <p class="q">想让悟空也知道你喜欢太空游戏，下面哪个办法行得通？</p>
     <ol class="options">
       <li>切到悟空，直接告诉他；或者让唐僧把它写进 <code>PLAN.md</code>，悟空去读</li>
-      <li data-why="切换次数多少不影响：harness 永远只发当前角色自己的对话。">多切换几次，让他们「熟」一点</li>
+      <li data-why="切换次数多少不影响：harness 永远只寄当前角色自己的对话。">多切换几次，让他们「熟」一点</li>
       <li data-why="重启后对话都没了，谁都不记得。">重启程序</li>
-      <li data-why="模型是一样的，问题不在模型：悟空的记录里没有这句话。">换一个更大的模型</li>
+      <li data-why="问题不在模型：悟空的包裹里没有这句话。">换一个更大的模型</li>
     </ol>
-    <div class="explain"><p>角色之间不共享对话。要传话，要么你自己说，要么通过<strong>文件</strong>：工作目录里的文件是大家共用的。</p></div>
+    <div class="explain"><p>要让一句话进悟空的包裹，要么你亲口说，要么写进文件让他读。工作目录里的文件是大家共用的。</p></div>
   </div>
   <p class="takeaway">对话记录各管各的；要交接，就写进文件。</p>
 </section>
@@ -456,14 +552,16 @@ while True:
   <ol>
     <li><code>/persona bajie</code></li>
     <li>说：别光说，直接帮我把 game.py 改好！</li>
-    <li>再输入 <code>/tools</code>，数一数他有几个工具</li>
+    <li>再输入 <code>/tools</code>，数一数他有几份工具说明书</li>
   </ol>
-  <p>八戒怎么劝都改不了：他的工具里没有 <code>edit_file</code>，harness 没把这只手给他。他大概会说「俺老猪只有眼睛没有手」。</p>
-  <aside class="callout think">
-    <p class="callout-label">想一想</p>
-    <p>八戒的提示词里也写了「你没有改文件的工具」。如果只写这句话、却把 <code>edit_file</code> 给了他，会怎样？哪一个更靠得住：提示词里的话，还是工具清单？</p>
-  </aside>
-  <p class="takeaway">禁止某件事，最可靠的办法是不给工具。</p>
+  <p>八戒怎么劝都改不了：他的包裹里没有 <code>edit_file</code>，harness 也不会替他改。</p>
+  <details class="more">
+    <summary>进阶：要是提示词和工具「打架」呢？</summary>
+    <p>在 <code>bajie.md</code> 的 <code>tools:</code> 里加上 <code>edit_file</code>，<strong>正文一个字不改</strong>（正文还写着「你没有改文件的工具」），然后 <code>/persona reload</code>，再让他改一次。</p>
+    <p>观察：他是听提示词的「我没有手」，还是用了新到手的工具？用 <code>/prompt</code> 看看，<code>Available tools</code> 那一行和正文是不是说法矛盾了。做完记得把 <code>tools:</code> 改回去，再 <code>/persona reload</code>。</p>
+    <p>结论：提示词和配置要<strong>说一样的话</strong>。改了工具，就要检查正文里有没有过时的说法。</p>
+  </details>
+  <p class="takeaway">禁止某件事，最可靠的办法是不给工具；改了工具，记得同步提示词。</p>
 </section>
 
 <section>
@@ -505,37 +603,152 @@ while True:
       <path d="M320,112 L320,80" class="d-arrow" marker-end="url(#ah-relay)"/>
       <text x="328" y="100" class="d-label">转告</text>
     </svg>
-    <figcaption>文件（<code>PLAN.md</code>、<code>game.py</code>）在三个角色之间传递；八戒的清单要由你转告悟空，因为他们不共享对话。</figcaption>
+    <figcaption>唐僧写的 <code>PLAN.md</code>，会被悟空和八戒读进他们的包裹：<strong>一个 agent 写的文件，就是下一个 agent 的提示词</strong>。</figcaption>
   </figure>
-  <p>做完后，在 <code>xiyou</code> 里看看多了哪些文件，再对每个角色 <code>/status</code>，比比谁的对话最长。</p>
+  <p>做完后打开 <code>PLAN.md</code> 读一读。这场接力里，藏着三种更高级的提示词用法：</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>用法</th><th>在接力里</th><th>要记住的</th></tr></thead>
+      <tbody>
+        <tr><td><strong>模板</strong>：用提示词生成提示词</td><td>唐僧的提示词规定了 <code>PLAN.md</code> 的格式（目标 / 功能清单 / 怎样算做完）。他写出来的 <code>PLAN.md</code>，就是给悟空的提示词</td><td>模板定好骨架，每次只填内容；模板写错，产出全错</td></tr>
+        <tr><td><strong>把提示词当参数</strong></td><td>悟空的做法固定（读计划、一步步改、运行验证），<code>PLAN.md</code> 每次不同</td><td>外层做法写一次，内层任务随便换</td></tr>
+        <tr><td><strong>指令还是数据</strong></td><td>悟空把 <code>PLAN.md</code> 当<strong>指令</strong>去执行；八戒把 <code>game.py</code> 当<strong>数据</strong>检查，不执行它</td><td>读进来的文件是要「照做」还是只「看看」，提示词里要说清楚</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>还有一个好处：<strong>人可以插在中间</strong>。悟空动手之前，你可以先打开 <code>PLAN.md</code> 改一改，他就会照着改过的计划做。最后对每个角色 <code>/status</code>，比比谁的对话最长。</p>
   <details class="more">
     <summary>多了解一点：能不能不用我传话？</summary>
     <p>能。让 harness 自己把八戒的清单交给悟空、让悟空改完自动叫八戒再查，就是更进一步的「软件工厂」：几个 agent 按流程接力，人只在关键处把关。那是这个系列后面的课。</p>
   </details>
-  <p class="takeaway">agent 之间靠文件交接；现在，你就是把它们串起来的那个流程。</p>
+  <p class="takeaway">agent 之间靠文件交接；交接的文件，就是下一个 agent 的提示词。</p>
 </section>
 
 <section class="keywords">
   <h2>小结</h2>
   <ul class="recap">
     <li><span>Agent = 模型 + harness。换角色只换 harness 的配置，模型不换。</span></li>
-    <li><span><strong>系统提示词</strong> = 我们写的角色正文 + harness 按工具自动加的段落。</span></li>
-    <li><span><strong>可用工具</strong>决定 agent 能做什么；不给工具，比在提示词里说「别做」更可靠。</span></li>
-    <li><span><strong>会话状态</strong>（对话、记忆、审批）每个角色一份；角色之间靠文件交接。</span></li>
-    <li><span>角色写在 <code>.agents/personas/名字.md</code>；<code>/persona</code>、<code>/prompt</code>、<code>/tools</code>、<code>/status</code> 随时看。</span></li>
+    <li><span>模型知道的一切都在每次请求的<strong>包裹</strong>里：系统提示词、工具说明书、对话记录，全是文字。</span></li>
+    <li><span><strong>系统提示词</strong>是装配出来的：我们写的角色正文 + harness 按配置加的段落。</span></li>
+    <li><span>好的角色提示词：身份、任务、步骤、输出格式、边界、优先级、交接，最后才是语气。</span></li>
+    <li><span>不给工具比在提示词里说「别做」更可靠；改了工具，记得同步提示词。</span></li>
+    <li><span>harness 动态往包裹里加东西、也会修剪：先放目录，用时再读全文。</span></li>
+    <li><span>文件是 agent 之间的接口：<code>PLAN.md</code> 是唐僧写给悟空的提示词；读进来的文件是指令还是数据，要说清楚。</span></li>
   </ul>
   <h3>关键词</h3>
   <dl>
-    <div><dt>角色 <span class="en">persona</span></dt><dd>一套 harness 配置：提示词、工具、自己的状态。</dd></div>
-    <div><dt>系统提示词 <span class="en">system prompt</span></dt><dd>每次请求模型最先读到的说明：你是谁、守什么规矩。</dd></div>
-    <div><dt>可用工具 <span class="en">tools</span></dt><dd>harness 借给模型的手；不在清单上的，模型用不了。</dd></div>
-    <div><dt>会话 <span class="en">session</span></dt><dd>一个角色自己的对话、记忆和审批状态。</dd></div>
+    <div><dt>系统提示词 <span class="en">system prompt</span></dt><dd>每次请求放在最前面的说明：你是谁、守什么规矩。</dd></div>
+    <div><dt>装配 <span class="en">prompt assembly</span></dt><dd>harness 按配置把几段文字拼成一份提示词。</dd></div>
+    <div><dt>角色 <span class="en">persona</span></dt><dd>一套配置：角色正文、工具、自己的对话和记忆。</dd></div>
+    <div><dt>工具说明书 <span class="en">tool description</span></dt><dd>告诉模型某个工具干什么、怎么用的一段文字。</dd></div>
     <div><dt>最小权限 <span class="en">least privilege</span></dt><dd>只给干活需要的工具。</dd></div>
+    <div><dt>渐进式披露 <span class="en">progressive disclosure</span></dt><dd>先放目录，用到时再放全文。</dd></div>
+    <div><dt>工作流提示词 <span class="en">workflow prompt</span></dt><dd>目的、步骤、规矩、汇报四段齐全的提示词。</dd></div>
+    <div><dt>模板 <span class="en">template</span></dt><dd>固定骨架、留出空位，让 agent 照着填出一份新提示词。</dd></div>
     <div><dt>交接 <span class="en">handoff</span></dt><dd>一个 agent 把成果（通常是文件）交给下一个。</dd></div>
   </dl>
+  <p class="en" style="margin-top:1.2rem;font-size:0.85rem">提示词分级、工作流四段、模板和「把提示词当参数」的说法，参考了 IndyDevDan《Tactical Agentic Coding》的 Agentic Prompt Engineering 一课。</p>
 </section>
 
 </main>
 </div>
+
+<script type="application/json" id="prompt-data">{"tools": ["read_file", "list_files", "edit_file", "run_bash"], "personas": {"tang": {"label": "🧘 唐僧", "tools": ["read_file", "list_files", "edit_file"]}, "wukong": {"label": "🐒 孙悟空", "tools": ["read_file", "list_files", "edit_file", "run_bash"]}, "bajie": {"label": "🐷 猪八戒", "tools": ["read_file", "list_files"]}}, "sections": {"s0": "你是唐僧，取经小队的师父，负责「定方向」。你的徒弟孙悟空写代码，猪八戒检查代码。你自己不写程序。\n\n你的任务：帮用户（一位小学高年级或初中的同学）把一个想法变成清楚的计划，写进工作目录里的 PLAN.md。\n\n怎么做：\n1. 先用 list_files 看看工作目录里已经有什么；如果已经有 PLAN.md，先读它。\n2. 向用户提问，弄清楚：要做一个什么程序、给谁用、有哪些功能、怎样才算做完。每次只问一两个问题，别一下子问一大串。\n3. 想法清楚了，就写 PLAN.md，格式如下：\n   - 「# 目标」：一两句话说清楚要做什么。\n   - 「# 功能清单」：每个功能一行，用 `- [ ]` 开头，写得具体，比如「- [ ] 猜错时提示『大了』或『小了』」。\n   - 「# 怎样算做完」：几条能检查的标准，比如「输入 50，程序要回答一句话，不能报错」。\n4. 写完后，把计划念给用户听，问用户还要不要改。\n5. 计划定下来以后，告诉用户：输入 `/persona wukong`，让悟空照着 PLAN.md 去做。\n\n规矩：\n- 你只写计划（.md 文件），不写 .py 程序。用户让你写代码时，告诉用户这是悟空的活儿。\n- 计划要小：一节课能做完。用户的想法太大时，帮用户挑出最重要的一两个功能先做。\n\n说话的样子：慈悲、耐心，偶尔说一句「阿弥陀佛」或「善哉」，可以有一点点唠叨，但每次回复都要短，用小学生听得懂的话。", "s1": "Working directory: /Users/xiaoming/xiyou (all relative paths are relative to it).", "s2": "# Agency\n- Available tools: (none)\n- USE your tools: look at the real files instead of guessing, then answer.\n- Do NOT explain what you WOULD do. Actually do it.\n- If a tool returns an error, read the message and retry with a corrected call instead of giving up.", "s3": "# Communication\n- Your replies are shown in a terminal that renders Markdown: lists, **bold**, `inline code` and\n  fenced code blocks with a language tag all display well.\n- The terminal is narrow: avoid wide tables, HTML and images.\n- Keep replies short and concrete. Reply in the language the user writes in.", "s4": "# Agency\n- Available tools: run_bash\n- USE your tools: look at the real files instead of guessing, then answer.\n- Do NOT explain what you WOULD do. Actually do it.\n- If a tool returns an error, read the message and retry with a corrected call instead of giving up.\n- Prefer read_file / list_files for looking at files; use run_bash for running programs.\n- If the user denies a tool call, don't retry it; ask them what they want instead.\n- Run Python scripts with `uv run <script>`, not the system `python3`. When you write a Python script, declare its dependencies inline with a PEP 723 `# /// script` block (use `dependencies = []` if it needs none): uv then runs it in its own isolated environment.", "s5": "# Guardrails\n- Prefer simple, minimal changes; don't touch code unrelated to the task.\n- Look at existing code before creating new files, and reuse existing patterns.\n- No new dependencies without asking.", "s6": "# Verification\nAfter making changes, verify your work:\n1. Run the checks that actually exist in this project (tests, linters, or just running the program).\n2. Report exactly what you ran and its result, and what you could not run (e.g. the user denied it).\n3. Do NOT inflate partial verification into a blanket success claim.\nDo NOT claim \"tests pass\" or \"it works\" unless you ran it in this session.", "s7": "# Agency\n- Available tools: edit_file\n- USE your tools: look at the real files instead of guessing, then answer.\n- Do NOT explain what you WOULD do. Actually do it.\n- If a tool returns an error, read the message and retry with a corrected call instead of giving up.\n- Read a file before editing it.", "s8": "# Memory\nNotes from earlier sessions live in /Users/xiaoming/xiyou/Memory/tang.\nNo notes yet.\n\nWriting notes:\n- Save a note when the user asks you to remember something, or when you reach a conclusion that will still be true and useful in a future session: a decision and why, a command that works, a pitfall.\n- Don't save task progress, todo lists, or anything already in the code or AGENTS.md. Never save secrets.\n- Notes hold knowledge, not code: don't save scripts or long code blocks in the notes directory. If you built something reusable, tell the user and suggest turning it into a skill; the note should only say which tool to use and why.\n- If it is a rule every contributor to this project should follow, suggest adding it to AGENTS.md instead.\n- One topic per file: /Users/xiaoming/xiyou/Memory/tang/<short-topic-slug>.md, created with edit_file (empty old_str).\n  First line `# <descriptive title>` (the index shows only this line), then `Date: 2026-10-18`, then the content. Keep it short.\n- If a note on the topic already exists, read it and update it instead of creating a duplicate; correct notes that turned out to be wrong.\n- After saving, tell the user in one line which file you wrote.", "s9": "# Agency\n- Available tools: edit_file, run_bash\n- USE your tools: look at the real files instead of guessing, then answer.\n- Do NOT explain what you WOULD do. Actually do it.\n- If a tool returns an error, read the message and retry with a corrected call instead of giving up.\n- Read a file before editing it.\n- Prefer read_file / list_files for looking at files; use run_bash for running programs.\n- If the user denies a tool call, don't retry it; ask them what they want instead.\n- Run Python scripts with `uv run <script>`, not the system `python3`. When you write a Python script, declare its dependencies inline with a PEP 723 `# /// script` block (use `dependencies = []` if it needs none): uv then runs it in its own isolated environment.", "s10": "# Agency\n- Available tools: list_files\n- USE your tools: look at the real files instead of guessing, then answer.\n- Do NOT explain what you WOULD do. Actually do it.\n- If a tool returns an error, read the message and retry with a corrected call instead of giving up.", "s11": "# Agency\n- Available tools: list_files, run_bash\n- USE your tools: look at the real files instead of guessing, then answer.\n- Do NOT explain what you WOULD do. Actually do it.\n- If a tool returns an error, read the message and retry with a corrected call instead of giving up.\n- Prefer read_file / list_files for looking at files; use run_bash for running programs.\n- If the user denies a tool call, don't retry it; ask them what they want instead.\n- Run Python scripts with `uv run <script>`, not the system `python3`. When you write a Python script, declare its dependencies inline with a PEP 723 `# /// script` block (use `dependencies = []` if it needs none): uv then runs it in its own isolated environment.", "s12": "# Agency\n- Available tools: list_files, edit_file\n- USE your tools: look at the real files instead of guessing, then answer.\n- Do NOT explain what you WOULD do. Actually do it.\n- If a tool returns an error, read the message and retry with a corrected call instead of giving up.\n- Read a file before editing it.", "s13": "# Agency\n- Available tools: list_files, edit_file, run_bash\n- USE your tools: look at the real files instead of guessing, then answer.\n- Do NOT explain what you WOULD do. Actually do it.\n- If a tool returns an error, read the message and retry with a corrected call instead of giving up.\n- Read a file before editing it.\n- Prefer read_file / list_files for looking at files; use run_bash for running programs.\n- If the user denies a tool call, don't retry it; ask them what they want instead.\n- Run Python scripts with `uv run <script>`, not the system `python3`. When you write a Python script, declare its dependencies inline with a PEP 723 `# /// script` block (use `dependencies = []` if it needs none): uv then runs it in its own isolated environment.", "s14": "# Agency\n- Available tools: read_file\n- USE your tools: look at the real files instead of guessing, then answer.\n- Do NOT explain what you WOULD do. Actually do it.\n- If a tool returns an error, read the message and retry with a corrected call instead of giving up.", "s15": "# Agency\n- Available tools: read_file, run_bash\n- USE your tools: look at the real files instead of guessing, then answer.\n- Do NOT explain what you WOULD do. Actually do it.\n- If a tool returns an error, read the message and retry with a corrected call instead of giving up.\n- Prefer read_file / list_files for looking at files; use run_bash for running programs.\n- If the user denies a tool call, don't retry it; ask them what they want instead.\n- Run Python scripts with `uv run <script>`, not the system `python3`. When you write a Python script, declare its dependencies inline with a PEP 723 `# /// script` block (use `dependencies = []` if it needs none): uv then runs it in its own isolated environment.", "s16": "# Agency\n- Available tools: read_file, edit_file\n- USE your tools: look at the real files instead of guessing, then answer.\n- Do NOT explain what you WOULD do. Actually do it.\n- If a tool returns an error, read the message and retry with a corrected call instead of giving up.\n- Read a file before editing it.", "s17": "# Agency\n- Available tools: read_file, edit_file, run_bash\n- USE your tools: look at the real files instead of guessing, then answer.\n- Do NOT explain what you WOULD do. Actually do it.\n- If a tool returns an error, read the message and retry with a corrected call instead of giving up.\n- Read a file before editing it.\n- Prefer read_file / list_files for looking at files; use run_bash for running programs.\n- If the user denies a tool call, don't retry it; ask them what they want instead.\n- Run Python scripts with `uv run <script>`, not the system `python3`. When you write a Python script, declare its dependencies inline with a PEP 723 `# /// script` block (use `dependencies = []` if it needs none): uv then runs it in its own isolated environment.", "s18": "# Agency\n- Available tools: read_file, list_files\n- USE your tools: look at the real files instead of guessing, then answer.\n- Do NOT explain what you WOULD do. Actually do it.\n- If a tool returns an error, read the message and retry with a corrected call instead of giving up.", "s19": "# Agency\n- Available tools: read_file, list_files, run_bash\n- USE your tools: look at the real files instead of guessing, then answer.\n- Do NOT explain what you WOULD do. Actually do it.\n- If a tool returns an error, read the message and retry with a corrected call instead of giving up.\n- Prefer read_file / list_files for looking at files; use run_bash for running programs.\n- If the user denies a tool call, don't retry it; ask them what they want instead.\n- Run Python scripts with `uv run <script>`, not the system `python3`. When you write a Python script, declare its dependencies inline with a PEP 723 `# /// script` block (use `dependencies = []` if it needs none): uv then runs it in its own isolated environment.", "s20": "# Agency\n- Available tools: read_file, list_files, edit_file\n- USE your tools: look at the real files instead of guessing, then answer.\n- Do NOT explain what you WOULD do. Actually do it.\n- If a tool returns an error, read the message and retry with a corrected call instead of giving up.\n- Read a file before editing it.", "s21": "# Agency\n- Available tools: read_file, list_files, edit_file, run_bash\n- USE your tools: look at the real files instead of guessing, then answer.\n- Do NOT explain what you WOULD do. Actually do it.\n- If a tool returns an error, read the message and retry with a corrected call instead of giving up.\n- Read a file before editing it.\n- Prefer read_file / list_files for looking at files; use run_bash for running programs.\n- If the user denies a tool call, don't retry it; ask them what they want instead.\n- Run Python scripts with `uv run <script>`, not the system `python3`. When you write a Python script, declare its dependencies inline with a PEP 723 `# /// script` block (use `dependencies = []` if it needs none): uv then runs it in its own isolated environment.", "s22": "你是孙悟空，取经小队里本领最大的徒弟，负责「动手」：写代码、改代码、运行代码。师父唐僧写计划，师弟猪八戒检查代码。\n\n你的任务：照着工作目录里的 PLAN.md，用 Python 把程序写出来，并且真的运行一次，证明它能用。\n\n怎么做：\n1. 先读 PLAN.md。如果没有 PLAN.md，先问用户要做什么，或者建议用户输入 `/persona tang` 请师父写计划。\n2. 一小步一小步地写：先写最简单、能跑的版本，再一个一个加功能。\n3. 代码写给小学生看：变量名清楚，用简单的写法（变量、if、while、for、函数），在关键的地方加中文注释，说明「为什么」这样写。\n4. 写完就用 run_bash 运行它。程序要用户输入时，用 `echo` 或 `printf` 把输入喂给它，例如 `printf '50\\n25\\n' | uv run guess.py`。\n5. 对照 PLAN.md 的「怎样算做完」逐条说明：哪条做到了、哪条没做到。\n6. 做完后，告诉用户：输入 `/persona bajie`，让八戒来检查。\n\n紧箍咒（这几条比你的本领更重要）：\n- 每条命令运行前，用户都要点头同意，这是师父给你戴的紧箍咒。用户说不行，就别再试同一条命令，问用户想怎么办。\n- 没真的运行过，就不能说「能用了」「测试通过了」。\n- 只改和任务有关的文件，不乱动别的东西。\n\n说话的样子：自称「俺老孙」，干劲十足，爱说「包在俺老孙身上！」。但回复要短，先做事，再用一两句话说清楚做了什么。", "s23": "# Memory\nNotes from earlier sessions live in /Users/xiaoming/xiyou/Memory/wukong.\nNo notes yet.\n\nWriting notes:\n- Save a note when the user asks you to remember something, or when you reach a conclusion that will still be true and useful in a future session: a decision and why, a command that works, a pitfall.\n- Don't save task progress, todo lists, or anything already in the code or AGENTS.md. Never save secrets.\n- Notes hold knowledge, not code: don't save scripts or long code blocks in the notes directory. If you built something reusable, tell the user and suggest turning it into a skill; the note should only say which tool to use and why.\n- If it is a rule every contributor to this project should follow, suggest adding it to AGENTS.md instead.\n- One topic per file: /Users/xiaoming/xiyou/Memory/wukong/<short-topic-slug>.md, created with edit_file (empty old_str).\n  First line `# <descriptive title>` (the index shows only this line), then `Date: 2026-10-18`, then the content. Keep it short.\n- If a note on the topic already exists, read it and update it instead of creating a duplicate; correct notes that turned out to be wrong.\n- After saving, tell the user in one line which file you wrote.", "s24": "你是猪八戒，取经小队里眼尖嘴碎的检查员。你的猴哥孙悟空写代码，师父唐僧写计划。你只负责「看」：你没有改文件的工具，也没有运行程序的工具。\n\n你的任务：对照工作目录里的 PLAN.md，检查悟空写的代码，告诉用户哪里做到了、哪里有问题。\n\n怎么做：\n1. 先读 PLAN.md，再用 list_files 找到代码文件，逐个读一遍。\n2. 按 PLAN.md 的功能清单和「怎样算做完」，一条一条检查，每条写成一行：\n   - ✅ 做到了：说出是哪个文件、大概哪一行。\n   - ❌ 没做到或有问题：说清楚问题在哪个文件、哪一行，为什么不对，会出什么事。\n3. 再看看有没有清单里没写、但会让程序出错的地方，比如用户输入的不是数字、循环停不下来。\n4. 最后一句话总结，并告诉用户：输入 `/persona wukong`，把你的清单交给猴哥去改。（你和猴哥不共享聊天记录，用户要把清单告诉他。）\n\n规矩（比搞笑更重要）：\n- 结论必须准确。宁可说「这里俺老猪没看明白，不确定」，也不要瞎编。\n- 你没法运行程序，所以你的结论都是「读代码看出来的」，要这样告诉用户。\n- 用户让你改代码，你就说：「俺老猪只有眼睛没有手，这活儿得找猴哥。」\n\n说话的样子：自称「俺老猪」，嘴碎、爱抱怨两句，比如「哎呀，这活儿可真费眼睛」。但清单本身要条理清楚，好笑的话只放在开头或结尾，别混进清单里。", "s25": "# Memory\nNotes from earlier sessions live in /Users/xiaoming/xiyou/Memory/bajie.\nNo notes yet.\n\nWriting notes:\n- Save a note when the user asks you to remember something, or when you reach a conclusion that will still be true and useful in a future session: a decision and why, a command that works, a pitfall.\n- Don't save task progress, todo lists, or anything already in the code or AGENTS.md. Never save secrets.\n- Notes hold knowledge, not code: don't save scripts or long code blocks in the notes directory. If you built something reusable, tell the user and suggest turning it into a skill; the note should only say which tool to use and why.\n- If it is a rule every contributor to this project should follow, suggest adding it to AGENTS.md instead.\n- One topic per file: /Users/xiaoming/xiyou/Memory/bajie/<short-topic-slug>.md, created with edit_file (empty old_str).\n  First line `# <descriptive title>` (the index shows only this line), then `Date: 2026-10-18`, then the content. Keep it short.\n- If a note on the topic already exists, read it and update it instead of creating a duplicate; correct notes that turned out to be wrong.\n- After saving, tell the user in one line which file you wrote."}, "combos": {"tang|0000": ["s0", "s1", "s2", "s3"], "tang|0001": ["s0", "s1", "s4", "s3", "s5", "s6"], "tang|0010": ["s0", "s1", "s7", "s3", "s5", "s8"], "tang|0011": ["s0", "s1", "s9", "s3", "s5", "s6", "s8"], "tang|0100": ["s0", "s1", "s10", "s3"], "tang|0101": ["s0", "s1", "s11", "s3", "s5", "s6"], "tang|0110": ["s0", "s1", "s12", "s3", "s5", "s8"], "tang|0111": ["s0", "s1", "s13", "s3", "s5", "s6", "s8"], "tang|1000": ["s0", "s1", "s14", "s3"], "tang|1001": ["s0", "s1", "s15", "s3", "s5", "s6"], "tang|1010": ["s0", "s1", "s16", "s3", "s5", "s8"], "tang|1011": ["s0", "s1", "s17", "s3", "s5", "s6", "s8"], "tang|1100": ["s0", "s1", "s18", "s3"], "tang|1101": ["s0", "s1", "s19", "s3", "s5", "s6"], "tang|1110": ["s0", "s1", "s20", "s3", "s5", "s8"], "tang|1111": ["s0", "s1", "s21", "s3", "s5", "s6", "s8"], "wukong|0000": ["s22", "s1", "s2", "s3"], "wukong|0001": ["s22", "s1", "s4", "s3", "s5", "s6"], "wukong|0010": ["s22", "s1", "s7", "s3", "s5", "s23"], "wukong|0011": ["s22", "s1", "s9", "s3", "s5", "s6", "s23"], "wukong|0100": ["s22", "s1", "s10", "s3"], "wukong|0101": ["s22", "s1", "s11", "s3", "s5", "s6"], "wukong|0110": ["s22", "s1", "s12", "s3", "s5", "s23"], "wukong|0111": ["s22", "s1", "s13", "s3", "s5", "s6", "s23"], "wukong|1000": ["s22", "s1", "s14", "s3"], "wukong|1001": ["s22", "s1", "s15", "s3", "s5", "s6"], "wukong|1010": ["s22", "s1", "s16", "s3", "s5", "s23"], "wukong|1011": ["s22", "s1", "s17", "s3", "s5", "s6", "s23"], "wukong|1100": ["s22", "s1", "s18", "s3"], "wukong|1101": ["s22", "s1", "s19", "s3", "s5", "s6"], "wukong|1110": ["s22", "s1", "s20", "s3", "s5", "s23"], "wukong|1111": ["s22", "s1", "s21", "s3", "s5", "s6", "s23"], "bajie|0000": ["s24", "s1", "s2", "s3"], "bajie|0001": ["s24", "s1", "s4", "s3", "s5", "s6"], "bajie|0010": ["s24", "s1", "s7", "s3", "s5", "s25"], "bajie|0011": ["s24", "s1", "s9", "s3", "s5", "s6", "s25"], "bajie|0100": ["s24", "s1", "s10", "s3"], "bajie|0101": ["s24", "s1", "s11", "s3", "s5", "s6"], "bajie|0110": ["s24", "s1", "s12", "s3", "s5", "s25"], "bajie|0111": ["s24", "s1", "s13", "s3", "s5", "s6", "s25"], "bajie|1000": ["s24", "s1", "s14", "s3"], "bajie|1001": ["s24", "s1", "s15", "s3", "s5", "s6"], "bajie|1010": ["s24", "s1", "s16", "s3", "s5", "s25"], "bajie|1011": ["s24", "s1", "s17", "s3", "s5", "s6", "s25"], "bajie|1100": ["s24", "s1", "s18", "s3"], "bajie|1101": ["s24", "s1", "s19", "s3", "s5", "s6"], "bajie|1110": ["s24", "s1", "s20", "s3", "s5", "s25"], "bajie|1111": ["s24", "s1", "s21", "s3", "s5", "s6", "s25"]}}</script>
+<script>
+  // 装配台：数据是用真的 harness（build_system_prompt）为每个角色、每种工具组合预先算好的，这里只负责显示
+  document.addEventListener("DOMContentLoaded", () => {
+    const D = JSON.parse(document.getElementById("prompt-data").textContent);
+    const ZH = { read_file: "读", list_files: "列", edit_file: "改", run_bash: "跑" };
+    const KIND = {
+      Agency: ["auto", "每个角色都有：列出工具，要求真去做"],
+      Communication: ["auto", "每个角色都有：回复的样子"],
+      Guardrails: ["cond", "有 edit_file 或 run_bash 才有"],
+      Verification: ["cond", "有 run_bash 才有"],
+      Memory: ["cond", "有记忆目录、又能改文件才有"],
+    };
+    const esc = (s) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
+    const bits = (names) => D.tools.map((t) => (names.includes(t) ? "1" : "0")).join("");
+    const textOf = (ids) => [D.sections[ids[0]] + "\n" + D.sections[ids[1]], ...ids.slice(2).map((i) => D.sections[i])].join("\n\n");
+
+    function render(box, pid, names, openBody, bodyOnly) {
+      const ids = D.combos[`${pid}|${bits(names)}`].slice(0, bodyOnly ? 1 : undefined);
+      const p = D.personas[pid];
+      box.innerHTML = "";
+      ids.forEach((id, i) => {
+        const text = D.sections[id];
+        let cls, title, why;
+        if (i === 0) [cls, title, why] = ["ours", "角色正文", `我们写的：${pid}.md 的正文`];
+        else if (i === 1) [cls, title, why] = ["env", "Working directory", "harness 启动时填的：当前文件夹"];
+        else {
+          const head = text.split("\n")[0].replace(/^# /, "");
+          [cls, why] = KIND[head] || ["auto", "harness 加的"];
+          title = "# " + head;
+        }
+        const el = document.createElement("div");
+        el.className = "pblock " + cls;
+        const body = i === 0
+          ? `<details${openBody ? " open" : ""}><summary>${esc(text.split("\n")[0])}</summary><pre>${esc(text.split("\n").slice(1).join("\n").replace(/^\n+/, ""))}</pre></details>`
+          : `<pre>${esc(text)}</pre>`;
+        el.innerHTML = `<div class="ph"><b>${esc(title)}</b><span class="why">${esc(why)}</span></div>${body}`;
+        box.append(el);
+      });
+      return bodyOnly ? null : textOf(ids).length;
+    }
+
+    const stat = document.getElementById("bajie-static");
+    if (stat) render(stat, "bajie", D.personas.bajie.tools, true);
+    const bodyBox = document.getElementById("bajie-body");
+    if (bodyBox) render(bodyBox, "bajie", D.personas.bajie.tools, true, true);
+
+    const asm = document.getElementById("assembler");
+    if (!asm) return;
+    const who = asm.querySelector(".who");
+    const tl = asm.querySelector(".tools");
+    const meter = asm.querySelector(".meter");
+    const blocks = asm.querySelector(".pblocks");
+    let pid = "wukong";
+    Object.entries(D.personas).forEach(([id, p]) => {
+      const lab = document.createElement("label");
+      lab.innerHTML = `<input type="radio" name="asm-who" value="${id}"${id === pid ? " checked" : ""}> ${esc(p.label)}`;
+      who.append(lab);
+    });
+    D.tools.forEach((t) => {
+      const lab = document.createElement("label");
+      lab.innerHTML = `<input type="checkbox" value="${t}"> ${ZH[t]} <code>${t}</code>`;
+      tl.append(lab);
+    });
+    const reset = document.createElement("button");
+    reset.type = "button";
+    reset.className = "btn ghost";
+    reset.textContent = "恢复它真正的工具";
+    tl.append(reset);
+
+    const checks = () => [...tl.querySelectorAll("input:checked")].map((c) => c.value);
+    function setTools(names) {
+      tl.querySelectorAll("input").forEach((c) => (c.checked = names.includes(c.value)));
+    }
+    function update() {
+      const names = checks();
+      const real = D.personas[pid].tools;
+      const n = render(blocks, pid, names, false);
+      const realN = textOf(D.combos[`${pid}|${bits(real)}`]).length;
+      const same = bits(names) === bits(real);
+      meter.innerHTML = `${esc(D.personas[pid].label)} · 工具 ${names.length} 个 · 系统提示词 <strong>${n.toLocaleString("en-US")}</strong> 字符` +
+        (same ? "（就是它角色文件里的配置）" : ` <span class="delta">（它真正的配置是 ${realN.toLocaleString("en-US")} 字符）</span>`);
+    }
+    who.addEventListener("change", (e) => {
+      pid = e.target.value;
+      setTools(D.personas[pid].tools);
+      update();
+    });
+    tl.addEventListener("change", update);
+    reset.addEventListener("click", () => {
+      setTools(D.personas[pid].tools);
+      update();
+    });
+    setTools(D.personas[pid].tools);
+    update();
+  });
+</script>
 </body>
 </html>

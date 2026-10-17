@@ -125,8 +125,14 @@
 
 ## 九、Harness 系列教程的第一课
 
-- 目录 `rh-learn-agent-harness/`（系列规划中）。第 01 课 `lessons/01-three-agents.html`「一个大脑，三个角色」：
-  三个核心组件（系统提示词、可用工具、会话状态）+ 角色文件 + 第五节的四个实验。
+- 目录 `rh-learn-agent-harness/`（系列规划中）。第 01 课 `lessons/01-three-agents.html`「一个大脑，三个角色」。
+- 方向（用户 2026-10-16 修正）：系列的重心是理解 harness 的组件、学会配置和自定义它们来搭领域 agent，
+  **不讲代码实现**。第 01 课因此围绕提示词层：模型每次读到的「包裹」、看懂系统提示词（按来源分色）、
+  装配台（开关工具看段落增减）、写好角色提示词（八招 / 工作流四段 / 守卫 / 1–4 级）、工具说明书和对话也是提示词、
+  动态加载与修剪、自定义角色（课后挑战：沙僧），以及第五节的四个实验（接力部分讲模板、把提示词当参数、指令还是数据）。
+  提示词分级和模板等说法参考 IndyDevDan《Tactical Agentic Coding》的 Agentic Prompt Engineering 一课。
+- 装配台的数据是用真的 `build_system_prompt` 为 3 个角色 × 16 种工具组合预先算好的，嵌在页面里；页面只负责显示。
 - `assets/`、`tools/check_lessons.py` 复制自 `rh-learn-python`，只改了课程配置；校验：`uv run rh-learn-agent-harness/tools/check_lessons.py`。
-- 课里的终端输出（`/persona`、`/tools`、`/prompt`、`/status`）是在练习文件夹里真实运行 harness 得到的，只缩短了路径；
+- 课里的终端输出（`/persona`、`/tools`、`/prompt`）和装配台的字符数，都是 harness 在示例练习文件夹
+  `/Users/xiaoming/xiyou` 下真实产生的（用 stub provider 跑斜杠命令，不调用模型），所以各处数字一致；
   模型的回答每次不同，课里只写「大概会看到」，没有编造对话记录。

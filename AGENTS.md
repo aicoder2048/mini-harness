@@ -9,6 +9,9 @@ Clarity beats features: keep changes small and easy to read.
 - Live tests: `uv run --env-file .env pytest -m live` — real DeepSeek API, costs money, skipped by default.
   Run them after changing `providers.py`, `prompt.py`, tool descriptions or context pruning, or when asked.
 - Lint / format check: `uvx ruff check src tests && uvx ruff format --check src tests`
+- Course checks, after changing `src/` or `.agents/personas/`: `uv run rh-learn-python/tools/check_lessons.py`,
+  `uv run rh-learn-agent-harness/tools/check_lessons.py`, `uv run rh-learn-agent-harness/tools/build_lesson01.py --check`.
+  `rh-learn-agent-harness/lessons/01-three-agents.html` is generated: edit `tools/templates/01-three-agents.html`, then rebuild.
 - Auto-fix formatting: `uvx ruff format src tests`
 - Use `uv` for everything Python; never `pip install`, and never run scripts with the system `python3`.
   Stand-alone scripts (e.g. a skill's `scripts/`) declare their dependencies inline with a PEP 723
